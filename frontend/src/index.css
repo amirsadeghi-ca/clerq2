@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme tokens ── */
+
+:root {
+  /* Backgrounds */
+  --c-bg:        #f5f5f5;
+  --c-surface:   #ffffff;
+  --c-surface-2: #f8f8f8;
+  --c-surface-3: #f0f0f0;
+
+  /* Borders */
+  --c-border:   #e8e8e8;
+  --c-border-2: #d4d4d4;
+  --c-border-3: #bbbbbb;
+  --c-divider:  #eeeeee;
+
+  /* Text */
+  --c-text-1: #111111;
+  --c-text-2: #555555;
+  --c-text-3: #777777;
+  --c-text-4: #999999;
+  --c-text-5: #aaaaaa;
+  --c-text-6: #bbbbbb;
+
+  /* Hover / active overlays */
+  --c-hover-1: rgba(0, 0, 0, 0.03);
+  --c-hover-2: rgba(0, 0, 0, 0.04);
+  --c-hover-3: rgba(0, 0, 0, 0.05);
+  --c-active:  rgba(0, 0, 0, 0.07);
+
+  /* React Flow */
+  --c-rf-dot:  #d4d4d4;
+  --c-rf-edge: #c4c4c4;
+  --c-rf-mask: rgba(245, 245, 245, 0.85);
+}
+
+.dark {
+  --c-bg:        #0a0a0a;
+  --c-surface:   #111111;
+  --c-surface-2: #0d0d0d;
+  --c-surface-3: #1a1a1a;
+
+  --c-border:   #1a1a1a;
+  --c-border-2: #222222;
+  --c-border-3: #2a2a2a;
+  --c-divider:  #141414;
+
+  --c-text-1: #e8e8e8;
+  --c-text-2: #aaaaaa;
+  --c-text-3: #888888;
+  --c-text-4: #666666;
+  --c-text-5: #555555;
+  --c-text-6: #333333;
+
+  --c-hover-1: rgba(255, 255, 255, 0.02);
+  --c-hover-2: rgba(255, 255, 255, 0.03);
+  --c-hover-3: rgba(255, 255, 255, 0.04);
+  --c-active:  rgba(255, 255, 255, 0.06);
+
+  --c-rf-dot:  #1c1c1c;
+  --c-rf-edge: #3a3a3a;
+  --c-rf-mask: rgba(10, 10, 10, 0.8);
+}
+
+/* ── Base ── */
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  html { font-size: 14px; }
+
+  body {
+    background: var(--c-bg);
+    color: var(--c-text-1);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--c-border-3); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--c-text-5); }
+}
+
+/* ── React Flow: strip all default node wrapper styles ── */
+.react-flow__node-input,
+.react-flow__node-output,
+.react-flow__node-pdf_to_images,
+.react-flow__node-validate_documents,
+.react-flow__node-show_results,
+.react-flow__node-email_input,
+.react-flow__node-ai,
+.react-flow__node-send_email,
+.react-flow__node-default {
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  width: auto !important;
+  font-size: inherit !important;
+  text-align: left !important;
+  color: inherit !important;
+}
+
+.react-flow__node.selected,
+.react-flow__node:focus,
+.react-flow__node:focus-visible {
+  outline: none !important;
+}
+
+/* ── React Flow canvas ── */
+.react-flow {
+  background-color: var(--c-bg) !important;
+}
+
+/* ── Edges ── */
+.react-flow__edge-path {
+  stroke: var(--c-rf-edge);
+  stroke-width: 1.5;
+}
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #6366f1;
+}
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke: #6366f1;
+  stroke-dasharray: 6 3;
+  animation: rf-dash 0.8s linear infinite;
+}
+@keyframes rf-dash { to { stroke-dashoffset: -18; } }
+
+/* ── Handles ── */
+.react-flow__handle {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+.react-flow__handle:hover { transform: scale(1.6); }
+
+/* ── Connection line while dragging ── */
+.react-flow__connectionline path {
+  stroke: #6366f1;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+}
+
+/* ── Controls & MiniMap ── */
+.react-flow__controls {
+  border: 1px solid var(--c-border-2) !important;
+  border-radius: 6px !important;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+.react-flow__controls-button {
+  background: var(--c-surface) !important;
+  border-bottom: 1px solid var(--c-border-2) !important;
+  color: var(--c-text-4) !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+.react-flow__controls-button:hover {
+  background: var(--c-surface-2) !important;
+  color: var(--c-text-2) !important;
+}
+.react-flow__controls-button svg { fill: currentColor !important; }
+.react-flow__minimap { border: 1px solid var(--c-border-2) !important; border-radius: 6px !important; overflow: hidden; }
