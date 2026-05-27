@@ -51,8 +51,12 @@ def _pdf_to_b64_images(pdf_path: str, max_pages: int = 20, scale: float = 2.0) -
     return result
 
 
-def _build_prompt(policy: Policy, doc_images: list[str], doc_name: str | None = None) -> list[dict]:
-    """Build the OpenAI messages list for the validation call."""
+def _build_prompt(policy: Policy, doc_content_blocks: list[dict], doc_name: str | None = None) -> list[dict]:
+    """Build the OpenAI messages list for the validation call.
+
+    doc_content_blocks: OpenAI content dicts — either image_url blocks (for PDFs/images)
+    or text blocks (for Word/Excel/CSV after text extraction).
+    """
     rules_text = []
     sample_sections = []
     for i, rule in enumerate(policy.rules, 1):
@@ -76,8 +80,10 @@ def _build_prompt(policy: Policy, doc_images: list[str], doc_name: str | None = 
     system_msg = {
         "role": "system",
         "content": (
-            "You are a document validation AI. You will be shown images of a document packet "
-            "and a list of validation rules. Carefully examine ALL images and respond ONLY with "
+            "You are a document validation AI. You will be given the content of a document packet "
+            "— which may include page images (for PDFs and image files) and/or extracted text "
+            "(for Word, Excel, or CSV files) — and a list of validation rules. "
+            "Carefully examine ALL provided content and respond ONLY with "
             "a valid JSON object matching this exact schema:\n"
             '{"results": [{"rule_name": str, "requirement": str, "status": "pass"|"fail"|"uncertain", '
             '"confidence": float (0.0-1.0), "evidence": str, "extracted": {}}]}\n'
@@ -95,9 +101,9 @@ def _build_prompt(policy: Policy, doc_images: list[str], doc_name: str | None = 
     }
 
     if doc_name:
-        doc_description = f"The following images are the pages of document \"{doc_name}\" to validate:"
+        doc_description = f'The following is the content of document "{doc_name}" to validate:'
     else:
-        doc_description = "The following images are the document packet pages to validate:"
+        doc_description = "The following is the document packet content to validate:"
 
     user_content: list[dict] = [
         {
@@ -111,8 +117,7 @@ def _build_prompt(policy: Policy, doc_images: list[str], doc_name: str | None = 
         }
     ]
 
-    for b64 in doc_images:
-        user_content.append(_image_content(b64))
+    user_content.extend(doc_content_blocks)
 
     if sample_sections:
         user_content.append({
@@ -139,11 +144,11 @@ def _call_ai_once(
     client: OpenAI,
     model: str,
     policy: Policy,
-    doc_images: list[str],
+    doc_content_blocks: list[dict],
     doc_name: str | None = None,
 ) -> list[dict]:
-    """Call the AI once for a set of doc images. Returns the raw results list."""
-    messages = _build_prompt(policy, doc_images, doc_name=doc_name)
+    """Call the AI once for a document's content blocks. Returns the raw results list."""
+    messages = _build_prompt(policy, doc_content_blocks, doc_name=doc_name)
 
     # Log prompt structure
     label = f'"{doc_name}"' if doc_name else "document"
@@ -156,7 +161,7 @@ def _call_ai_once(
         elif isinstance(content, list):
             for item in content:
                 if item.get("type") == "text":
-                    step_log(step_id, f"[{role}] {item['text']}")
+                    step_log(step_id, f"[{role}] {item['text'][:500]}")
                 elif item.get("type") == "image_url":
                     url = item.get("image_url", {}).get("url", "")
                     kb = len(url) * 3 // 4 // 1024
@@ -295,20 +300,35 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
                 doc_id = doc_info.get("id")
                 doc_name = doc_info.get("filename", f"document {doc_id}")
                 image_paths_rel: list[str] = doc_info.get("image_paths", [])
+                text_content: str | None = doc_info.get("text_content")
                 all_image_paths.extend(image_paths_rel)
 
-                step_log(step_id, f"Encoding: {doc_name}")
+                doc_content_blocks: list[dict] = []
 
-                doc_images: list[str] = []
-                for rel_path in image_paths_rel[:MAX_DOC_IMAGES]:
-                    abs_path = os.path.join(settings.storage_path, rel_path)
-                    try:
-                        doc_images.append(_encode_image(abs_path))
-                    except FileNotFoundError:
-                        pass
+                if text_content:
+                    # Text-extracted document (Word / Excel / CSV)
+                    doc_content_blocks.append({
+                        "type": "text",
+                        "text": f'=== Document: "{doc_name}" ===\n{text_content}',
+                    })
+                    step_log(step_id, f"  {doc_name}: {len(text_content):,} chars (text)")
+                else:
+                    # Image/PDF document — encode pages
+                    for rel_path in image_paths_rel[:MAX_DOC_IMAGES]:
+                        abs_path = os.path.join(settings.storage_path, rel_path)
+                        try:
+                            doc_content_blocks.append(_image_content(_encode_image(abs_path)))
+                        except FileNotFoundError:
+                            pass
+                    if doc_content_blocks:
+                        total_mb = sum(
+                            len(b.get("image_url", {}).get("url", "")) * 3 // 4
+                            for b in doc_content_blocks
+                        ) / (1024 * 1024)
+                        step_log(step_id, f"  {doc_name}: {len(doc_content_blocks)} image(s) — {total_mb:.1f} MB")
 
-                if not doc_images:
-                    step_log(step_id, f"  {doc_name}: no images available, skipping")
+                if not doc_content_blocks:
+                    step_log(step_id, f"  {doc_name}: no content available, skipping")
                     per_doc_results.append({
                         "document_id": doc_id,
                         "document_filename": doc_name,
@@ -316,11 +336,8 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
                     })
                     continue
 
-                total_mb = sum(len(img) * 3 // 4 for img in doc_images) / (1024 * 1024)
-                step_log(step_id, f"  {doc_name}: {len(doc_images)} image(s) — {total_mb:.1f} MB")
-
                 raise_if_cancelled(run_id)
-                doc_ai_results = _call_ai_once(step_id, ai_client, model, policy, doc_images, doc_name=doc_name)
+                doc_ai_results = _call_ai_once(step_id, ai_client, model, policy, doc_content_blocks, doc_name=doc_name)
                 n_pass = sum(1 for r in doc_ai_results if r.get("status") == "pass")
                 n_fail = sum(1 for r in doc_ai_results if r.get("status") == "fail")
                 n_unc  = sum(1 for r in doc_ai_results if r.get("status") == "uncertain")
@@ -338,13 +355,22 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
         else:
             # ── Single-doc fallback (workflow-editor / email_input chains) ──
             image_paths: list[str] = input_data.get("image_paths", [])
+            single_text_content: str | None = input_data.get("text_content")
 
-            doc_images_single: list[str] = []
-            if image_paths:
+            single_content_blocks: list[dict] = []
+
+            if single_text_content:
+                # Text-extracted file (Word/Excel/CSV processed by pdf_to_images node)
+                single_content_blocks.append({
+                    "type": "text",
+                    "text": single_text_content,
+                })
+                step_log(step_id, f"Input is text — {len(single_text_content):,} chars")
+            elif image_paths:
                 for rel_path in image_paths[:MAX_DOC_IMAGES]:
                     abs_path = os.path.join(settings.storage_path, rel_path)
                     try:
-                        doc_images_single.append(_encode_image(abs_path))
+                        single_content_blocks.append(_image_content(_encode_image(abs_path)))
                     except FileNotFoundError:
                         pass
             else:
@@ -354,24 +380,30 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
                     ext = os.path.splitext(abs_path)[1].lower()
                     if ext == ".pdf":
                         step_log(step_id, f"Input is PDF — converting inline (max {MAX_DOC_IMAGES} pages)")
-                        doc_images_single = _pdf_to_b64_images(abs_path, max_pages=MAX_DOC_IMAGES)
+                        for b64 in _pdf_to_b64_images(abs_path, max_pages=MAX_DOC_IMAGES):
+                            single_content_blocks.append(_image_content(b64))
                     elif ext in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
                         step_log(step_id, "Input is image — encoding directly")
                         try:
-                            doc_images_single = [_encode_image(abs_path)]
+                            single_content_blocks.append(_image_content(_encode_image(abs_path)))
                         except FileNotFoundError:
                             pass
 
-            if not doc_images_single:
-                raise ValueError("No document images available to validate")
+            if not single_content_blocks:
+                raise ValueError("No document content available to validate")
 
-            total_mb = sum(len(img) * 3 // 4 for img in doc_images_single) / (1024 * 1024)
-            step_log(step_id, f"Encoded {len(doc_images_single)} image(s) — {total_mb:.1f} MB total")
-            if total_mb > 28:
-                raise ValueError(
-                    f"Document images total {total_mb:.1f} MB, exceeding OpenRouter's 30 MB limit. "
-                    "Reduce the PDF→Images scale (try 1.5 or 1.0) or use a shorter document."
-                )
+            image_blocks = [b for b in single_content_blocks if b.get("type") == "image_url"]
+            if image_blocks:
+                total_mb = sum(
+                    len(b.get("image_url", {}).get("url", "")) * 3 // 4
+                    for b in image_blocks
+                ) / (1024 * 1024)
+                step_log(step_id, f"Encoded {len(image_blocks)} image(s) — {total_mb:.1f} MB total")
+                if total_mb > 28:
+                    raise ValueError(
+                        f"Document images total {total_mb:.1f} MB, exceeding OpenRouter's 30 MB limit. "
+                        "Reduce the PDF→Images scale (try 1.5 or 1.0) or use a shorter document."
+                    )
 
             sample_section_count = sum(
                 1 for rule in policy.rules
@@ -380,7 +412,7 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
             if sample_section_count:
                 step_log(step_id, f"Attached reference samples for {sample_section_count} rule(s)")
 
-            results = _call_ai_once(step_id, ai_client, model, policy, doc_images_single)
+            results = _call_ai_once(step_id, ai_client, model, policy, single_content_blocks)
 
         # Compute overall using stored policy requirements
         required_statuses = [

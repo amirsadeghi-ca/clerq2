@@ -100,7 +100,7 @@ clerq2/
 │
 ├── api/
 │   ├── Dockerfile            ← python:3.11-slim, installs via uv
-│   ├── pyproject.toml        ← dependencies (FastAPI, Celery, pymupdf, etc.)
+│   ├── pyproject.toml        ← dependencies (FastAPI, Celery, pymupdf, python-docx, openpyxl, etc.)
 │   └── app/
 │       ├── main.py           ← FastAPI app, CORS, router registration, startup
 │       ├── config.py         ← Pydantic Settings (DATABASE_URL, REDIS_URL, STORAGE_PATH)
@@ -203,6 +203,8 @@ clerq2/
 Tables are created automatically on API startup via `create_tables()` then `run_migrations()` in `database.py`. New tables are created by `create_all()`; new columns on existing tables are added via safe `ALTER TABLE ADD COLUMN` with try/except (SQLite-compatible). Never drop data; use archive flags instead.
 
 **Phase 1A (multi-doc support):** Added `workflow_run_documents` join table. `trigger_run` now accepts `docs: list[Document]`. The `input`, `pdf_to_images`, and `validate_documents` nodes all handle a `documents: [...]` list in their input/output data. Validation results include a `per_document` array on each rule entry when multiple documents are evaluated.
+
+**Phase 2 (Word/Excel/CSV ingestion):** `pdf_to_images` detects `.docx`, `.xlsx`, `.xls`, `.csv` by extension and extracts text instead of rendering pages. Each doc entry in the output now carries either `image_paths` (PDF/image) or `text_content` (str, capped at 50 K chars). `validate_documents` passes text docs as `{"type": "text", ...}` content blocks alongside `image_url` blocks — the AI sees both. Mixed sets (PDF + Word + CSV in one run) work end-to-end. New dependencies: `python-docx`, `openpyxl`. The Validate screen file input now accepts `.docx,.xlsx,.xls,.csv` in addition to PDF and images.
 
 ```sql
 workflows (
@@ -435,7 +437,7 @@ import app.models.run       # noqa: F401
 |---|---|---|---|
 | `input` | `{document_id, file_path, mime_type}` | same | none |
 | `email_input` | `{document_id?, file_path?, mime_type?}` | `{subject?, from?, to?, body?, file_path?, mime_type?, document_id?}` | `fields: string[]` (default all 5: subject/from/to/body/attachments) |
-| `pdf_to_images` | `{document_id, file_path}` | `{document_id, image_paths: [str], page_count: int}` | `scale` (float, default 2.0) |
+| `pdf_to_images` | `{document_id, file_path}` | `{document_id, image_paths: [str], page_count: int, text_content?: str}` | `scale` (float, default 2.0) |
 | `ai` | anything from prev step (incl. `image_paths`, `file_path`) | `{...input_data, ai_response: string}` | `system_prompt` (str, required), `model` (str, OpenRouter model ID) |
 | `validate_documents` | `{document_id, image_paths: [str], page_count: int}` | `{policy_id, policy_name, policy_version_num, overall: pass/fail/needs_review, results: [...], image_paths, document_id}` | `policy_id` (int, required), `model` (str, OpenRouter model ID), `fail_on_missing` (bool, default true) |
 | `output` | previous step's output | `{manifest: {...}, status: "complete"}` | `output_folder` (str) |

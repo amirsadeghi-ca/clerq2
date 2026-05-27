@@ -89,7 +89,7 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 ---
 
-## Phase 2 — Read Word, Excel, and CSV documents
+## Phase 2 — Read Word, Excel, and CSV documents ✓
 
 **What changes for the user:** the Validate screen accepts `.docx`, `.xlsx`, and `.csv` in addition to PDF and images. A real-world dossier mixing a Word form, a spreadsheet inventory, and a PDF can be validated together.
 

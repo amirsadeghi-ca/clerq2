@@ -609,7 +609,7 @@ function LaunchBar({
       <input
         ref={inputRef}
         type="file"
-        accept=".pdf,image/*"
+        accept=".pdf,.docx,.xlsx,.xls,.csv,image/*"
         multiple
         className="hidden"
         onChange={e => {
@@ -627,7 +627,7 @@ function LaunchBar({
           <Upload size={16} className={drag ? 'text-indigo-400' : 'text-[var(--c-text-5)]'} />
           <div>
             <p className="text-[13px] font-medium text-[var(--c-text-2)]">Drop documents to validate</p>
-            <p className="text-[11px] text-[var(--c-text-5)]">running against <span className="text-[var(--c-text-4)]">{policy.name}</span> · {policy.rules.length} rule{policy.rules.length !== 1 ? 's' : ''}</p>
+            <p className="text-[11px] text-[var(--c-text-5)]">PDF, Word, Excel, CSV or images · <span className="text-[var(--c-text-4)]">{policy.name}</span> · {policy.rules.length} rule{policy.rules.length !== 1 ? 's' : ''}</p>
           </div>
         </button>
       ) : (
