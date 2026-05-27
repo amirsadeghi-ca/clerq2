@@ -49,7 +49,7 @@ Each phase is delivered and reviewed on its own. I stop after each one and wait 
 
 The single largest change, split into three reviewable sub-phases. The end state: a user assembles several documents into one **document set** (the generic term; the MELCCFP calls it a *dossier*), runs it against a policy, and gets **one** consolidated report covering the whole set.
 
-### Phase 1A — The concept: a run can cover many documents
+### Phase 1A — The concept: a run can cover many documents ✓
 
 **What changes for the user:** conceptually, a validation run is no longer tied to a single file. A run can now represent a *set* of documents evaluated together against one policy, yielding a single verdict and a single report.
 

@@ -31,6 +31,7 @@ class RunOut(BaseModel):
     id: int
     workflow_id: int | None  # 0 is stored as sentinel for validate runs; surfaced as None
     document_id: int
+    document_ids: list[int] = []  # full set (populated from workflow_run_documents join table)
     version_id: int | None
     version_num: int | None
     name: str | None

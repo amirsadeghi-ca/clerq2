@@ -2,7 +2,7 @@ from celery import chain
 
 from app.database import SessionLocal
 from app.models.document import Document
-from app.models.run import WorkflowRun, WorkflowRunStep
+from app.models.run import WorkflowRun, WorkflowRunStep, WorkflowRunDocument
 from app.tasks.registry import NODE_REGISTRY
 
 
@@ -29,17 +29,26 @@ def _topological_sort(nodes: list[dict], edges: list[dict]) -> list[dict]:
     return result
 
 
-def trigger_run(run_id: int, definition: dict, doc: Document) -> None:
+def trigger_run(run_id: int, definition: dict, docs: list[Document]) -> None:
+    """
+    Enqueue a Celery chain for run_id.
+
+    docs must be a non-empty list. For single-document runs pass [doc].
+    The first element is treated as the primary document (backward compat
+    for nodes/flows that only understand a single file).
+    """
+    if not docs:
+        return
+
     nodes = definition.get("nodes", [])
     edges = definition.get("edges", [])
-
     if not nodes:
         return
 
     sorted_nodes = _topological_sort(nodes, edges)
+    primary_doc = docs[0]
 
     with SessionLocal() as db:
-        run = db.get(WorkflowRun, run_id)
         step_records = []
         for node in sorted_nodes:
             step = WorkflowRunStep(
@@ -50,17 +59,37 @@ def trigger_run(run_id: int, definition: dict, doc: Document) -> None:
             )
             db.add(step)
             step_records.append((node, step))
+
+        # Record the document set for this run
+        for i, doc in enumerate(docs):
+            db.add(WorkflowRunDocument(run_id=run_id, document_id=doc.id, position=i))
+
         db.commit()
         for _, step in step_records:
             db.refresh(step)
 
-        # Build Celery chain.
-        # First task: .s(initial_input_data, run_id=, step_id=)
-        # Subsequent tasks: .s(run_id=, step_id=)  ← input_data is injected by Celery from prev result
+        # Build initial input.
+        # Always includes a structured `documents` list so nodes can handle multi-doc sets.
+        # Top-level single-doc fields (document_id, file_path, mime_type) are kept for
+        # backward compat with nodes that don't look at `documents`
+        # (e.g. workflow-editor chains that start from email_input → pdf_to_images).
+        docs_list = [
+            {
+                "id": doc.id,
+                "file_path": doc.file_path,
+                "mime_type": doc.mime_type or "",
+                "filename": doc.original_filename,
+            }
+            for doc in docs
+        ]
+
         initial_input = {
-            "document_id": doc.id,
-            "file_path": doc.file_path,
-            "mime_type": doc.mime_type,
+            # Backward compat — primary document
+            "document_id": primary_doc.id,
+            "file_path": primary_doc.file_path,
+            "mime_type": primary_doc.mime_type,
+            # Multi-doc list (always present, single-element for single-doc runs)
+            "documents": docs_list,
         }
 
         signatures = []

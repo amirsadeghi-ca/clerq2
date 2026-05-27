@@ -16,11 +16,14 @@ def ingest_task(self, input_data: dict, run_id: int, step_id: int, node_config: 
         step_log(step_id, f"Document ID: {document_id}")
         step_log(step_id, f"File: {os.path.basename(file_path)} ({mime_type or 'unknown type'})")
 
-        output = {
+        output: dict = {
             "document_id": document_id,
             "file_path": file_path,
             "mime_type": mime_type,
         }
+        # Pass the multi-doc list through if present (set by executor for multi-doc runs)
+        if "documents" in input_data:
+            output["documents"] = input_data["documents"]
         mark_step_done(step_id, output)
         return output
     except Exception as exc:

@@ -108,7 +108,7 @@ clerq2/
 │       │   ├── workflow.py         ← Workflow (id, name, definition, is_archived, is_favorite, current_version_num)
 │       │   ├── workflow_version.py ← WorkflowVersion (id, workflow_id, version_num, definition)
 │       │   ├── document.py         ← Document (filename, original_filename, file_path, mime_type, size_bytes)
-│       │   └── run.py              ← WorkflowRun (+ version_id, version_num) + WorkflowRunStep
+│       │   └── run.py              ← WorkflowRun + WorkflowRunStep + WorkflowRunDocument (join table for multi-doc sets)
 │       │
 │       ├── schemas/
 │       │   ├── workflow.py   ← Pydantic request/response models for workflows
@@ -138,7 +138,7 @@ clerq2/
 │       └── tasks/
 │           ├── celery_app.py  ← Celery instance + config; MUST import all ORM models here
 │           ├── registry.py    ← NODE_REGISTRY: dict mapping node_type str → task function
-│           ├── executor.py    ← topological sort (Kahn's) + Celery chain builder
+│           ├── executor.py    ← topological sort (Kahn's) + Celery chain builder; trigger_run(run_id, definition, docs: list[Document])
 │           └── nodes/
 │               ├── base.py                ← mark_step_running/done/failed, mark_run_running/done/failed, step_log
 │               ├── ingest.py              ← "input" node task; emits step_log lines
@@ -200,6 +200,8 @@ clerq2/
 
 Tables are created automatically on API startup via `create_tables()` then `run_migrations()` in `database.py`. New tables are created by `create_all()`; new columns on existing tables are added via safe `ALTER TABLE ADD COLUMN` with try/except (SQLite-compatible). Never drop data; use archive flags instead.
 
+**Phase 1A (multi-doc support):** Added `workflow_run_documents` join table. `trigger_run` now accepts `docs: list[Document]`. The `input`, `pdf_to_images`, and `validate_documents` nodes all handle a `documents: [...]` list in their input/output data. Validation results include a `per_document` array on each rule entry when multiple documents are evaluated.
+
 ```sql
 workflows (
   id                  INTEGER PRIMARY KEY,
@@ -247,6 +249,16 @@ mail_messages (
 -- Created automatically on API startup via create_all(). No manual migration needed.
 -- Inbound row: written by POST /api/mail/inbound when a message arrives.
 -- Outbound row: written by show_results.py when run.sender_email is set.
+
+workflow_run_documents (
+  id           INTEGER PRIMARY KEY,
+  run_id       INTEGER REFERENCES workflow_runs(id),
+  document_id  INTEGER REFERENCES documents(id),
+  position     INTEGER NOT NULL DEFAULT 0   -- order in the set (0 = primary)
+)
+-- Created by create_all() — no migration needed.
+-- Populated by trigger_run() for all runs (single-doc runs get one row).
+-- Exposed as run.document_ids in RunOut.
 
 workflow_runs (
   id           INTEGER PRIMARY KEY,
@@ -589,9 +601,10 @@ The Validate section (`/validate`) is the primary UI for policy validation. It r
 ### API endpoints
 
 ```
-POST /api/validate/run          → WorkflowRun   body: {policy_id, document_id}
+POST /api/validate/run          → WorkflowRun   body: {policy_id, document_id?} OR {policy_id, document_ids: [int, ...]}
+                                  Accepts either a single document_id (backward compat) or a document_ids list.
                                   Assembles canonical pipeline, fires run, returns run record.
-                                  Sets run.name = document.original_filename, source = "validate".
+                                  Sets run.name = filename (single) or "N documents" (multi), source = "validate".
 
 GET  /api/validate/runs         → WorkflowRun[] All runs with source="validate".
                                   Optional: ?policy_id=N to filter by policy.
@@ -632,6 +645,7 @@ Policy chaining stays in the Validate section. The user picks an ordered list of
 - **validate_documents passthrough**: The `validate_documents` node passes `image_paths` and `document_id` through in its output_data so downstream `output` nodes can still access the images even after validation.
 - **OpenRouter key empty by default**: The `.env` ships with `OPENROUTER_API_KEY=` empty. Runs with a `validate_documents` node will fail with a clear error ("OpenRouter API key not configured…") until the key is set in Settings or `.env`.
 - **validate_documents direct file input**: When there are no `image_paths` in `input_data` (i.e. connected directly to the ingest node, not through pdf_to_images), the task checks `file_path`. PDFs are converted inline via pymupdf; images (png/jpg/jpeg/webp/gif) are encoded directly. The `file_path` may be absolute or relative to `STORAGE_PATH`.
+- **Celery worker does not auto-reload**: The API source (`api/app/`) is a volume mount, so uvicorn picks up Python changes automatically. The Celery worker does NOT — it imports task modules at startup and holds them in memory. After editing any task file (`nodes/*.py`, `executor.py`, etc.), you must `docker compose restart worker` to pick up the changes.
 - **validate_documents + fail_on_missing**: `fail_on_missing` defaults to `False` — the run continues even if required rules fail. When `fail_on_missing=True` and a required rule fails, the step is marked `completed` (so its output is visible) but the *run* is marked `failed`. The step output with validation details is still accessible for debugging.
 - **ValidateDocumentsNode is the focal node**: It is 260px wide (vs 200px for other nodes), has a violet border visible even when unselected, and displays the policy's rule list directly on the canvas. During a run, all rules pulse indigo together ("checking"); after the step completes they resolve to pass/fail/uncertain icons. The same live status appears in the NodeConfigPanel config section with full evidence text. The node fetches its policy rules via `usePolicy(policy_id)` and tracks the active run via `useRunContext().activeRunId` + `useRun(activeRunId)` — both poll/share TanStack Query cache without extra SSE connections.
 

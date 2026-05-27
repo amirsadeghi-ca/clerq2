@@ -57,5 +57,6 @@ def run_migrations() -> None:
 
 def create_tables() -> None:
     from app.models import workflow, document, run, workflow_version, document_type, policy, setting, mail  # noqa: F401
-    from app.models.policy import PolicyVersion  # noqa: F401 — ensure PolicyVersion table is created
+    from app.models.policy import PolicyVersion  # noqa: F401
+    from app.models.run import WorkflowRunDocument  # noqa: F401
     Base.metadata.create_all(bind=engine)

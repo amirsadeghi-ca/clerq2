@@ -69,6 +69,7 @@ export interface Run {
   id: number
   workflow_id: number | null
   document_id: number
+  document_ids: number[]
   version_id: number | null
   version_num: number | null
   name: string | null
@@ -168,6 +169,14 @@ export interface MailMessage {
   created_at: string
 }
 
+export interface PerDocumentResult {
+  document_id: number | null
+  document_filename: string
+  status: 'pass' | 'fail' | 'uncertain'
+  confidence: number
+  evidence: string
+}
+
 export interface ValidationRuleResult {
   rule_name: string
   requirement: string
@@ -175,6 +184,7 @@ export interface ValidationRuleResult {
   confidence: number
   evidence: string
   extracted: Record<string, unknown>
+  per_document?: PerDocumentResult[]
 }
 
 export interface ValidationOutput {

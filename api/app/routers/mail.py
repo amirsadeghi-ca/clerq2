@@ -135,10 +135,10 @@ def inbound_mail(body: MailInboundRequest, db: Session = Depends(get_db)):
 
     if doc:
         if policy:
-            trigger_run(run.id, _canonical_definition(policy.id), doc)
+            trigger_run(run.id, _canonical_definition(policy.id), [doc])
         else:
             definition = latest_version.definition if latest_version else workflow.definition
-            trigger_run(run.id, definition, doc)
+            trigger_run(run.id, definition, [doc])
 
     db.refresh(run)
     return run

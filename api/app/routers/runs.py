@@ -47,7 +47,7 @@ def create_run(body: RunCreate, db: Session = Depends(get_db)):
 
     # Use the versioned definition if available, fall back to workflow cache
     definition = latest_version.definition if latest_version else wf.definition
-    trigger_run(run.id, definition, doc)
+    trigger_run(run.id, definition, [doc])
     db.refresh(run)
     return run
 

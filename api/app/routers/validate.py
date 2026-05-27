@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,7 +14,17 @@ router = APIRouter()
 
 class ValidateRunCreate(BaseModel):
     policy_id: int
-    document_id: int
+    # Accept either a single document_id (backward compat) or a list
+    document_id: int | None = None
+    document_ids: list[int] | None = None
+
+    @model_validator(mode="after")
+    def resolve_doc_ids(self):
+        if not self.document_ids and self.document_id:
+            self.document_ids = [self.document_id]
+        if not self.document_ids:
+            raise ValueError("document_id or document_ids is required")
+        return self
 
 
 def _canonical_definition(policy_id: int) -> dict:
@@ -39,14 +49,25 @@ def create_validate_run(body: ValidateRunCreate, db: Session = Depends(get_db)):
     if not policy:
         raise HTTPException(404, "Policy not found")
 
-    doc = db.get(Document, body.document_id)
-    if not doc:
-        raise HTTPException(404, "Document not found")
+    docs: list[Document] = []
+    for doc_id in body.document_ids:  # type: ignore[union-attr]
+        doc = db.get(Document, doc_id)
+        if not doc:
+            raise HTTPException(404, f"Document {doc_id} not found")
+        docs.append(doc)
+
+    primary_doc = docs[0]
+
+    # Run name: single doc → its filename; multiple docs → "N documents"
+    if len(docs) == 1:
+        run_name = primary_doc.original_filename
+    else:
+        run_name = f"{len(docs)} documents"
 
     run = WorkflowRun(
-        workflow_id=0,  # sentinel: 0 = no backing workflow (validate-section runs)
-        document_id=doc.id,
-        name=doc.original_filename,
+        workflow_id=0,
+        document_id=primary_doc.id,
+        name=run_name,
         source="validate",
         policy_id=policy.id,
         status="pending",
@@ -55,7 +76,7 @@ def create_validate_run(body: ValidateRunCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(run)
 
-    trigger_run(run.id, _canonical_definition(policy.id), doc)
+    trigger_run(run.id, _canonical_definition(policy.id), docs)
     db.refresh(run)
     return run
 
@@ -68,7 +89,6 @@ def list_validate_runs(policy_id: int | None = None, db: Session = Depends(get_d
         .filter(
             or_(
                 WorkflowRun.source == "validate",
-                # mail-triggered runs that targeted a policy inbox
                 (WorkflowRun.source == "mail") & (WorkflowRun.policy_id.isnot(None)),
             )
         )

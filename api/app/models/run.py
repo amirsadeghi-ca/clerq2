@@ -5,6 +5,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
+class WorkflowRunDocument(Base):
+    __tablename__ = "workflow_run_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(Integer, ForeignKey("workflow_runs.id"), nullable=False)
+    document_id: Mapped[int] = mapped_column(Integer, ForeignKey("documents.id"), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    run: Mapped["WorkflowRun"] = relationship("WorkflowRun", back_populates="run_documents")
+
+
 class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
 
@@ -26,6 +37,13 @@ class WorkflowRun(Base):
     steps: Mapped[list["WorkflowRunStep"]] = relationship(
         "WorkflowRunStep", back_populates="run", order_by="WorkflowRunStep.id"
     )
+    run_documents: Mapped[list["WorkflowRunDocument"]] = relationship(
+        "WorkflowRunDocument", back_populates="run", order_by="WorkflowRunDocument.position"
+    )
+
+    @property
+    def document_ids(self) -> list[int]:
+        return [rd.document_id for rd in (self.run_documents or [])]
 
 
 class WorkflowRunStep(Base):
