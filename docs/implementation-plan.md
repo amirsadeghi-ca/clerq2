@@ -62,7 +62,7 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 **Outcome / done when:** a set of two or more documents can be submitted (via the API at this sub-phase) and returns a single report whose individual checks can name the specific document they refer to.
 
-### Phase 1B — The experience: assembling and submitting a set on the Validate screen
+### Phase 1B — The experience: assembling and submitting a set on the Validate screen ✓
 
 **What changes for the user:** the Validate screen's drop zone accepts **multiple files**. After dropping, the user sees the documents listed as a pending set — each row showing its filename, with the ability to remove one or add more before running. The Run button submits the whole set as one case.
 
@@ -75,7 +75,7 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 **Outcome / done when:** from the Validate screen alone, a user can build a multi-file case, run it, and watch it progress as one run.
 
-### Phase 1C — Reading the report for a set (per-document traceability)
+### Phase 1C — Reading the report for a set (per-document traceability) ✓
 
 **What changes for the user:** opening a completed set's report shows the overall verdict at the top (as today), then a checklist of rules where each result can point to the **specific document(s)** it concerns. The user can see the set's file list and tell, for any failed or uncertain check, which document caused it.
 

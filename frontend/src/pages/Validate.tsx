@@ -378,6 +378,37 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                     </div>
                   )}
 
+                  {/* Per-document breakdown */}
+                  {selectedResult.per_document && selectedResult.per_document.length > 1 && (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
+                        Per document
+                      </span>
+                      <div className="flex flex-col divide-y divide-[var(--c-divider)] overflow-hidden rounded-lg border border-[var(--c-border-2)]">
+                        {selectedResult.per_document.map((pd, i) => (
+                          <div key={i} className="flex items-start gap-3 px-4 py-2.5">
+                            <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${RESULT_BADGE[pd.status]}`}>
+                              {RESULT_LABEL[pd.status]}
+                            </span>
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <span className="truncate text-[12px] font-medium text-[var(--c-text-2)]">{pd.document_filename}</span>
+                              {pd.evidence && (
+                                <p className="text-[11px] leading-relaxed text-[var(--c-text-4)]">{pd.evidence}</p>
+                              )}
+                            </div>
+                            <span className={`shrink-0 font-mono text-[12px] font-bold ${
+                              pd.status === 'pass' ? 'text-emerald-400'
+                              : pd.status === 'fail' ? 'text-red-400'
+                              : 'text-amber-400'
+                            }`}>
+                              {Math.round(pd.confidence * 100)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Page thumbnails */}
                   {imagePaths.length > 0 && (
                     <div className="flex flex-col gap-2">
@@ -463,6 +494,12 @@ function RunItem({ run, onOpen }: { run: Run; onOpen: (run: Run) => void }) {
           mail
         </span>
       )}
+      {run.document_ids && run.document_ids.length > 1 && (
+        <span className="flex shrink-0 items-center gap-1 rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[10px] text-[var(--c-text-4)]">
+          <FileText size={9} />
+          {run.document_ids.length} docs
+        </span>
+      )}
       <span className="shrink-0 text-[11px] font-medium">{statusLabel}</span>
       <span className="shrink-0 text-[10px] text-[var(--c-text-5)]">{timeAgo(run.created_at)}</span>
       <ChevronRight size={12} className="shrink-0 text-[var(--c-text-5)]" />
@@ -533,17 +570,17 @@ function PolicyItem({
 
 function LaunchBar({
   policy,
-  file,
-  onFile,
-  onClear,
+  files,
+  onAddFiles,
+  onRemoveFile,
   onRun,
   uploading,
   error,
 }: {
   policy: Policy
-  file: File | null
-  onFile: (f: File) => void
-  onClear: () => void
+  files: File[]
+  onAddFiles: (files: File[]) => void
+  onRemoveFile: (index: number) => void
   onRun: () => void
   uploading: boolean
   error: string | null
@@ -559,11 +596,11 @@ function LaunchBar({
       onDrop={e => {
         e.preventDefault()
         setDrag(false)
-        const f = e.dataTransfer.files?.[0]
-        if (f) onFile(f)
+        const added = Array.from(e.dataTransfer.files)
+        if (added.length) onAddFiles(added)
       }}
       className={[
-        'flex shrink-0 items-center gap-4 border-b px-6 py-4 transition-colors',
+        'flex shrink-0 flex-col gap-3 border-b px-6 py-4 transition-colors',
         drag
           ? 'border-indigo-500/40 bg-indigo-500/5'
           : 'border-[var(--c-border)] bg-[var(--c-surface)]',
@@ -573,40 +610,63 @@ function LaunchBar({
         ref={inputRef}
         type="file"
         accept=".pdf,image/*"
+        multiple
         className="hidden"
-        onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = '' }}
+        onChange={e => {
+          const added = Array.from(e.target.files ?? [])
+          if (added.length) onAddFiles(added)
+          e.target.value = ''
+        }}
       />
 
-      {file ? (
-        <>
-          <div className="flex flex-1 items-center gap-2.5 rounded-lg border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-3 py-2">
-            <FileText size={13} className="shrink-0 text-[var(--c-text-4)]" />
-            <span className="flex-1 truncate text-[13px] text-[var(--c-text-1)]">{file.name}</span>
-            <button onClick={onClear} className="shrink-0 text-[var(--c-text-5)] hover:text-[var(--c-text-3)] transition-colors">
-              <X size={12} />
-            </button>
-          </div>
-          {error && <p className="shrink-0 text-[11px] text-red-400">{error}</p>}
-          <button
-            onClick={onRun}
-            disabled={uploading}
-            className="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-5 text-[13px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
-          >
-            {uploading && <Loader2 size={12} className="animate-spin" />}
-            {uploading ? 'Starting…' : 'Run validation'}
-          </button>
-        </>
-      ) : (
+      {files.length === 0 ? (
         <button
           onClick={() => inputRef.current?.click()}
-          className="flex flex-1 items-center gap-4 rounded-lg border-2 border-dashed border-[var(--c-border-3)] px-5 py-3.5 text-left transition-colors hover:border-indigo-500/40 hover:bg-indigo-500/3"
+          className="flex items-center gap-4 rounded-lg border-2 border-dashed border-[var(--c-border-3)] px-5 py-3.5 text-left transition-colors hover:border-indigo-500/40 hover:bg-indigo-500/3"
         >
           <Upload size={16} className={drag ? 'text-indigo-400' : 'text-[var(--c-text-5)]'} />
           <div>
-            <p className="text-[13px] font-medium text-[var(--c-text-2)]">Drop a document to validate</p>
+            <p className="text-[13px] font-medium text-[var(--c-text-2)]">Drop documents to validate</p>
             <p className="text-[11px] text-[var(--c-text-5)]">running against <span className="text-[var(--c-text-4)]">{policy.name}</span> · {policy.rules.length} rule{policy.rules.length !== 1 ? 's' : ''}</p>
           </div>
         </button>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col divide-y divide-[var(--c-divider)] overflow-hidden rounded-lg border border-[var(--c-border-2)] bg-[var(--c-surface-2)]">
+            {files.map((f, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-3 py-2">
+                <FileText size={12} className="shrink-0 text-[var(--c-text-4)]" />
+                <span className="flex-1 truncate text-[12px] text-[var(--c-text-1)]">{f.name}</span>
+                <button
+                  onClick={() => onRemoveFile(i)}
+                  className="shrink-0 text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => inputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded border border-[var(--c-border-2)] px-2.5 py-1.5 text-[11px] text-[var(--c-text-3)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)]"
+            >
+              <Plus size={11} />
+              Add more
+            </button>
+            <div className="flex-1" />
+            {error && <p className="shrink-0 text-[11px] text-red-400">{error}</p>}
+            <button
+              onClick={onRun}
+              disabled={uploading}
+              className="flex h-8 shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-4 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
+            >
+              {uploading && <Loader2 size={11} className="animate-spin" />}
+              {uploading ? 'Starting…' : files.length > 1 ? `Run (${files.length})` : 'Run validation'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -623,7 +683,7 @@ export function Validate() {
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
   const [openRun, setOpenRun] = useState<Run | null>(null)
@@ -646,17 +706,21 @@ export function Validate() {
   const selectedPolicy = policies?.find(p => p.id === selectedPolicyId) ?? null
 
   async function handleRun() {
-    if (!selectedPolicyId || !file) return
+    if (!selectedPolicyId || files.length === 0) return
     setUploading(true)
     setRunError(null)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const docRes = await client.post('/documents/upload', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      const newRun = await triggerRun.mutateAsync({ policy_id: selectedPolicyId, document_id: docRes.data.id })
-      setFile(null)
+      const docIds: number[] = []
+      for (const f of files) {
+        const fd = new FormData()
+        fd.append('file', f)
+        const docRes = await client.post('/documents/upload', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        docIds.push(docRes.data.id)
+      }
+      const newRun = await triggerRun.mutateAsync({ policy_id: selectedPolicyId, document_ids: docIds })
+      setFiles([])
       setOpenRun(newRun)
     } catch (err: unknown) {
       setRunError(err instanceof Error ? err.message : 'Failed to start run')
@@ -740,7 +804,7 @@ export function Validate() {
                 selected={p.id === selectedPolicyId}
                 onSelect={() => {
                   setSelectedPolicyId(prev => prev === p.id ? null : p.id)
-                  setFile(null)
+                  setFiles([])
                   setRunError(null)
                 }}
                 onEdit={() => navigate(`/policies/${p.id}`)}
@@ -780,9 +844,9 @@ export function Validate() {
             <>
               <LaunchBar
                 policy={selectedPolicy!}
-                file={file}
-                onFile={setFile}
-                onClear={() => setFile(null)}
+                files={files}
+                onAddFiles={added => setFiles(prev => [...prev, ...added])}
+                onRemoveFile={i => setFiles(prev => prev.filter((_, idx) => idx !== i))}
                 onRun={handleRun}
                 uploading={uploading}
                 error={runError}
