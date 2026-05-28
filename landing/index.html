@@ -183,90 +183,87 @@
           <div class="flex items-start justify-between">
             <div>
               <div class="text-[10px] font-semibold uppercase tracking-[.14em] text-zinc-500">Validation report</div>
-              <div class="mt-1 text-[22px] font-bold sm:text-[26px]">Dossier — Autorisation ministérielle</div>
+              <div class="mt-1 text-[22px] font-bold sm:text-[26px]">Mortgage application — Alex Whitfield</div>
             </div>
-            <span class="reveal rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200" style="animation-delay:.1s">Finalized</span>
+            <span class="reveal rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200" style="animation-delay:.1s">In review</span>
           </div>
           <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-zinc-500">
-            <span><b class="text-zinc-800">Policy:</b> Recevabilité (LQE)</span>
-            <span><b class="text-zinc-800">Version:</b> v6</span>
-            <span><b class="text-zinc-800">Documents:</b> 4</span>
+            <span><b class="text-zinc-800">Policy:</b> Loan application review</span>
+            <span><b class="text-zinc-800">Version:</b> v4</span>
+            <span><b class="text-zinc-800">Documents:</b> 5</span>
             <span><b class="text-zinc-800">Date:</b> May 28, 2026</span>
           </div>
           <div class="my-5 h-px w-full bg-zinc-900/10"></div>
 
           <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span class="reveal rounded-lg border-2 border-emerald-500 bg-emerald-50 px-4 py-2 text-[15px] font-bold text-emerald-600" style="animation-delay:.2s">Recevable</span>
-            <span class="reveal text-[12px] text-zinc-500" style="animation-delay:.3s"><b class="text-emerald-600">5&nbsp;pass</b> · <b class="text-red-500">1&nbsp;fail</b> <span class="text-zinc-400">(optional)</span> · <b class="text-zinc-400">1&nbsp;n/a</b></span>
-            <span class="reveal ml-auto text-[11px] text-zinc-400" style="animation-delay:.3s">7 rules checked across 4 documents</span>
+            <span class="reveal rounded-lg border-2 border-amber-500 bg-amber-50 px-4 py-2 text-[15px] font-bold text-amber-600" style="animation-delay:.2s">Needs review</span>
+            <span class="reveal text-[12px] text-zinc-500" style="animation-delay:.3s"><b class="text-emerald-600">5&nbsp;pass</b> · <b class="text-amber-600">1&nbsp;missing</b> · <b class="text-zinc-400">1&nbsp;n/a</b></span>
+            <span class="reveal ml-auto text-[11px] text-zinc-400" style="animation-delay:.3s">7 checks across 5 documents</span>
           </div>
 
           <div class="mt-5 space-y-2">
             <!-- 1 · pass -->
             <div class="reveal rounded-xl border border-zinc-200 p-3" style="animation-delay:.36s">
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-[13.5px] font-semibold">Signature &amp; date present</span>
+                <span class="flex-1 text-[13.5px] font-semibold">Government-issued photo ID present</span>
                 <span class="badge-pill b-pass">Pass</span>
                 <span class="font-mono text-[11px] font-bold text-emerald-600">100%</span>
               </div>
-              <p class="mt-1 text-[12px] text-zinc-600">Form signed <b>"Marie Tremblay"</b>, dated <b>Feb 15, 2026</b>.</p>
+              <p class="mt-1 text-[12px] text-zinc-600">Driver's licence on file for <b>Alex Whitfield</b>.</p>
             </div>
-            <!-- 2 · pass · across set -->
+            <!-- 2 · pass -->
             <div class="reveal rounded-xl border border-zinc-200 p-3" style="animation-delay:.46s">
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-[13.5px] font-semibold">Applicant name consistent</span>
+                <span class="flex-1 text-[13.5px] font-semibold">Photo ID is valid (not expired)</span>
+                <span class="badge-pill b-pass">Pass</span>
+                <span class="font-mono text-[11px] font-bold text-emerald-600">99%</span>
+              </div>
+              <p class="mt-1 text-[12px] text-zinc-600">Expiry date <b>Apr 12, 2029</b> — well in the future.</p>
+            </div>
+            <!-- 3 · pass · across set -->
+            <div class="reveal rounded-xl border border-zinc-200 p-3" style="animation-delay:.56s">
+              <div class="flex items-center gap-2">
+                <span class="flex-1 text-[13.5px] font-semibold">Name consistent across documents</span>
                 <span class="tag tag-set">across set</span>
                 <span class="badge-pill b-pass">Pass</span>
                 <span class="font-mono text-[11px] font-bold text-emerald-600">98%</span>
               </div>
-              <p class="mt-1 text-[12px] text-zinc-600"><b>"Constructions Rivière Verte inc."</b> matches on all 4 documents.</p>
+              <p class="mt-1 text-[12px] text-zinc-600"><b>"Alex Whitfield"</b> matches on the ID, the application form and the bank statement.</p>
             </div>
-            <!-- 3 · pass · across set -->
-            <div class="reveal flex items-center gap-2 rounded-xl border border-zinc-200 p-3" style="animation-delay:.56s">
-              <span class="flex-1 text-[13.5px] font-semibold">Required attachments present</span>
-              <span class="tag tag-set">across set</span>
+            <!-- 4 · pass -->
+            <div class="reveal flex items-center gap-2 rounded-xl border border-zinc-200 p-3" style="animation-delay:.66s">
+              <span class="flex-1 text-[13.5px] font-semibold">Proof of income attached</span>
               <span class="badge-pill b-pass">Pass</span>
               <span class="font-mono text-[11px] font-bold text-emerald-600">100%</span>
             </div>
-            <!-- 4 · pass · across set (conditional) -->
-            <div class="reveal rounded-xl border border-zinc-200 p-3" style="animation-delay:.66s">
+            <!-- 5 · MISSING — the headline example -->
+            <div class="reveal rounded-xl border border-amber-300 bg-amber-50/40 p-3" style="animation-delay:.76s">
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-[13.5px] font-semibold">Logical coherence — wetland works</span>
+                <span class="flex-1 text-[13.5px] font-semibold">Spouse co-signature present</span>
                 <span class="tag tag-set">across set</span>
-                <span class="badge-pill b-pass">Pass</span>
-                <span class="font-mono text-[11px] font-bold text-emerald-600">95%</span>
+                <span class="badge-pill b-unc">Needs review</span>
+                <span class="font-mono text-[11px] font-bold text-amber-600">96%</span>
               </div>
-              <p class="mt-1 text-[12px] text-zinc-600">Form answers <b>"Oui"</b> → matching technical annex is attached and completed.</p>
+              <p class="mt-1 text-[12px] text-zinc-700">The applicant selected <b>"Married"</b> on the application, but the <b>spouse's signature on page 3 is missing</b> — additional information required before approval.</p>
             </div>
-            <!-- 5 · pass via override · reference list -->
-            <div class="reveal rounded-xl border border-indigo-200 p-3" style="animation-delay:.76s">
+            <!-- 6 · pass via human override -->
+            <div class="reveal rounded-xl border border-indigo-200 p-3" style="animation-delay:.86s">
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-[13.5px] font-semibold">Eligible equipment</span>
-                <span class="tag tag-any">reference list</span>
+                <span class="flex-1 text-[13.5px] font-semibold">Bank statement is recent</span>
                 <span class="badge-pill b-pass">Pass</span>
               </div>
               <div class="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[12px]">
                 <span class="text-zinc-400 line-through">AI: Needs review</span>
                 <span class="mx-1.5 text-indigo-500">→</span>
                 <span class="font-bold text-indigo-700">Reviewer: Pass</span>
-                <span class="mt-0.5 block text-indigo-800">“Vendor confirmed <b>SH-200</b> is the approved successor of SH-180.”</span>
-                <span class="mt-0.5 block text-[10px] text-indigo-400">B. Saint-Aubin · May 28, 2026, 14:44</span>
+                <span class="mt-0.5 block text-indigo-800">“Statement is dated within the last 90 days — confirmed acceptable.”</span>
+                <span class="mt-0.5 block text-[10px] text-indigo-400">R. Mehta · May 28, 2026, 2:44 PM</span>
               </div>
             </div>
-            <!-- 6 · fail (optional) -->
-            <div class="reveal rounded-xl border border-red-200 p-3" style="animation-delay:.86s">
-              <div class="flex items-center gap-2">
-                <span class="flex-1 text-[13.5px] font-semibold">Cover letter attached</span>
-                <span class="tag tag-optional" style="color:#71717a;background:#f4f4f5;border:1px solid #e4e4e7">optional</span>
-                <span class="badge-pill b-fail">Fail</span>
-                <span class="font-mono text-[11px] font-bold text-red-500">92%</span>
-              </div>
-              <p class="mt-1 text-[12px] text-zinc-600">No cover letter found in the dossier — optional, so it doesn't block recevability.</p>
-            </div>
-            <!-- 7 · n/a (excluded doc) -->
+            <!-- 7 · n/a (not required for this application type) -->
             <div class="reveal flex items-center gap-2 rounded-xl border border-zinc-200 p-3" style="animation-delay:.96s">
-              <span class="flex-1 text-[13.5px] font-semibold text-zinc-500">Déclaration d'antécédents</span>
-              <span class="badge-pill b-na">N/A — excluded</span>
+              <span class="flex-1 text-[13.5px] font-semibold text-zinc-500">Marketing consent form</span>
+              <span class="badge-pill b-na">N/A — not required</span>
             </div>
           </div>
         </div>
@@ -406,11 +403,11 @@
           <p class="mt-1 text-center text-[11px] uppercase tracking-widest text-indigo-300/80">Validate · Review · Trace</p>
           <div class="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black/50 p-3 font-mono text-[11px] leading-relaxed">
             <div class="text-emerald-400">POST <span class="text-zinc-300">/api/validate</span></div>
-            <div class="text-zinc-500">{ <span class="text-sky-300">"policy"</span>: <span class="text-amber-300">"recevabilite"</span>,</div>
-            <div class="text-zinc-500">&nbsp;&nbsp;<span class="text-sky-300">"documents"</span>: [ form.docx, annex.pdf, … ] }</div>
+            <div class="text-zinc-500">{ <span class="text-sky-300">"policy"</span>: <span class="text-amber-300">"loan-application"</span>,</div>
+            <div class="text-zinc-500">&nbsp;&nbsp;<span class="text-sky-300">"documents"</span>: [ application.pdf, id.jpg, … ] }</div>
             <div class="my-2 h-px bg-white/5"></div>
             <div class="text-emerald-400">200 OK</div>
-            <div class="text-zinc-500">{ <span class="text-sky-300">"overall"</span>: <span class="text-emerald-300">"recevable"</span>,</div>
+            <div class="text-zinc-500">{ <span class="text-sky-300">"overall"</span>: <span class="text-amber-300">"needs_review"</span>,</div>
             <div class="text-zinc-500">&nbsp;&nbsp;<span class="text-sky-300">"report_url"</span>: <span class="text-amber-300">"…/reports/1042"</span>,</div>
             <div class="text-zinc-500">&nbsp;&nbsp;<span class="text-sky-300">"results"</span>: [ 7 findings ] }</div>
           </div>
@@ -476,21 +473,21 @@
               <div class="w-52 shrink-0 border-r border-white/5 p-3">
                 <div class="mb-2 flex items-center justify-between"><span class="font-semibold text-white">Checks</span><span class="text-zinc-500">＋</span></div>
                 <div class="rounded-lg border border-indigo-500/40 bg-indigo-500/10 p-2.5">
-                  <div class="flex items-center gap-1.5 text-indigo-300"><span>🛡</span><span class="font-medium">Recevabilité (LQE)</span></div>
-                  <div class="mt-1 text-[11px] text-zinc-500">6 rules · admissibility of authorization dossiers</div>
+                  <div class="flex items-center gap-1.5 text-indigo-300"><span>🛡</span><span class="font-medium">Loan application review</span></div>
+                  <div class="mt-1 text-[11px] text-zinc-500">6 rules · identity, income &amp; signatures</div>
                 </div>
-                <div class="mt-2 rounded-lg border border-white/5 p-2.5"><div class="font-medium text-zinc-200">Residential Mortgage</div><div class="mt-1 text-[11px] text-zinc-500">3 rules</div></div>
                 <div class="mt-2 rounded-lg border border-white/5 p-2.5"><div class="font-medium text-zinc-200">KYC onboarding</div><div class="mt-1 text-[11px] text-zinc-500">5 rules</div></div>
+                <div class="mt-2 rounded-lg border border-white/5 p-2.5"><div class="font-medium text-zinc-200">Insurance claim intake</div><div class="mt-1 text-[11px] text-zinc-500">4 rules</div></div>
               </div>
               <div class="flex-1 p-4">
                 <div class="rounded-xl border-2 border-dashed border-white/10 p-5 text-center">
                   <div class="text-zinc-300">⬆ Drop documents to validate</div>
-                  <div class="mt-1 text-[11px] text-zinc-500">PDF, Word, Excel, CSV or images · Recevabilité (LQE) · 6 rules</div>
+                  <div class="mt-1 text-[11px] text-zinc-500">PDF, Word, Excel, CSV or images · Loan application review · 6 rules</div>
                 </div>
                 <div class="mt-4 divide-y divide-white/5">
-                  <div class="flex items-center gap-3 py-2.5"><span class="dot bg-emerald-400" style="width:8px;height:8px"></span><span class="flex-1 text-zinc-200">Dossier — Rivière Verte</span><span class="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">4 docs</span><span class="text-emerald-400">completed</span></div>
-                  <div class="flex items-center gap-3 py-2.5"><span class="dot bg-red-400" style="width:8px;height:8px"></span><span class="flex-1 text-zinc-200">Dossier — 142 des Érables</span><span class="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">3 docs</span><span class="text-red-400">failed</span></div>
-                  <div class="flex items-center gap-3 py-2.5"><span class="dot bg-indigo-400 animate-pulse" style="width:8px;height:8px"></span><span class="flex-1 text-zinc-200">Dossier — 200 Durant</span><span class="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">5 docs</span><span class="text-indigo-300">running…</span></div>
+                  <div class="flex items-center gap-3 py-2.5"><span class="dot bg-amber-400" style="width:8px;height:8px"></span><span class="flex-1 text-zinc-200">Application — Alex Whitfield</span><span class="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">5 docs</span><span class="text-amber-400">needs review</span></div>
+                  <div class="flex items-center gap-3 py-2.5"><span class="dot bg-emerald-400" style="width:8px;height:8px"></span><span class="flex-1 text-zinc-200">Application — Jordan Romero</span><span class="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">4 docs</span><span class="text-emerald-400">completed</span></div>
+                  <div class="flex items-center gap-3 py-2.5"><span class="dot bg-indigo-400 animate-pulse" style="width:8px;height:8px"></span><span class="flex-1 text-zinc-200">Application — Sara Patel</span><span class="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">5 docs</span><span class="text-indigo-300">running…</span></div>
                 </div>
               </div>
             </div>
@@ -501,15 +498,15 @@
             <div class="bg-[#f4f4f5] p-5 sm:p-8">
               <div class="paper mx-auto max-w-2xl rounded-lg p-6 shadow-xl">
                 <div class="text-[10px] font-semibold uppercase tracking-[.14em] text-zinc-500">Validation report</div>
-                <div class="mt-1 text-[20px] font-bold">Dossier — Rivière Verte</div>
-                <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500"><span><b class="text-zinc-800">Policy:</b> Recevabilité (LQE) v6</span><span><b class="text-zinc-800">Documents:</b> 4</span></div>
+                <div class="mt-1 text-[20px] font-bold">Application — Jordan Romero</div>
+                <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500"><span><b class="text-zinc-800">Policy:</b> Loan application review v4</span><span><b class="text-zinc-800">Documents:</b> 4</span></div>
                 <div class="my-4 h-px bg-zinc-900/10"></div>
-                <div class="flex items-center gap-3"><span class="rounded-lg border-2 border-emerald-500 bg-emerald-50 px-3 py-1.5 text-[14px] font-bold text-emerald-600">Recevable</span><span class="text-[12px] text-zinc-500"><b class="text-emerald-600">6 pass</b></span></div>
+                <div class="flex items-center gap-3"><span class="rounded-lg border-2 border-emerald-500 bg-emerald-50 px-3 py-1.5 text-[14px] font-bold text-emerald-600">Complete</span><span class="text-[12px] text-zinc-500"><b class="text-emerald-600">5 pass</b> · 1 n/a</span></div>
                 <div class="mt-5 space-y-2">
-                  <div class="flex items-center gap-2 rounded-lg border border-zinc-200 p-3"><span class="flex-1 text-[13px] font-semibold">Signature et date présentes</span><span class="badge-pill b-pass">Pass</span><span class="font-mono text-[11px] font-bold text-emerald-600">100%</span></div>
-                  <div class="flex items-center gap-2 rounded-lg border border-zinc-200 p-3"><span class="flex-1 text-[13px] font-semibold">Complétude du dossier</span><span class="tag tag-set">across set</span><span class="badge-pill b-pass">Pass</span></div>
-                  <div class="flex items-center gap-2 rounded-lg border border-zinc-200 p-3"><span class="flex-1 text-[13px] font-semibold">Cohérence logique — milieu humide</span><span class="tag tag-set">across set</span><span class="badge-pill b-pass">Pass</span></div>
-                  <div class="flex items-center gap-2 rounded-lg border border-zinc-200 p-3"><span class="flex-1 text-[13px] font-semibold text-zinc-500">Déclaration d'antécédents</span><span class="badge-pill b-na">N/A</span></div>
+                  <div class="flex items-center gap-2 rounded-lg border border-zinc-200 p-3"><span class="flex-1 text-[13px] font-semibold">Government-issued photo ID present</span><span class="badge-pill b-pass">Pass</span><span class="font-mono text-[11px] font-bold text-emerald-600">100%</span></div>
+                  <div class="flex items-center gap-2 rounded-lg border border-zinc-200 p-3"><span class="flex-1 text-[13px] font-semibold">Proof of income attached</span><span class="badge-pill b-pass">Pass</span><span class="font-mono text-[11px] font-bold text-emerald-600">100%</span></div>
+                  <div class="flex items-center gap-2 rounded-lg border border-zinc-200 p-3"><span class="flex-1 text-[13px] font-semibold">All required signatures present</span><span class="tag tag-set">across set</span><span class="badge-pill b-pass">Pass</span></div>
+                  <div class="flex items-center gap-2 rounded-lg border border-zinc-200 p-3"><span class="flex-1 text-[13px] font-semibold text-zinc-500">Marketing consent form</span><span class="badge-pill b-na">N/A</span></div>
                 </div>
               </div>
             </div>
@@ -520,13 +517,13 @@
             <div class="bg-[#f4f4f5] p-5 sm:p-8">
               <div class="paper mx-auto max-w-2xl rounded-lg p-6 shadow-xl">
                 <div class="flex items-center justify-between">
-                  <div class="text-[16px] font-bold">Eligible equipment</div>
+                  <div class="text-[16px] font-bold">Proof of income</div>
                   <span class="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-600 ring-1 ring-amber-200">Draft</span>
                 </div>
-                <p class="mt-2 text-[12.5px] text-zinc-600">The inventory lists "Separateur SH-200". The AI couldn't match it to the approved list with high confidence.</p>
+                <p class="mt-2 text-[12.5px] text-zinc-600">The applicant attached a signed employer offer letter instead of a pay stub, so the AI flagged it for a human to confirm.</p>
                 <div class="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-[12px]">
                   <span class="text-zinc-400 line-through">AI: Needs review</span><span class="mx-1.5 text-indigo-500">→</span><span class="font-bold text-indigo-700">Reviewer: Pass</span>
-                  <span class="mt-1 block text-indigo-800">“Vendor confirmed SH-200 is the approved successor of SH-180.”</span>
+                  <span class="mt-1 block text-indigo-800">“Signed offer letter stating salary is acceptable proof of income for this product.”</span>
                 </div>
                 <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-3 text-[11px]">
                   <span class="text-zinc-400">VERDICT</span>
@@ -542,26 +539,26 @@
           <!-- SHOT 3 — Policy & rules (dark) -->
           <div class="shot" data-shot="3">
             <div class="p-5 sm:p-7">
-              <div class="mb-4 flex items-center gap-3"><span class="text-[15px] font-semibold text-white">Recevabilité — Autorisation ministérielle (LQE)</span><span class="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">v6</span></div>
+              <div class="mb-4 flex items-center gap-3"><span class="text-[15px] font-semibold text-white">Loan application review</span><span class="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">v4</span></div>
               <div class="space-y-3">
                 <div class="rounded-xl border border-white/10 bg-black/20 p-3.5">
-                  <div class="flex items-center gap-2"><span class="font-mono text-[11px] text-zinc-600">01</span><span class="flex-1 text-[14px] font-semibold text-white">Nom du demandeur cohérent</span>
+                  <div class="flex items-center gap-2"><span class="font-mono text-[11px] text-zinc-600">01</span><span class="flex-1 text-[14px] font-semibold text-white">Name consistent across documents</span>
                     <span class="rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-medium text-violet-300 ring-1 ring-violet-500/30">Across set</span>
                     <span class="rounded-full bg-red-500/12 px-2.5 py-0.5 text-[10px] font-medium text-red-400 ring-1 ring-red-500/25">Required</span></div>
                 </div>
                 <div class="rounded-xl border border-white/10 bg-black/20 p-3.5">
-                  <div class="flex items-center gap-2"><span class="font-mono text-[11px] text-zinc-600">02</span><span class="flex-1 text-[14px] font-semibold text-white">Équipements admissibles</span>
+                  <div class="flex items-center gap-2"><span class="font-mono text-[11px] text-zinc-600">02</span><span class="flex-1 text-[14px] font-semibold text-white">Accepted ID type</span>
                     <span class="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] text-zinc-400 ring-1 ring-white/10">Each doc</span>
                     <span class="rounded-full bg-red-500/12 px-2.5 py-0.5 text-[10px] font-medium text-red-400 ring-1 ring-red-500/25">Required</span></div>
                   <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-white/5 pt-3 text-[11px] text-zinc-400">
                     <span>The value must be</span><span class="rounded-md bg-black/40 px-2 py-1 ring-1 ring-white/10">in</span>
-                    <span class="rounded-md bg-black/40 px-2 py-1 ring-1 ring-white/10">Équipements admissibles (LQE) ▾</span>
+                    <span class="rounded-md bg-black/40 px-2 py-1 ring-1 ring-white/10">Accepted ID types ▾</span>
                     <span class="ml-1 text-zinc-500">Match:</span>
                     <span class="rounded-full bg-violet-500/15 px-2.5 py-0.5 font-medium text-violet-300 ring-1 ring-violet-500/30">Smart</span>
                   </div>
                 </div>
                 <div class="rounded-xl border border-white/10 bg-black/20 p-3.5">
-                  <div class="flex items-center gap-2"><span class="font-mono text-[11px] text-zinc-600">03</span><span class="flex-1 text-[14px] font-semibold text-white">Cohérence logique — milieu humide</span>
+                  <div class="flex items-center gap-2"><span class="font-mono text-[11px] text-zinc-600">03</span><span class="flex-1 text-[14px] font-semibold text-white">Spouse co-signature when married</span>
                     <span class="rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[10px] font-medium text-violet-300 ring-1 ring-violet-500/30">Across set</span>
                     <span class="rounded-full bg-red-500/12 px-2.5 py-0.5 text-[10px] font-medium text-red-400 ring-1 ring-red-500/25">Required</span></div>
                 </div>
@@ -574,12 +571,12 @@
             <div class="p-5 sm:p-7">
               <div class="mb-4 flex items-center gap-2"><span class="text-[15px] font-semibold text-white">Library</span><span class="rounded-md px-2.5 py-1 text-[12px] text-zinc-500">Document types</span><span class="rounded-md bg-white/[.06] px-2.5 py-1 text-[12px] text-white">Reference lists</span></div>
               <div class="rounded-xl border border-white/10 bg-black/20 p-4">
-                <div class="flex items-center gap-2 border-b border-white/5 pb-3"><span class="text-violet-400">≣</span><span class="font-medium text-white">Équipements admissibles (LQE)</span><span class="ml-auto rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">4 items</span></div>
+                <div class="flex items-center gap-2 border-b border-white/5 pb-3"><span class="text-violet-400">≣</span><span class="font-medium text-white">Accepted ID document types</span><span class="ml-auto rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-zinc-400">4 items</span></div>
                 <div class="mt-3 grid grid-cols-2 gap-2 font-mono text-[12px] text-zinc-300">
-                  <div class="rounded bg-black/30 px-2.5 py-1.5">Séparateur hydrodynamique SH-200</div>
-                  <div class="rounded bg-black/30 px-2.5 py-1.5">Bassin de rétention BR-50</div>
-                  <div class="rounded bg-black/30 px-2.5 py-1.5">Membrane géotextile GT-10</div>
-                  <div class="rounded bg-black/30 px-2.5 py-1.5">Régulateur de débit RD-15</div>
+                  <div class="rounded bg-black/30 px-2.5 py-1.5">Passport</div>
+                  <div class="rounded bg-black/30 px-2.5 py-1.5">Driver's licence</div>
+                  <div class="rounded bg-black/30 px-2.5 py-1.5">National ID card</div>
+                  <div class="rounded bg-black/30 px-2.5 py-1.5">Residence permit</div>
                 </div>
                 <p class="mt-3 text-[11px] text-zinc-500">One value per line — paste a column straight from a spreadsheet. A rule can require a document value to be <span class="text-zinc-300">in</span> or <span class="text-zinc-300">not in</span> the list.</p>
               </div>
@@ -634,10 +631,10 @@
         <div class="rounded-2xl border border-white/10 bg-[#0e0e10] p-5">
           <div class="paper rounded-lg p-4">
             <div class="flex items-center gap-2"><span class="flex-1 text-[13px] font-semibold">Applicant name consistent</span><span class="tag tag-set">across set</span><span class="badge-pill b-fail">Fail</span></div>
-            <p class="mt-2 text-[12px] text-zinc-600">Form A shows <b>"Marie Tremblay"</b>; the inventory shows <b>"Marie Trambley"</b> — the names are not identical.</p>
+            <p class="mt-2 text-[12px] text-zinc-600">The application form shows <b>"Daniel R. Cohen"</b>; the bank statement shows <b>"Daniel Cohan"</b> — the names don't match.</p>
             <div class="mt-3 flex flex-wrap gap-1.5">
-              <span class="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 ring-1 ring-zinc-200">form_a.pdf</span>
-              <span class="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 ring-1 ring-zinc-200">inventory.csv</span>
+              <span class="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 ring-1 ring-zinc-200">application.pdf</span>
+              <span class="rounded-md bg-zinc-100 px-2 py-1 text-[11px] text-zinc-600 ring-1 ring-zinc-200">bank_statement.pdf</span>
             </div>
           </div>
         </div>
@@ -647,8 +644,8 @@
       <div class="grid items-center gap-8 rounded-3xl border border-white/5 bg-white/[.015] p-6 lg:grid-cols-2 lg:p-10" data-aos="fade-up">
         <div class="order-2 rounded-2xl border border-white/10 bg-[#0e0e10] p-5 lg:order-1">
           <div class="paper rounded-lg p-4">
-            <div class="flex items-center gap-2"><span class="flex-1 text-[13px] font-semibold">Eligible equipment</span><span class="tag tag-any">reference list</span><span class="badge-pill b-fail">Fail</span></div>
-            <p class="mt-2 text-[12px] text-zinc-600">"PompeX MegaFlow 9000" does not appear on the approved list <b>"Équipements admissibles (LQE)"</b>.</p>
+            <div class="flex items-center gap-2"><span class="flex-1 text-[13px] font-semibold">Accepted ID type</span><span class="tag tag-any">reference list</span><span class="badge-pill b-fail">Fail</span></div>
+            <p class="mt-2 text-[12px] text-zinc-600">The ID provided is a <b>"Foreign voter card"</b>, which is not on the approved list <b>"Accepted ID document types"</b>.</p>
           </div>
         </div>
         <div class="order-1 lg:order-2">
@@ -681,7 +678,7 @@
             <div class="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-[12px]">
               <span class="text-zinc-400 line-through">AI: Fail</span><span class="mx-1.5 text-indigo-500">→</span><span class="font-bold text-indigo-700">Reviewer: Pass</span>
               <span class="mt-1 block text-indigo-800">“Renewal receipt attached; valid through 2029.”</span>
-              <span class="mt-1 block text-[10px] text-indigo-400">B. Saint-Aubin · May 28, 2026</span>
+              <span class="mt-1 block text-[10px] text-indigo-400">R. Mehta · May 28, 2026</span>
             </div>
           </div>
         </div>
@@ -728,7 +725,7 @@
       <p class="mt-4 text-[15px] leading-relaxed text-zinc-400">Clerq2 is generic — the rules and lists you configure make it yours. A few of the dossiers teams run through it:</p>
     </div>
     <div class="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      <div class="card p-6" data-aos="fade-up"><div class="text-[12px] font-medium text-indigo-300">Receive · validate · prioritize</div><h3 class="mt-2 text-[17px] font-semibold">Dossier admissibility</h3><p class="mt-2 text-[13.5px] leading-relaxed text-zinc-400">Detect missing pieces, validate completeness, decide Recevable / Non recevable / Information manquante.</p></div>
+      <div class="card p-6" data-aos="fade-up"><div class="text-[12px] font-medium text-indigo-300">Receive · validate · prioritize</div><h3 class="mt-2 text-[17px] font-semibold">Application completeness</h3><p class="mt-2 text-[13.5px] leading-relaxed text-zinc-400">Detect missing pieces and signatures, validate completeness, decide Complete / Incomplete / Needs more info.</p></div>
       <div class="card p-6" data-aos="fade-up" data-aos-delay="60"><div class="text-[12px] font-medium text-indigo-300">Programs · subsidies</div><h3 class="mt-2 text-[17px] font-semibold">Grant & subsidy applications</h3><p class="mt-2 text-[13.5px] leading-relaxed text-zinc-400">Check eligibility against criteria and approved lists, with a reviewer who signs off each file.</p></div>
       <div class="card p-6" data-aos="fade-up" data-aos-delay="120"><div class="text-[12px] font-medium text-indigo-300">Compare · flag · justify</div><h3 class="mt-2 text-[17px] font-semibold">Financial document validation</h3><p class="mt-2 text-[13.5px] leading-relaxed text-zinc-400">Reconcile amounts, dates and statuses across forms, statements and invoices; flag the inconsistencies.</p></div>
       <div class="card p-6" data-aos="fade-up"><div class="text-[12px] font-medium text-indigo-300">Control · trace · audit</div><h3 class="mt-2 text-[17px] font-semibold">Regulatory & compliance</h3><p class="mt-2 text-[13.5px] leading-relaxed text-zinc-400">Verify the expected documents are present, coherent and conformant — with an auditable trail.</p></div>
