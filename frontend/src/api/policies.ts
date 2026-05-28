@@ -73,7 +73,7 @@ export function useCreateRule() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ policyId, ...data }: {
-      policyId: number; name: string; requirement?: string;
+      policyId: number; name: string; requirement?: string; scope?: string;
       accept_criteria?: string | null; fail_criteria?: string | null;
       ai_instructions?: string | null;
       document_type_id?: number | null; confidence_threshold?: number
@@ -90,7 +90,7 @@ export function useUpdateRule() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ policyId, ruleId, ...data }: {
-      policyId: number; ruleId: number; name?: string; requirement?: string;
+      policyId: number; ruleId: number; name?: string; requirement?: string; scope?: string;
       accept_criteria?: string | null; fail_criteria?: string | null;
       ai_instructions?: string | null;
       document_type_id?: number | null; confidence_threshold?: number

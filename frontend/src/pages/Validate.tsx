@@ -288,6 +288,11 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                       <span className={`flex-1 truncate text-[13px] leading-snug ${nameColor}`}>
                         {rule.name}
                       </span>
+                      {rule.scope === 'cross_set' && (
+                        <span className="shrink-0 rounded bg-violet-500/12 px-1.5 py-0.5 text-[9px] font-medium text-violet-400 ring-1 ring-violet-500/20" title="Evaluated across the whole set">
+                          set
+                        </span>
+                      )}
                       {result && (
                         <span className={`shrink-0 font-mono text-[11px] font-medium ${
                           result.status === 'pass' ? 'text-emerald-400'
@@ -324,11 +329,18 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex flex-col gap-1.5">
                       <h3 className="text-[15px] font-semibold text-[var(--c-text-1)]">{selectedRule.name}</h3>
-                      {selectedRule.requirement === 'optional' && (
-                        <span className="w-fit rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[9px] text-[var(--c-text-5)]">
-                          optional
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {selectedRule.scope === 'cross_set' && (
+                          <span className="w-fit rounded bg-violet-500/12 px-1.5 py-0.5 text-[9px] font-medium text-violet-400 ring-1 ring-violet-500/20">
+                            across set
+                          </span>
+                        )}
+                        {selectedRule.requirement === 'optional' && (
+                          <span className="w-fit rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[9px] text-[var(--c-text-5)]">
+                            optional
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className={`rounded px-2.5 py-1 text-[12px] font-semibold ${RESULT_BADGE[selectedResult.status]}`}>
@@ -378,8 +390,28 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                     </div>
                   )}
 
-                  {/* Per-document breakdown */}
-                  {selectedResult.per_document && selectedResult.per_document.length > 1 && (
+                  {/* Cross-set: documents compared */}
+                  {selectedResult.scope === 'cross_set' && selectedResult.per_document && selectedResult.per_document.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
+                        Documents compared · {selectedResult.per_document.length}
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedResult.per_document.map((pd, i) => (
+                          <span
+                            key={i}
+                            className="flex items-center gap-1.5 rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2.5 py-1.5 text-[11px] text-[var(--c-text-2)]"
+                          >
+                            <FileText size={11} className="shrink-0 text-[var(--c-text-4)]" />
+                            <span className="truncate">{pd.document_filename}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Per-document breakdown (per-document rules only) */}
+                  {selectedResult.scope !== 'cross_set' && selectedResult.per_document && selectedResult.per_document.length > 1 && (
                     <div className="flex flex-col gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
                         Per document

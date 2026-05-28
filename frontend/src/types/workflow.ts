@@ -116,6 +116,7 @@ export interface PolicyRule {
   position: number
   name: string
   requirement: 'required' | 'optional'
+  scope: 'per_document' | 'cross_set'
   accept_criteria: string | null
   fail_criteria: string | null
   ai_instructions: string | null
@@ -180,6 +181,7 @@ export interface PerDocumentResult {
 export interface ValidationRuleResult {
   rule_name: string
   requirement: string
+  scope?: 'per_document' | 'cross_set'
   status: 'pass' | 'fail' | 'uncertain'
   confidence: number
   evidence: string

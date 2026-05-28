@@ -42,6 +42,7 @@ def run_migrations() -> None:
         _add_column_if_missing(conn, "policies", "current_version_num", "INTEGER NOT NULL DEFAULT 0")
         _add_column_if_missing(conn, "policy_rules", "accept_criteria", "TEXT")
         _add_column_if_missing(conn, "policy_rules", "fail_criteria", "TEXT")
+        _add_column_if_missing(conn, "policy_rules", "scope", "TEXT NOT NULL DEFAULT 'per_document'")
         _add_column_if_missing(conn, "workflow_runs", "name", "TEXT")
         _add_column_if_missing(conn, "workflow_runs", "source", "TEXT")
         _add_column_if_missing(conn, "workflow_runs", "policy_id", "INTEGER")

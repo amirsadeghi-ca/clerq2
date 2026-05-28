@@ -16,6 +16,13 @@ import type { PolicyRule, PolicyVersion } from '../types/workflow'
 const REQUIREMENTS = ['required', 'optional'] as const
 const REQUIREMENT_LABELS: Record<string, string> = { required: 'Required', optional: 'Optional' }
 
+const SCOPES = ['per_document', 'cross_set'] as const
+const SCOPE_LABELS: Record<string, string> = { per_document: 'Each doc', cross_set: 'Across set' }
+const SCOPE_HINTS: Record<string, string> = {
+  per_document: 'Checked against each document on its own',
+  cross_set: 'Evaluated once across the whole document set (cross-document consistency)',
+}
+
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60_000)
@@ -162,6 +169,29 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
           className="min-w-0 flex-1 rounded bg-transparent px-1 py-0.5 text-[14px] font-semibold text-[var(--c-text-1)] outline-none placeholder-[var(--c-text-5)] caret-indigo-400 transition-colors hover:bg-[var(--c-hover-2)] focus:bg-[var(--c-surface-3)] focus:ring-1 focus:ring-indigo-500/30"
           placeholder="Rule name…"
         />
+
+        {/* Scope (reach) pills — per-document vs across-set */}
+        <div className="flex shrink-0 items-center gap-1" title={SCOPE_HINTS[rule.scope ?? 'per_document']}>
+          {SCOPES.map(sc => (
+            <button
+              key={sc}
+              onClick={() => update('scope', sc)}
+              title={SCOPE_HINTS[sc]}
+              className={[
+                'rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors',
+                (rule.scope ?? 'per_document') === sc
+                  ? sc === 'cross_set'
+                    ? 'bg-violet-500/12 text-violet-400 ring-1 ring-violet-500/25'
+                    : 'bg-[var(--c-surface-3)] text-[var(--c-text-3)] ring-1 ring-[var(--c-border-2)]'
+                  : 'text-[var(--c-text-5)] hover:text-[var(--c-text-4)]',
+              ].join(' ')}
+            >
+              {SCOPE_LABELS[sc]}
+            </button>
+          ))}
+        </div>
+
+        <div className="h-3.5 w-px shrink-0 bg-[var(--c-border-2)]" />
 
         {/* Required / Optional pills */}
         <div className="flex shrink-0 items-center gap-1">

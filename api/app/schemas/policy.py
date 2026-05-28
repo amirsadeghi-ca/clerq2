@@ -7,6 +7,7 @@ from app.schemas.library import DocumentTypeOut
 class PolicyRuleCreate(BaseModel):
     name: str
     requirement: str = "required"
+    scope: str = "per_document"
     accept_criteria: str | None = None
     fail_criteria: str | None = None
     ai_instructions: str | None = None
@@ -17,6 +18,7 @@ class PolicyRuleCreate(BaseModel):
 class PolicyRuleUpdate(BaseModel):
     name: str | None = None
     requirement: str | None = None
+    scope: str | None = None
     accept_criteria: str | None = None
     fail_criteria: str | None = None
     ai_instructions: str | None = None
@@ -30,6 +32,7 @@ class PolicyRuleOut(BaseModel):
     position: int
     name: str
     requirement: str
+    scope: str = "per_document"
     accept_criteria: str | None
     fail_criteria: str | None
     ai_instructions: str | None

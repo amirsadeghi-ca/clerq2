@@ -15,6 +15,7 @@ from app.tasks.nodes.base import mark_step_running, mark_step_done, mark_step_fa
 
 MAX_DOC_IMAGES = 20
 MAX_SAMPLE_IMAGES = 2
+MAX_SET_IMAGES = 30  # cap on total images sent in one cross-set call (keeps payload < model limit)
 
 # Precedence: fail (worst) → uncertain → pass (best)
 _STATUS_RANK = {"fail": 0, "uncertain": 1, "pass": 2}
@@ -51,15 +52,24 @@ def _pdf_to_b64_images(pdf_path: str, max_pages: int = 20, scale: float = 2.0) -
     return result
 
 
-def _build_prompt(policy: Policy, doc_content_blocks: list[dict], doc_name: str | None = None) -> list[dict]:
+def _build_prompt(
+    policy: Policy,
+    rules: list,
+    doc_content_blocks: list[dict],
+    doc_name: str | None = None,
+    cross_set: bool = False,
+) -> list[dict]:
     """Build the OpenAI messages list for the validation call.
 
+    rules: the subset of policy rules to evaluate in this call (per-document or cross-set).
     doc_content_blocks: OpenAI content dicts — either image_url blocks (for PDFs/images)
     or text blocks (for Word/Excel/CSV after text extraction).
+    cross_set: when True, the content holds the WHOLE document set and rules are evaluated
+    across the collection rather than against a single document.
     """
     rules_text = []
     sample_sections = []
-    for i, rule in enumerate(policy.rules, 1):
+    for i, rule in enumerate(rules, 1):
         req = rule.requirement.upper()
         line = f"{i}. [{req}] {rule.name}"
         if rule.accept_criteria:
@@ -76,6 +86,19 @@ def _build_prompt(policy: Policy, doc_content_blocks: list[dict], doc_name: str 
                 "rule_name": rule.name,
                 "samples": samples,
             })
+
+    cross_set_note = ""
+    if cross_set:
+        cross_set_note = (
+            "\n\nCROSS-SET EVALUATION:\n"
+            "You are given the ENTIRE set of documents at once, each introduced by a "
+            '\'=== Document: \"filename\" ===\' marker. The rules below are SET-WIDE: judge each '
+            "rule across the whole collection, comparing documents against one another. "
+            "For example, a consistency rule passes only if the relevant fields agree across "
+            "every document that contains them; a conditional rule (if form A says Yes then form B "
+            "must be present) is judged by inspecting the related documents together. "
+            "In the evidence, name the specific documents you compared and what each showed."
+        )
 
     system_msg = {
         "role": "system",
@@ -97,10 +120,13 @@ def _build_prompt(policy: Policy, doc_content_blocks: list[dict], doc_name: str 
             "The document shows an expiry date of 2028-06-15, which is in the future.\" "
             "Always contrast the expectation against the finding — never write evidence that only describes "
             "what you saw without referencing what the rule demands."
+            + cross_set_note
         ),
     }
 
-    if doc_name:
+    if cross_set:
+        doc_description = "The following is the ENTIRE document set to evaluate the rules across:"
+    elif doc_name:
         doc_description = f'The following is the content of document "{doc_name}" to validate:'
     else:
         doc_description = "The following is the document packet content to validate:"
@@ -144,11 +170,13 @@ def _call_ai_once(
     client: OpenAI,
     model: str,
     policy: Policy,
+    rules: list,
     doc_content_blocks: list[dict],
     doc_name: str | None = None,
+    cross_set: bool = False,
 ) -> list[dict]:
     """Call the AI once for a document's content blocks. Returns the raw results list."""
-    messages = _build_prompt(policy, doc_content_blocks, doc_name=doc_name)
+    messages = _build_prompt(policy, rules, doc_content_blocks, doc_name=doc_name, cross_set=cross_set)
 
     # Log prompt structure
     label = f'"{doc_name}"' if doc_name else "document"
@@ -194,6 +222,54 @@ def _call_ai_once(
             raw = raw[4:]
     parsed = json.loads(raw.strip())
     return parsed.get("results", [])
+
+
+def _doc_content_blocks(doc_info: dict) -> list[dict]:
+    """Build OpenAI content blocks for a single document (text block or image blocks)."""
+    name = doc_info.get("filename", "document")
+    text_content: str | None = doc_info.get("text_content")
+    blocks: list[dict] = []
+    if text_content:
+        blocks.append({"type": "text", "text": f'=== Document: "{name}" ===\n{text_content}'})
+    else:
+        for rel_path in doc_info.get("image_paths", [])[:MAX_DOC_IMAGES]:
+            abs_path = os.path.join(settings.storage_path, rel_path)
+            try:
+                blocks.append(_image_content(_encode_image(abs_path)))
+            except FileNotFoundError:
+                pass
+    return blocks
+
+
+def _build_set_content_blocks(step_id: int, documents_list: list[dict]) -> list[dict]:
+    """Build labeled content blocks for the WHOLE set — used for cross-set rules.
+
+    Each document is prefixed with a '=== Document: "name" ===' marker so the model can
+    attribute findings. Total images are capped at MAX_SET_IMAGES to stay within payload limits.
+    """
+    blocks: list[dict] = []
+    images_used = 0
+    for doc_info in documents_list:
+        name = doc_info.get("filename", "document")
+        text_content: str | None = doc_info.get("text_content")
+        blocks.append({"type": "text", "text": f'=== Document: "{name}" ==='})
+        if text_content:
+            blocks.append({"type": "text", "text": text_content})
+        else:
+            for rel_path in doc_info.get("image_paths", []):
+                if images_used >= MAX_SET_IMAGES:
+                    blocks.append({
+                        "type": "text",
+                        "text": f"[Additional pages of \"{name}\" omitted — set image cap of {MAX_SET_IMAGES} reached]",
+                    })
+                    break
+                abs_path = os.path.join(settings.storage_path, rel_path)
+                try:
+                    blocks.append(_image_content(_encode_image(abs_path)))
+                    images_used += 1
+                except FileNotFoundError:
+                    pass
+    return blocks
 
 
 def _merge_per_doc_results(
@@ -269,6 +345,10 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
             _ = [(r.name, r.document_type.samples if r.document_type else []) for r in policy.rules]
             policy_version_num = policy.current_version_num
             rule_requirements = {r.name: r.requirement for r in policy.rules}
+            rule_scopes = {r.name: getattr(r, "scope", "per_document") for r in policy.rules}
+            rule_order = {r.name: r.position for r in policy.rules}
+            per_doc_rules = [r for r in policy.rules if getattr(r, "scope", "per_document") != "cross_set"]
+            cross_set_rules = [r for r in policy.rules if getattr(r, "scope", "per_document") == "cross_set"]
         finally:
             db.close()
 
@@ -291,65 +371,89 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
 
         if documents_list:
             # ── Multi-doc mode ──────────────────────────────────────────────
-            step_log(step_id, f"{len(documents_list)} document(s) in set")
+            step_log(step_id, (
+                f"{len(documents_list)} document(s) in set — "
+                f"{len(per_doc_rules)} per-document rule(s), {len(cross_set_rules)} cross-set rule(s)"
+            ))
 
-            per_doc_results: list[dict] = []
-            all_image_paths: list[str] = []
+            all_image_paths: list[str] = [p for d in documents_list for p in d.get("image_paths", [])]
+            results: list[dict] = []
 
-            for doc_info in documents_list:
-                doc_id = doc_info.get("id")
-                doc_name = doc_info.get("filename", f"document {doc_id}")
-                image_paths_rel: list[str] = doc_info.get("image_paths", [])
-                text_content: str | None = doc_info.get("text_content")
-                all_image_paths.extend(image_paths_rel)
+            # ── Per-document rules: one AI call per document, then worst-case merge ──
+            if per_doc_rules:
+                per_doc_results: list[dict] = []
+                for doc_info in documents_list:
+                    doc_id = doc_info.get("id")
+                    doc_name = doc_info.get("filename", f"document {doc_id}")
 
-                doc_content_blocks: list[dict] = []
-
-                if text_content:
-                    # Text-extracted document (Word / Excel / CSV)
-                    doc_content_blocks.append({
-                        "type": "text",
-                        "text": f'=== Document: "{doc_name}" ===\n{text_content}',
-                    })
-                    step_log(step_id, f"  {doc_name}: {len(text_content):,} chars (text)")
-                else:
-                    # Image/PDF document — encode pages
-                    for rel_path in image_paths_rel[:MAX_DOC_IMAGES]:
-                        abs_path = os.path.join(settings.storage_path, rel_path)
-                        try:
-                            doc_content_blocks.append(_image_content(_encode_image(abs_path)))
-                        except FileNotFoundError:
-                            pass
-                    if doc_content_blocks:
+                    blocks = _doc_content_blocks(doc_info)
+                    if doc_info.get("text_content"):
+                        step_log(step_id, f"  {doc_name}: {len(doc_info['text_content']):,} chars (text)")
+                    elif blocks:
                         total_mb = sum(
-                            len(b.get("image_url", {}).get("url", "")) * 3 // 4
-                            for b in doc_content_blocks
+                            len(b.get("image_url", {}).get("url", "")) * 3 // 4 for b in blocks
                         ) / (1024 * 1024)
-                        step_log(step_id, f"  {doc_name}: {len(doc_content_blocks)} image(s) — {total_mb:.1f} MB")
+                        step_log(step_id, f"  {doc_name}: {len(blocks)} image(s) — {total_mb:.1f} MB")
 
-                if not doc_content_blocks:
-                    step_log(step_id, f"  {doc_name}: no content available, skipping")
+                    if not blocks:
+                        step_log(step_id, f"  {doc_name}: no content available, skipping")
+                        per_doc_results.append({
+                            "document_id": doc_id, "document_filename": doc_name, "results": [],
+                        })
+                        continue
+
+                    raise_if_cancelled(run_id)
+                    doc_ai_results = _call_ai_once(
+                        step_id, ai_client, model, policy, per_doc_rules, blocks, doc_name=doc_name
+                    )
+                    n_pass = sum(1 for r in doc_ai_results if r.get("status") == "pass")
+                    n_fail = sum(1 for r in doc_ai_results if r.get("status") == "fail")
+                    n_unc  = sum(1 for r in doc_ai_results if r.get("status") == "uncertain")
+                    step_log(step_id, f"  {doc_name}: {n_pass}✓ {n_fail}✗ {n_unc}?")
+
                     per_doc_results.append({
-                        "document_id": doc_id,
-                        "document_filename": doc_name,
-                        "results": [],
+                        "document_id": doc_id, "document_filename": doc_name, "results": doc_ai_results,
                     })
-                    continue
 
+                merged = _merge_per_doc_results(per_doc_results, rule_requirements)
+                for m in merged:
+                    m["scope"] = "per_document"
+                results.extend(merged)
+
+            # ── Cross-set rules: one AI call over the WHOLE set ──
+            if cross_set_rules:
                 raise_if_cancelled(run_id)
-                doc_ai_results = _call_ai_once(step_id, ai_client, model, policy, doc_content_blocks, doc_name=doc_name)
-                n_pass = sum(1 for r in doc_ai_results if r.get("status") == "pass")
-                n_fail = sum(1 for r in doc_ai_results if r.get("status") == "fail")
-                n_unc  = sum(1 for r in doc_ai_results if r.get("status") == "uncertain")
-                step_log(step_id, f"  {doc_name}: {n_pass}✓ {n_fail}✗ {n_unc}?")
+                set_blocks = _build_set_content_blocks(step_id, documents_list)
+                n_imgs = sum(1 for b in set_blocks if b.get("type") == "image_url")
+                step_log(step_id, f"  Cross-set: comparing {len(documents_list)} doc(s) — {n_imgs} image(s) total")
 
-                per_doc_results.append({
-                    "document_id": doc_id,
-                    "document_filename": doc_name,
-                    "results": doc_ai_results,
-                })
+                if set_blocks:
+                    cross_results = _call_ai_once(
+                        step_id, ai_client, model, policy, cross_set_rules, set_blocks, cross_set=True
+                    )
+                    # Attribute each cross-set finding to every document it compared.
+                    compared = [
+                        {
+                            "document_id": d.get("id"),
+                            "document_filename": d.get("filename", f"document {d.get('id')}"),
+                        }
+                        for d in documents_list
+                    ]
+                    for r in cross_results:
+                        r["scope"] = "cross_set"
+                        r["per_document"] = [
+                            {**c, "status": r.get("status", "uncertain"),
+                             "confidence": r.get("confidence", 0.0), "evidence": ""}
+                            for c in compared
+                        ]
+                    n_pass = sum(1 for r in cross_results if r.get("status") == "pass")
+                    n_fail = sum(1 for r in cross_results if r.get("status") == "fail")
+                    n_unc  = sum(1 for r in cross_results if r.get("status") == "uncertain")
+                    step_log(step_id, f"  Cross-set: {n_pass}✓ {n_fail}✗ {n_unc}?")
+                    results.extend(cross_results)
 
-            results = _merge_per_doc_results(per_doc_results, rule_requirements)
+            # Order results to match the policy's rule order
+            results.sort(key=lambda r: rule_order.get(r.get("rule_name", ""), 9999))
             image_paths = all_image_paths
 
         else:
@@ -412,7 +516,10 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
             if sample_section_count:
                 step_log(step_id, f"Attached reference samples for {sample_section_count} rule(s)")
 
-            results = _call_ai_once(step_id, ai_client, model, policy, single_content_blocks)
+            # Single document — scope distinction is moot, so evaluate all rules in one call.
+            results = _call_ai_once(step_id, ai_client, model, policy, list(policy.rules), single_content_blocks)
+            for r in results:
+                r["scope"] = rule_scopes.get(r.get("rule_name", ""), "per_document")
 
         # Compute overall using stored policy requirements
         required_statuses = [

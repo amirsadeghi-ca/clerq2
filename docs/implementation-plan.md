@@ -104,7 +104,7 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 ---
 
-## Phase 3 — Rules that look across the whole set
+## Phase 3 — Rules that look across the whole set ✓
 
 **What changes for the user:** when authoring a policy rule, the user chooses the rule's **reach**: does it apply to *each document individually* (e.g. "this form must be signed") or *across the whole set* (e.g. "the applicant's name must be identical on every form", "if form A answers Yes, form B must be present")? This is the RFP's "cohérence logique" and cross-form consistency, expressed generically.
 
