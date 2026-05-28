@@ -249,7 +249,10 @@ def _call_ai_once(
     response = client.chat.completions.create(
         model=model,
         messages=messages,  # type: ignore[arg-type]
-        max_tokens=2048,
+        # Generous ceiling: a policy can have many rules, each with a detailed
+        # multi-sentence evidence string. Too low a limit truncates the JSON
+        # mid-string and breaks parsing.
+        max_tokens=8192,
         temperature=0.1,
     )
 

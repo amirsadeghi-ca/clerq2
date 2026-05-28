@@ -138,7 +138,7 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 ---
 
-## Phase 4 — The MELCCFP recevability use case (configuration & data only — no app code)
+## Phase 4 — The MELCCFP recevability use case (configuration & data only) ✓
 
 **What changes for the user:** Clerq2 ships with a ready-to-use *example* of the RFP, built entirely from the generic features above — proving the whole story end to end. It is data, not code: it can be deleted without affecting the app.
 
