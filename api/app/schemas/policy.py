@@ -13,6 +13,9 @@ class PolicyRuleCreate(BaseModel):
     ai_instructions: str | None = None
     document_type_id: int | None = None
     confidence_threshold: float = 0.75
+    reference_list_id: int | None = None
+    reference_direction: str = "in"
+    reference_match: str = "smart"
 
 
 class PolicyRuleUpdate(BaseModel):
@@ -24,6 +27,9 @@ class PolicyRuleUpdate(BaseModel):
     ai_instructions: str | None = None
     document_type_id: int | None = None
     confidence_threshold: float | None = None
+    reference_list_id: int | None = None
+    reference_direction: str | None = None
+    reference_match: str | None = None
 
 
 class PolicyRuleOut(BaseModel):
@@ -38,6 +44,9 @@ class PolicyRuleOut(BaseModel):
     ai_instructions: str | None
     document_type_id: int | None
     confidence_threshold: float
+    reference_list_id: int | None = None
+    reference_direction: str = "in"
+    reference_match: str = "smart"
     document_type: DocumentTypeOut | None = None
     model_config = {"from_attributes": True}
 

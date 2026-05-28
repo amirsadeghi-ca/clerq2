@@ -194,7 +194,7 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 ---
 
-## Phase 7 — Reference-data lookups (optional, independent)
+## Phase 7 — Reference-data lookups (optional, independent) ✓
 
 **Why:** many real checks compare an extracted value against an authoritative list (eligible appliances, approved vendors, valid codes) — not expressible by a natural-language rule alone. Independent of the report loop; can be pulled forward anytime, and it sharpens the Phase 4 demo.
 

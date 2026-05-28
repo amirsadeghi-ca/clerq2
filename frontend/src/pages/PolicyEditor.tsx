@@ -10,6 +10,7 @@ import {
   useEnablePolicyInbox, useDisablePolicyInbox,
 } from '../api/policies'
 import { useDocumentTypes } from '../api/library'
+import { useReferenceLists } from '../api/referenceLists'
 import { LeftSidebar } from '../components/LeftSidebar'
 import type { PolicyRule, PolicyVersion } from '../types/workflow'
 
@@ -128,6 +129,7 @@ interface RuleCardProps {
 function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown, isFirst, isLast }: RuleCardProps) {
   const updateRule = useUpdateRule()
   const deleteRule = useDeleteRule()
+  const { data: referenceLists } = useReferenceLists()
 
   const [nameDraft, setNameDraft] = useState(rule.name)
   const [acceptDraft, setAcceptDraft] = useState(rule.accept_criteria ?? '')
@@ -151,7 +153,7 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
     else if (!trimmed) setNameDraft(rule.name) // revert if cleared
   }
 
-  const hasAdvanced = !!(rule.document_type_id || rule.ai_instructions || rule.confidence_threshold !== 0.8)
+  const hasAdvanced = !!(rule.document_type_id || rule.ai_instructions || rule.reference_list_id || rule.confidence_threshold !== 0.8)
 
   return (
     <div className="group overflow-hidden rounded-xl border border-[var(--c-border-2)] bg-[var(--c-surface)] transition-[border-color] hover:border-[var(--c-border-3)]">
@@ -290,6 +292,58 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
                 <option value="">— None —</option>
                 {docTypeOptions.map(dt => <option key={dt.id} value={dt.id}>{dt.name}</option>)}
               </select>
+            </div>
+
+            {/* Reference-list check (Phase 7) */}
+            <div>
+              <label className="mb-1 block text-[10px] font-medium text-[var(--c-text-5)]">Check against a reference list</label>
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--c-text-4)]">
+                <span>The value must be</span>
+                <select
+                  value={rule.reference_direction ?? 'in'}
+                  onChange={e => update('reference_direction', e.target.value)}
+                  disabled={!rule.reference_list_id}
+                  className="rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2 py-1 text-[11px] text-[var(--c-text-2)] outline-none transition-colors focus:border-indigo-500/50 disabled:opacity-50"
+                >
+                  <option value="in">in</option>
+                  <option value="not_in">not in</option>
+                </select>
+                <select
+                  value={rule.reference_list_id ?? ''}
+                  onChange={e => update('reference_list_id', e.target.value ? Number(e.target.value) : null)}
+                  className="min-w-[140px] rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2 py-1 text-[11px] text-[var(--c-text-2)] outline-none transition-colors focus:border-indigo-500/50"
+                >
+                  <option value="">— no list —</option>
+                  {(referenceLists ?? []).map(rl => (
+                    <option key={rl.id} value={rl.id}>{rl.name} ({rl.items.length})</option>
+                  ))}
+                </select>
+              </div>
+              {rule.reference_list_id && (
+                <div className="mt-2 flex items-center gap-1">
+                  <span className="mr-1 text-[10px] text-[var(--c-text-5)]">Match:</span>
+                  {(['exact', 'smart'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => update('reference_match', m)}
+                      title={m === 'exact'
+                        ? 'Safest — the value must match a list entry precisely (case-insensitive)'
+                        : 'Tolerant of spelling, casing, and formatting variations'}
+                      className={[
+                        'rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors',
+                        (rule.reference_match ?? 'smart') === m
+                          ? 'bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30'
+                          : 'text-[var(--c-text-5)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-3)]',
+                      ].join(' ')}
+                    >
+                      {m === 'exact' ? 'Exact' : 'Smart'}
+                    </button>
+                  ))}
+                  {(referenceLists ?? []).length === 0 && (
+                    <span className="ml-2 text-[10px] text-[var(--c-text-5)]">Create lists in Library → Reference lists</span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>

@@ -52,12 +52,37 @@ def _pdf_to_b64_images(pdf_path: str, max_pages: int = 20, scale: float = 2.0) -
     return result
 
 
+def _reference_clause(spec: dict) -> str:
+    """Build the prompt clause for a rule's reference-list check (Phase 7)."""
+    items = spec.get("items") or []
+    items_str = ", ".join(str(x) for x in items) if items else "(the list is currently empty)"
+    direction = spec.get("direction", "in")
+    must = "MUST appear in" if direction == "in" else "MUST NOT appear in"
+    if spec.get("match") == "exact":
+        match_note = (
+            "Use EXACT membership: compare case-insensitively and ignore surrounding "
+            "whitespace, but a value that merely resembles an entry (different model, "
+            "spelling, or formatting) does NOT count as present."
+        )
+    else:
+        match_note = (
+            "Use SMART membership: tolerate minor spelling, casing, punctuation, or "
+            "formatting variations when deciding whether the value matches an entry."
+        )
+    return (
+        f"\n   Reference-list check: identify the relevant value in the document, then it {must} "
+        f'the approved list "{spec.get("name", "list")}": [{items_str}]. {match_note} '
+        f"In your evidence, name this list and the exact value you evaluated, and say whether it was found."
+    )
+
+
 def _build_prompt(
     policy: Policy,
     rules: list,
     doc_content_blocks: list[dict],
     doc_name: str | None = None,
     cross_set: bool = False,
+    reference_specs: dict | None = None,
 ) -> list[dict]:
     """Build the OpenAI messages list for the validation call.
 
@@ -66,7 +91,10 @@ def _build_prompt(
     or text blocks (for Word/Excel/CSV after text extraction).
     cross_set: when True, the content holds the WHOLE document set and rules are evaluated
     across the collection rather than against a single document.
+    reference_specs: rule_name -> {name, items, direction, match} for rules that check
+    an extracted value against a reference list (Phase 7).
     """
+    reference_specs = reference_specs or {}
     rules_text = []
     sample_sections = []
     for i, rule in enumerate(rules, 1):
@@ -78,6 +106,8 @@ def _build_prompt(
             line += f"\n   Fail when: {rule.fail_criteria}"
         if rule.ai_instructions:
             line += f"\n   Instructions: {rule.ai_instructions}"
+        if rule.name in reference_specs:
+            line += _reference_clause(reference_specs[rule.name])
         rules_text.append(line)
 
         if rule.document_type and rule.document_type.samples:
@@ -187,9 +217,13 @@ def _call_ai_once(
     doc_content_blocks: list[dict],
     doc_name: str | None = None,
     cross_set: bool = False,
+    reference_specs: dict | None = None,
 ) -> list[dict]:
     """Call the AI once for a document's content blocks. Returns the raw results list."""
-    messages = _build_prompt(policy, rules, doc_content_blocks, doc_name=doc_name, cross_set=cross_set)
+    messages = _build_prompt(
+        policy, rules, doc_content_blocks, doc_name=doc_name, cross_set=cross_set,
+        reference_specs=reference_specs,
+    )
 
     # Log prompt structure
     label = f'"{doc_name}"' if doc_name else "document"
@@ -388,6 +422,21 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
             rule_order = {r.name: r.position for r in policy.rules}
             per_doc_rules = [r for r in policy.rules if getattr(r, "scope", "per_document") in ("per_document", "any_document")]
             cross_set_rules = [r for r in policy.rules if getattr(r, "scope", "per_document") == "cross_set"]
+            # Phase 7 — pre-load reference lists for rules that check against one
+            # (the DB session is closed before prompts are built).
+            from app.models.reference_list import ReferenceList
+            reference_specs: dict[str, dict] = {}
+            for r in policy.rules:
+                rl_id = getattr(r, "reference_list_id", None)
+                if rl_id:
+                    rl = db.get(ReferenceList, rl_id)
+                    if rl:
+                        reference_specs[r.name] = {
+                            "name": rl.name,
+                            "items": list(rl.items or []),
+                            "direction": getattr(r, "reference_direction", "in") or "in",
+                            "match": getattr(r, "reference_match", "smart") or "smart",
+                        }
         finally:
             db.close()
 
@@ -443,7 +492,8 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
 
                     raise_if_cancelled(run_id)
                     doc_ai_results = _call_ai_once(
-                        step_id, ai_client, model, policy, per_doc_rules, blocks, doc_name=doc_name
+                        step_id, ai_client, model, policy, per_doc_rules, blocks, doc_name=doc_name,
+                        reference_specs=reference_specs,
                     )
                     n_pass = sum(1 for r in doc_ai_results if r.get("status") == "pass")
                     n_fail = sum(1 for r in doc_ai_results if r.get("status") == "fail")
@@ -466,7 +516,8 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
 
                 if set_blocks:
                     cross_results = _call_ai_once(
-                        step_id, ai_client, model, policy, cross_set_rules, set_blocks, cross_set=True
+                        step_id, ai_client, model, policy, cross_set_rules, set_blocks, cross_set=True,
+                        reference_specs=reference_specs,
                     )
                     # Attribute each cross-set finding to every document it compared.
                     compared = [
@@ -554,7 +605,10 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
                 step_log(step_id, f"Attached reference samples for {sample_section_count} rule(s)")
 
             # Single document — scope distinction is moot, so evaluate all rules in one call.
-            results = _call_ai_once(step_id, ai_client, model, policy, list(policy.rules), single_content_blocks)
+            results = _call_ai_once(
+                step_id, ai_client, model, policy, list(policy.rules), single_content_blocks,
+                reference_specs=reference_specs,
+            )
             for r in results:
                 name = r.get("rule_name", "")
                 r["scope"] = rule_scopes.get(name, "per_document")

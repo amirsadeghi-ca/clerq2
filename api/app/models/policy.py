@@ -35,6 +35,11 @@ class PolicyRule(Base):
     ai_instructions: Mapped[str | None] = mapped_column(Text)
     document_type_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("document_types.id"))
     confidence_threshold: Mapped[float] = mapped_column(Float, nullable=False, default=0.75)
+    # Phase 7 — optional reference-list check. When set, the rule also checks an
+    # extracted value against an approved list.
+    reference_list_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("reference_lists.id"))
+    reference_direction: Mapped[str] = mapped_column(String(16), nullable=False, default="in", server_default="'in'")  # "in" | "not_in"
+    reference_match: Mapped[str] = mapped_column(String(16), nullable=False, default="smart", server_default="'smart'")  # "exact" | "smart"
 
     policy: Mapped["Policy"] = relationship("Policy", back_populates="rules")
     document_type: Mapped["DocumentType | None"] = relationship("DocumentType")  # type: ignore[name-defined]

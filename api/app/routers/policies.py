@@ -28,6 +28,9 @@ def _snapshot(policy: Policy) -> dict:
                 "ai_instructions": r.ai_instructions,
                 "document_type_id": r.document_type_id,
                 "confidence_threshold": r.confidence_threshold,
+                "reference_list_id": r.reference_list_id,
+                "reference_direction": r.reference_direction,
+                "reference_match": r.reference_match,
             }
             for r in policy.rules
         ],
@@ -143,6 +146,9 @@ def restore_policy_version(policy_id: int, version_id: int, db: Session = Depend
             ai_instructions=rule_data.get("ai_instructions"),
             document_type_id=rule_data.get("document_type_id"),
             confidence_threshold=rule_data.get("confidence_threshold", 0.75),
+            reference_list_id=rule_data.get("reference_list_id"),
+            reference_direction=rule_data.get("reference_direction", "in"),
+            reference_match=rule_data.get("reference_match", "smart"),
         )
         db.add(rule)
     db.flush()

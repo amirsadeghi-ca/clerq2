@@ -76,7 +76,8 @@ export function useCreateRule() {
       policyId: number; name: string; requirement?: string; scope?: string;
       accept_criteria?: string | null; fail_criteria?: string | null;
       ai_instructions?: string | null;
-      document_type_id?: number | null; confidence_threshold?: number
+      document_type_id?: number | null; confidence_threshold?: number;
+      reference_list_id?: number | null; reference_direction?: string; reference_match?: string
     }) => client.post<PolicyRule>(`/policies/${policyId}/rules`, data).then(r => r.data),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['policies', vars.policyId] })
@@ -93,7 +94,8 @@ export function useUpdateRule() {
       policyId: number; ruleId: number; name?: string; requirement?: string; scope?: string;
       accept_criteria?: string | null; fail_criteria?: string | null;
       ai_instructions?: string | null;
-      document_type_id?: number | null; confidence_threshold?: number
+      document_type_id?: number | null; confidence_threshold?: number;
+      reference_list_id?: number | null; reference_direction?: string; reference_match?: string
     }) => client.put<PolicyRule>(`/policies/${policyId}/rules/${ruleId}`, data).then(r => r.data),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['policies', vars.policyId] })

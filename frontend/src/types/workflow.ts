@@ -153,7 +153,19 @@ export interface PolicyRule {
   ai_instructions: string | null
   document_type_id: number | null
   confidence_threshold: number
+  reference_list_id: number | null
+  reference_direction: 'in' | 'not_in'
+  reference_match: 'exact' | 'smart'
   document_type: DocumentType | null
+}
+
+export interface ReferenceList {
+  id: number
+  name: string
+  description: string | null
+  items: string[]
+  created_at: string
+  updated_at: string
 }
 
 export interface PolicyVersion {

@@ -56,10 +56,15 @@ def run_migrations() -> None:
         _add_column_if_missing(conn, "policies", "email_fail_message", "TEXT")
         # Phase 6 — human review on the report (notes, overrides, finalize/reopen, audit history)
         _add_column_if_missing(conn, "workflow_runs", "review", "JSON")
+        # Phase 7 — optional reference-list check on a policy rule
+        _add_column_if_missing(conn, "policy_rules", "reference_list_id", "INTEGER REFERENCES reference_lists(id)")
+        _add_column_if_missing(conn, "policy_rules", "reference_direction", "TEXT NOT NULL DEFAULT 'in'")
+        _add_column_if_missing(conn, "policy_rules", "reference_match", "TEXT NOT NULL DEFAULT 'smart'")
 
 
 def create_tables() -> None:
     from app.models import workflow, document, run, workflow_version, document_type, policy, setting, mail  # noqa: F401
     from app.models.policy import PolicyVersion  # noqa: F401
     from app.models.run import WorkflowRunDocument  # noqa: F401
+    from app.models.reference_list import ReferenceList  # noqa: F401
     Base.metadata.create_all(bind=engine)
