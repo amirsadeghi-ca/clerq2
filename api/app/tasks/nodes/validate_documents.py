@@ -87,6 +87,18 @@ def _build_prompt(
                 "samples": samples,
             })
 
+    relevance_note = ""
+    if not cross_set:
+        relevance_note = (
+            "\n\nDOCUMENT RELEVANCE:\n"
+            "You are evaluating ONE document against rules that may target different document "
+            "types. If a rule concerns a kind of document that this is NOT (e.g. a rule about "
+            "passports, but this document is a driver's licence or a utility bill), mark that rule "
+            '"not_applicable" for this document and state the document\'s actual type in evidence. '
+            'Do NOT mark a rule "fail" merely because this document is a different type than the '
+            'rule targets — only "fail" when this IS the relevant document type but it violates the rule.'
+        )
+
     cross_set_note = ""
     if cross_set:
         cross_set_note = (
@@ -108,7 +120,7 @@ def _build_prompt(
             "(for Word, Excel, or CSV files) — and a list of validation rules. "
             "Carefully examine ALL provided content and respond ONLY with "
             "a valid JSON object matching this exact schema:\n"
-            '{"results": [{"rule_name": str, "requirement": str, "status": "pass"|"fail"|"uncertain", '
+            '{"results": [{"rule_name": str, "requirement": str, "status": "pass"|"fail"|"uncertain"|"not_applicable", '
             '"confidence": float (0.0-1.0), "evidence": str, "extracted": {}}]}\n'
             "Do not include any text outside the JSON object.\n\n"
             "CRITICAL — evidence field format:\n"
@@ -120,6 +132,7 @@ def _build_prompt(
             "The document shows an expiry date of 2028-06-15, which is in the future.\" "
             "Always contrast the expectation against the finding — never write evidence that only describes "
             "what you saw without referencing what the rule demands."
+            + relevance_note
             + cross_set_note
         ),
     }
@@ -275,12 +288,17 @@ def _build_set_content_blocks(step_id: int, documents_list: list[dict]) -> list[
 def _merge_per_doc_results(
     per_doc: list[dict],
     rule_requirements: dict[str, str],
+    rule_scopes: dict[str, str],
 ) -> list[dict]:
     """
     Combine per-document AI results into a single result list.
 
-    Each merged entry keeps the worst-case status across documents and adds
-    a `per_document` array so callers can trace which document drove the verdict.
+    Documents the AI marked `not_applicable` are kept in the `per_document` array
+    (so the report can show them) but excluded from the verdict. Among the
+    *applicable* documents, the merge depends on the rule's scope:
+      - any_document → best-case (passes if at least one relevant doc satisfies it)
+      - per_document → worst-case (every relevant doc must satisfy it)
+    If no document is applicable, the required document type is absent → fail.
     """
     # Build ordered rule list (preserving first-seen order)
     seen: dict[str, dict] = {}
@@ -307,17 +325,38 @@ def _merge_per_doc_results(
         if not per_doc_entries:
             continue
 
-        # Worst-case entry drives the top-level status/confidence/evidence
-        worst = min(per_doc_entries, key=lambda e: _STATUS_RANK.get(e["status"], 1))
+        scope = rule_scopes.get(rule_name, "per_document")
+        applicable = [e for e in per_doc_entries if e["status"] != "not_applicable"]
+
+        if not applicable:
+            # No document in the packet is the kind this rule concerns → it's missing.
+            seen_desc = "; ".join(
+                f"'{e['document_filename']}' ({e['evidence']})" if e["evidence"] else f"'{e['document_filename']}'"
+                for e in per_doc_entries
+            )
+            status = "fail"
+            confidence = 1.0
+            evidence = (
+                f"No document in the packet matches this rule. Documents reviewed: {seen_desc}."
+            )
+        elif scope == "any_document":
+            # Passes if at least one relevant document satisfies it.
+            best = max(applicable, key=lambda e: _STATUS_RANK.get(e["status"], 1))
+            status, confidence, evidence = best["status"], best["confidence"], best["evidence"]
+        else:
+            # per_document: every relevant document must satisfy it.
+            worst = min(applicable, key=lambda e: _STATUS_RANK.get(e["status"], 1))
+            status, confidence, evidence = worst["status"], worst["confidence"], worst["evidence"]
 
         merged.append({
             "rule_name": rule_name,
             "requirement": rule_requirements.get(rule_name, first_r.get("requirement", "required")),
-            "status": worst["status"],
-            "confidence": worst["confidence"],
-            "evidence": worst["evidence"],
+            "status": status,
+            "confidence": confidence,
+            "evidence": evidence,
             "extracted": first_r.get("extracted", {}),
             "per_document": per_doc_entries,
+            "scope": scope,
         })
 
     return merged
@@ -347,7 +386,7 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
             rule_requirements = {r.name: r.requirement for r in policy.rules}
             rule_scopes = {r.name: getattr(r, "scope", "per_document") for r in policy.rules}
             rule_order = {r.name: r.position for r in policy.rules}
-            per_doc_rules = [r for r in policy.rules if getattr(r, "scope", "per_document") != "cross_set"]
+            per_doc_rules = [r for r in policy.rules if getattr(r, "scope", "per_document") in ("per_document", "any_document")]
             cross_set_rules = [r for r in policy.rules if getattr(r, "scope", "per_document") == "cross_set"]
         finally:
             db.close()
@@ -415,9 +454,7 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
                         "document_id": doc_id, "document_filename": doc_name, "results": doc_ai_results,
                     })
 
-                merged = _merge_per_doc_results(per_doc_results, rule_requirements)
-                for m in merged:
-                    m["scope"] = "per_document"
+                merged = _merge_per_doc_results(per_doc_results, rule_requirements, rule_scopes)
                 results.extend(merged)
 
             # ── Cross-set rules: one AI call over the WHOLE set ──
@@ -519,11 +556,24 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
             # Single document — scope distinction is moot, so evaluate all rules in one call.
             results = _call_ai_once(step_id, ai_client, model, policy, list(policy.rules), single_content_blocks)
             for r in results:
-                r["scope"] = rule_scopes.get(r.get("rule_name", ""), "per_document")
+                name = r.get("rule_name", "")
+                r["scope"] = rule_scopes.get(name, "per_document")
+                # A single document marked not_applicable means the required document type
+                # is absent → fail. Optional rules stay n/a (don't affect overall).
+                if r.get("status") == "not_applicable":
+                    if rule_requirements.get(name, "required").lower() == "required":
+                        r["status"] = "fail"
+                        r["confidence"] = 1.0
+                        r["evidence"] = (
+                            "This document is not the type this rule requires; "
+                            "the required document is not present. "
+                            + (r.get("evidence") or "")
+                        ).strip()
 
-        # Compute overall using stored policy requirements
+        # Compute overall using stored policy requirements.
+        # A stray not_applicable on a required rule counts as a missing document → fail.
         required_statuses = [
-            r["status"] for r in results
+            ("fail" if r["status"] == "not_applicable" else r["status"]) for r in results
             if rule_requirements.get(r.get("rule_name", ""), "required").lower() == "required"
         ]
         if any(s == "fail" for s in required_statuses):

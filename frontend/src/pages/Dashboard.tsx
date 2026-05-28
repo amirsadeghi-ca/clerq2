@@ -161,12 +161,14 @@ const RESULT_ICON: Record<string, string> = {
   pass: '✓',
   fail: '✗',
   uncertain: '?',
+  not_applicable: '–',
 }
 
 const RESULT_COLORS: Record<string, string> = {
   pass: 'text-emerald-400',
   fail: 'text-red-400',
   uncertain: 'text-amber-400',
+  not_applicable: 'text-[var(--c-text-4)]',
 }
 
 function ValidationResultPanel({ output }: { output: ValidationOutput }) {

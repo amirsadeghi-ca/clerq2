@@ -25,9 +25,28 @@ Everything else the RFP needs already exists and will simply be configured: para
 
 ---
 
+## UI/UX philosophy (applies to every user-facing phase)
+
+The user is a **domain expert, not a technical user** (e.g. a ministry analyst judging dossiers). Sophistication means **the interface does the thinking about the workflow so the human only thinks about the decision** — not density or feature count. This extends the existing Design Language in `CLAUDE.md` (Linear / Vercel / Raycast minimalism, token theming, one indigo accent, semantic status colors); we elevate it, never deviate. Held to:
+
+1. **3-second comprehension** — verdict first, then findings, then evidence on drill-down. Detail is progressively disclosed, never dumped.
+2. **Document-anchored trust** — a finding can point to where in the source it came from; people believe what they can see.
+3. **Plain language, bilingual** — "Recevable / À corriger / Information manquante," never "status: fail." FR/EN, tooltips teach, nothing assumes technical knowledge.
+4. **Forgiving & reversible** — every human note/override/finalize is attributed, undoable, and never destructive; the AI's original result stays visible.
+5. **Calm, not flashy** — generous whitespace, one accent, motion that informs (streaming progress) not decorates.
+6. **Click-first for everyone, keyboard-first for power** — every action has an obvious button; power users also get keyboard nav and a Cmd-K palette.
+7. **Print-perfect** — the report looks right on screen *and* as a PDF; export is designed, not bolted on.
+8. **Accessible by default** — WCAG-AA contrast, keyboard reach, screen-reader labels, reduced-motion respected.
+
+Every user-facing phase must pass a **"cold reader" test**: a non-technical person completes the phase's core task with **no walkthrough**. If they hesitate, the UX is the bug — not the user.
+
+---
+
 # Phases
 
 Each phase is delivered and reviewed on its own. I stop after each one and wait for your go-ahead before the next. Each phase ends with a commit so it's an independent restore point.
+
+> **Status:** Phases 0–3 are complete (✓). Phase 4 (use-case demo) and Phases 5–6 (report + light human review) are the active near-term work. Phases 7–8 and the "Later / optional" set are planned but not committed. Phases 5–6 are independent of Phase 4 and may be built before it to make the demo richer.
 
 ---
 
@@ -138,14 +157,79 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 ---
 
-## Phase 5 — Optional later items (plan only, not committed yet)
+## Phase 5 — The report as a durable, polished artifact (+ PDF/JSON/CSV export) ✓
 
-All generic; offered for a future round, not built now:
-- **Operational indicators + export** (RFP §2.2.1.4): a view of volumes and quality signals (cases processed, non-conformities found, share of reports a human accepted without edits) with CSV/Excel export.
+**Why:** the core deliverable is the report. Today it renders in a transient modal tied to a run; it should be a real, retrievable, beautifully formatted document that "lives in the app" and can be exported.
+
+**What changes for the user:** every completed case has a **Report** with its own stable page/link, reopenable from the case list anytime, and a **"Download PDF"** that produces a clean, print-quality version. Structured **JSON/CSV** export is offered alongside.
+
+**What happens:** the existing results become a dedicated report view — verdict banner, the rules checklist (failures/uncertainties first), evidence, per-document traceability, and the policy + version + timestamp it ran under. A renderer produces a PDF visually faithful to the on-screen report.
+
+**Experience:** opening the report feels like opening a finished document, not a debug panel — big plain-language verdict up top, attention drawn to what failed, every finding expandable to its evidence and source document(s). "Download PDF" is one obvious button; the PDF mirrors the screen exactly, with a header carrying case name, policy, version, and date.
+
+**Expectation / guarantees:**
+- On-screen report and PDF are visually faithful to each other; existing runs render as reports with no migration.
+- Generic — any policy's report exports the same way.
+
+**Outcome / done when:** any completed case can be reopened as a polished report and downloaded as a clean PDF (and JSON/CSV).
+
+---
+
+## Phase 6 — Light human review on the report (annotate → override → finalize)
+
+**Why:** the one piece of "human in the loop" that fits the upload→process→report→done loop — inspired by the LexRock reviewer (annotate a finding, optionally override its verdict with a reason, then finalize), with **no** queue, assignment, case states, or multi-tenant.
+
+**What changes for the user:** a freshly produced report opens as a **Draft (AI-generated)**. On any finding the reviewer can **add a note** (a reason/comment) and, if they disagree with the AI, **change the verdict** (Recevable / À corriger / Information manquante) — a different choice than the AI requires a short reason. A single **"Finalize report"** stamps it as reviewed and makes that version the report of record.
+
+**What happens:** notes/overrides are layered *on top of* the AI result — the original AI verdict is never erased; the report shows **"AI: À corriger → Reviewer: Recevable — *reason*"** with a timestamp (and a name once identity exists). The overall verdict recomputes from the *effective* findings (human override where present, else AI). Finalizing records who/when, locks the report, and the exported PDF reflects the finalized state. A finalized report can be re-opened to amend, and that amendment is itself logged.
+
+**Experience:** review feels like marking up a document, not operating software. Each finding reveals two quiet affordances — **"Add note"** (inline, sticky-note style) and **"Change verdict"** (a small segmented toggle); overriding gently expands a required one-line reason. AI-vs-reviewer is shown transparently so an override reads as an accountable decision, never a silent rewrite. Low-confidence findings carry a subtle cue. "Finalize report" is one calm primary button; the report wears a "Draft" ribbon before, a "Finalized · [date]" stamp after.
+
+**Expectation / guarantees:**
+- The AI's original result is always preserved and visible; overrides are additive and fully attributable (what, why, when).
+- Finalizing is reversible (re-open to amend, logged); nothing is ever silently lost.
+- Generic — works for any policy's report.
+
+**Outcome / done when:** a reviewer can read a report, annotate and override findings with reasons, finalize it, and download a PDF that reflects exactly that — with AI and human decisions both visible.
+
+---
+
+## Phase 7 — Reference-data lookups (optional, independent)
+
+**Why:** many real checks compare an extracted value against an authoritative list (eligible appliances, approved vendors, valid codes) — not expressible by a natural-language rule alone. Independent of the report loop; can be pulled forward anytime, and it sharpens the Phase 4 demo.
+
+**What changes for the user:** the Library gains **Reference Lists** (named, editable tables — e.g. "Eligible appliances," imported from CSV or edited inline). A rule can **check against a list**: the extracted value must be **in** / **not in** it.
+
+**What happens:** a generic reference-list type; rules gain an opt-in "check against reference list" mode with a direction and a match style — **Exact match** (deterministic, auditable) or **Smart match** (AI-tolerant of variants). Lists are versioned. The report shows which list and which entry (or its absence) drove a finding.
+
+**Experience:** a reference list is managed like a familiar spreadsheet (drag-drop CSV or edit rows). Wiring a rule reads as a self-assembling sentence built from dropdowns — *"The extracted value must be **[in] [Eligible appliances]**"* — with Exact vs Smart explained in one plain line each. No code.
+
+**Expectation / guarantees:** generic (the appliance list is just sample data); existing rules unaffected (opt-in); deterministic option for auditable matches.
+
+**Outcome / done when:** a rule referencing an "eligible items" list passes/fails on membership, and editing the list changes the verdict on the next run.
+
+---
+
+## Phase 8 — Output & deposit to external systems (deferred)
+
+**Why:** eventually the report should leave the app — but **not now**: "for now there is no SharePoint; the PDF report can be shown in the app." Listed so Phases 5–6 keep the report deposit-ready (clean PDF + structured payload already exist).
+
+**What changes for the user (when built):** a generic **deposit** step — email the report, post to a generic outbound **webhook**, and a **SharePoint** document-library connector (via Microsoft Graph; needs a Microsoft app registration the org provides). Teams/Slack notifications ride the same webhook mechanism.
+
+**What happens:** case lifecycle moments (e.g. report finalized) can trigger configured deposits/notifications; destinations are generic, so SharePoint/Teams/Slack are just configured targets, nothing hardcoded. Friendly, jargon-free setup ("Send a notification when… → paste your link → Send test message → delivery log").
+
+**Outcome / done when:** finalizing a report can deposit it to a configured destination (first target: SharePoint), with a visible delivery log.
+
+---
+
+## Later / optional (planned, not committed)
+
+All generic; offered for a future round:
+- **Operational indicators + export** (RFP §2.2.1.4): volumes and quality signals (cases processed, non-conformities found, share of reports finalized without edits) with CSV/Excel export.
 - **Isolated processing & retention** (§2.2.1.3): per-run isolated handling, scheduled purge of temporary working data, and a processing/deletion journal.
-- **Tighter audit on rule edits:** ensure *every* rule edit produces a version snapshot (today some edit paths don't), so the change history is complete.
-- **Human-editable report + deposit-back:** let a reviewer adjust the report before finalizing and write it back to a destination.
-- **Verdict-label localization:** present verdicts in the user's language (e.g. French for this ministry) in a generic, configurable way — never a hardcoded one-off.
+- **Tighter audit on rule edits:** ensure *every* rule edit produces a version snapshot (today some edit paths don't).
+- **Verdict-label localization:** verdicts in the user's language, generic and configurable — never a hardcoded one-off.
+- **Identity & access** (only if multiple orgs/users ever need it): named users + login so attribution names a person, and workspace isolation. Deliberately deferred — the current loop is single-tenant.
 
 ---
 
@@ -155,4 +239,11 @@ All generic; offered for a future round, not built now:
 - **Documentation discipline:** `CLAUDE.md` (the project's source-of-truth doc) is updated at the end of each phase, and each phase is committed as its own restore point.
 
 ## How each phase is verified
-Rebuild the affected services, exercise the new capability through the actual UI in a browser (not just API calls), and confirm the live progress + report behave as described. An OpenRouter API key must be set for any run that calls the AI. Phase 4 is verified by running the sample dossier and by deliberately breaking inputs to confirm the failing/uncertain verdicts.
+Rebuild the affected services, exercise the new capability through the actual UI in a browser (not just API calls), and confirm the live progress + report behave as described. An OpenRouter API key must be set for any run that calls the AI.
+- **Phase 4:** run the sample dossier; deliberately break inputs to confirm the failing/uncertain verdicts; confirm the excluded document is skipped.
+- **Phase 5:** complete a case, reopen its report later, confirm the on-screen report and the downloaded PDF match; export JSON/CSV.
+- **Phase 6:** on a fresh report, add a note, override a `fail`→`pass` with a reason, confirm the overall verdict recomputes and both AI + reviewer verdicts show; finalize, download the PDF, confirm it reflects the finalized state; re-open and confirm the amendment is logged.
+- **Phase 7:** add a reference list, wire a rule to it, run a case where the value is off-list → fail; edit the list to include it → pass.
+- **Phase 8:** point a configured destination (first: SharePoint) at a finalized report; confirm deposit + delivery log.
+
+Plus, every user-facing phase passes the **"cold reader" test**: a person who has never seen the app completes the phase's core task with no walkthrough.

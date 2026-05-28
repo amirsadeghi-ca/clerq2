@@ -16,10 +16,11 @@ import type { PolicyRule, PolicyVersion } from '../types/workflow'
 const REQUIREMENTS = ['required', 'optional'] as const
 const REQUIREMENT_LABELS: Record<string, string> = { required: 'Required', optional: 'Optional' }
 
-const SCOPES = ['per_document', 'cross_set'] as const
-const SCOPE_LABELS: Record<string, string> = { per_document: 'Each doc', cross_set: 'Across set' }
+const SCOPES = ['per_document', 'any_document', 'cross_set'] as const
+const SCOPE_LABELS: Record<string, string> = { per_document: 'Each doc', any_document: 'Any doc', cross_set: 'Across set' }
 const SCOPE_HINTS: Record<string, string> = {
-  per_document: 'Checked against each document on its own',
+  per_document: 'Every relevant document must satisfy it (documents the rule is not about are ignored)',
+  any_document: 'Passes if at least one relevant document satisfies it (e.g. the packet must contain a valid passport)',
   cross_set: 'Evaluated once across the whole document set (cross-document consistency)',
 }
 
@@ -182,7 +183,9 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
                 (rule.scope ?? 'per_document') === sc
                   ? sc === 'cross_set'
                     ? 'bg-violet-500/12 text-violet-400 ring-1 ring-violet-500/25'
-                    : 'bg-[var(--c-surface-3)] text-[var(--c-text-3)] ring-1 ring-[var(--c-border-2)]'
+                    : sc === 'any_document'
+                      ? 'bg-sky-500/12 text-sky-400 ring-1 ring-sky-500/25'
+                      : 'bg-[var(--c-surface-3)] text-[var(--c-text-3)] ring-1 ring-[var(--c-border-2)]'
                   : 'text-[var(--c-text-5)] hover:text-[var(--c-text-4)]',
               ].join(' ')}
             >

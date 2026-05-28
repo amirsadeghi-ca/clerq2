@@ -549,7 +549,7 @@ interface ValidateDocumentsConfigProps {
   onChangeFailOnMissing: (v: boolean) => void
 }
 
-type RuleStatus = 'pending' | 'running' | 'pass' | 'fail' | 'uncertain'
+type RuleStatus = 'pending' | 'running' | 'pass' | 'fail' | 'uncertain' | 'not_applicable'
 
 function RuleStatusIcon({ status }: { status: RuleStatus }) {
   if (status === 'pass')      return <CheckCircle2 size={10} className="mt-0.5 shrink-0 text-emerald-400" />

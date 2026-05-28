@@ -12,6 +12,7 @@ import { LibraryEditor } from './pages/LibraryEditor'
 import { PolicyEditor } from './pages/PolicyEditor'
 import { Settings } from './pages/Settings'
 import { Validate } from './pages/Validate'
+import { ReportPage } from './pages/ReportPage'
 import { MailInbox } from './pages/MailInbox'
 
 const queryClient = new QueryClient({
@@ -37,6 +38,7 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/validate" element={<Validate />} />
+                  <Route path="/reports/:runId" element={<ReportPage />} />
                   <Route path="/workflows" element={<WorkflowList />} />
                   <Route path="/workflows/:id" element={<WorkflowEditor />} />
                   <Route path="/workflows/:id/runs" element={<RunHistory />} />

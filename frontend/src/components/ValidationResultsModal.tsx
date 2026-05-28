@@ -14,7 +14,7 @@ const OVERALL_STYLES: Record<string, { badge: string; bg: string; label: string 
   needs_review: { badge: 'text-amber-400 bg-amber-500/10 border-amber-500/25',       bg: 'bg-amber-500/5',   label: 'Needs Review' },
 }
 
-const STATUS_ORDER = { fail: 0, uncertain: 1, pass: 2 }
+const STATUS_ORDER: Record<string, number> = { fail: 0, uncertain: 1, pass: 2, not_applicable: 3 }
 
 const RULE_STYLES: Record<string, { icon: JSX.Element; label: string; text: string; border: string; bg: string }> = {
   pass:      { icon: <CheckCircle2 size={18} className="text-emerald-400" />, label: 'Pass',      text: 'text-emerald-400', border: 'border-emerald-500/15', bg: '' },

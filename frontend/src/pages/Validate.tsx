@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   ShieldCheck, Upload, X, CheckCircle2, XCircle, AlertCircle,
   Loader2, Circle, Search, FileText, ChevronLeft, ChevronRight, Mail, Plus, Trash2, Pencil,
+  ExternalLink, Download, FileJson, FileSpreadsheet,
 } from 'lucide-react'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { usePolicies, usePolicy, useCreatePolicy, useDeletePolicy } from '../api/policies'
@@ -11,6 +12,7 @@ import client from '../api/client'
 import type {
   Policy, Run, RunStep, RunStatus, SSERunUpdate, ValidationOutput,
 } from '../types/workflow'
+import { exportReportJSON, exportReportCSV, printReportPDF } from '../lib/reportExport'
 
 // ── Shared helpers ────────────────────────────────────────────────────────
 
@@ -33,13 +35,14 @@ const OVERALL_LABEL: Record<string, string> = {
 }
 
 const RESULT_BADGE: Record<string, string> = {
-  pass:      'text-emerald-400 bg-emerald-500/10 border border-emerald-500/25',
-  fail:      'text-red-400 bg-red-500/10 border border-red-500/25',
-  uncertain: 'text-amber-400 bg-amber-500/10 border border-amber-500/25',
+  pass:           'text-emerald-400 bg-emerald-500/10 border border-emerald-500/25',
+  fail:           'text-red-400 bg-red-500/10 border border-red-500/25',
+  uncertain:      'text-amber-400 bg-amber-500/10 border border-amber-500/25',
+  not_applicable: 'text-[var(--c-text-4)] bg-[var(--c-surface-3)] border border-[var(--c-border-2)]',
 }
 
 const RESULT_LABEL: Record<string, string> = {
-  pass: 'Pass', fail: 'Fail', uncertain: 'Needs Review',
+  pass: 'Pass', fail: 'Fail', uncertain: 'Needs Review', not_applicable: 'N/A',
 }
 
 function timeAgo(iso: string): string {
@@ -123,7 +126,7 @@ function ImageLightbox({ paths, index, onClose }: {
 
 // ── Run detail modal ──────────────────────────────────────────────────────
 
-type RuleStatus = 'pending' | 'running' | 'pass' | 'fail' | 'uncertain'
+type RuleStatus = 'pending' | 'running' | 'pass' | 'fail' | 'uncertain' | 'not_applicable'
 
 function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
   const [liveSteps, setLiveSteps] = useState<RunStep[]>(run.steps)
@@ -230,6 +233,39 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                 <span className="text-[11px] text-[var(--c-text-5)]">Queued…</span>
               )}
             </div>
+            {validateDone && validationOutput && (
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => exportReportCSV(run, validationOutput)}
+                  title="Export CSV"
+                  className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
+                >
+                  <FileSpreadsheet size={11} /> CSV
+                </button>
+                <button
+                  onClick={() => exportReportJSON(run, validationOutput)}
+                  title="Export JSON"
+                  className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
+                >
+                  <FileJson size={11} /> JSON
+                </button>
+                <button
+                  onClick={() => printReportPDF(run, policy ?? null, validationOutput)}
+                  title="Download PDF"
+                  className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-indigo-500"
+                >
+                  <Download size={11} /> PDF
+                </button>
+                <Link
+                  to={`/reports/${run.id}`}
+                  title="Open full report"
+                  className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
+                >
+                  <ExternalLink size={11} /> Open
+                </Link>
+                <div className="mx-1 h-3.5 w-px bg-[var(--c-border-2)]" />
+              </div>
+            )}
             <button
               onClick={onClose}
               className="shrink-0 rounded p-1.5 text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
@@ -293,11 +329,17 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                           set
                         </span>
                       )}
+                      {rule.scope === 'any_document' && (
+                        <span className="shrink-0 rounded bg-sky-500/12 px-1.5 py-0.5 text-[9px] font-medium text-sky-400 ring-1 ring-sky-500/20" title="Passes if at least one relevant document satisfies it">
+                          any
+                        </span>
+                      )}
                       {result && (
                         <span className={`shrink-0 font-mono text-[11px] font-medium ${
                           result.status === 'pass' ? 'text-emerald-400'
                           : result.status === 'fail' ? 'text-red-400'
-                          : 'text-amber-400'
+                          : result.status === 'uncertain' ? 'text-amber-400'
+                          : 'text-[var(--c-text-4)]'
                         }`}>
                           {Math.round(result.confidence * 100)}%
                         </span>
@@ -335,6 +377,11 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                             across set
                           </span>
                         )}
+                        {selectedRule.scope === 'any_document' && (
+                          <span className="w-fit rounded bg-sky-500/12 px-1.5 py-0.5 text-[9px] font-medium text-sky-400 ring-1 ring-sky-500/20">
+                            any document
+                          </span>
+                        )}
                         {selectedRule.requirement === 'optional' && (
                           <span className="w-fit rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[9px] text-[var(--c-text-5)]">
                             optional
@@ -349,7 +396,8 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                       <span className={`font-mono text-[14px] font-bold ${
                         selectedResult.status === 'pass' ? 'text-emerald-400'
                         : selectedResult.status === 'fail' ? 'text-red-400'
-                        : 'text-amber-400'
+                        : selectedResult.status === 'uncertain' ? 'text-amber-400'
+                        : 'text-[var(--c-text-4)]'
                       }`}>
                         {Math.round(selectedResult.confidence * 100)}%
                       </span>
@@ -431,7 +479,8 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                             <span className={`shrink-0 font-mono text-[12px] font-bold ${
                               pd.status === 'pass' ? 'text-emerald-400'
                               : pd.status === 'fail' ? 'text-red-400'
-                              : 'text-amber-400'
+                              : pd.status === 'uncertain' ? 'text-amber-400'
+                              : 'text-[var(--c-text-4)]'
                             }`}>
                               {Math.round(pd.confidence * 100)}%
                             </span>

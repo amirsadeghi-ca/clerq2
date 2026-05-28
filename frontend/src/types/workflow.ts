@@ -116,7 +116,7 @@ export interface PolicyRule {
   position: number
   name: string
   requirement: 'required' | 'optional'
-  scope: 'per_document' | 'cross_set'
+  scope: 'per_document' | 'any_document' | 'cross_set'
   accept_criteria: string | null
   fail_criteria: string | null
   ai_instructions: string | null
@@ -173,7 +173,7 @@ export interface MailMessage {
 export interface PerDocumentResult {
   document_id: number | null
   document_filename: string
-  status: 'pass' | 'fail' | 'uncertain'
+  status: 'pass' | 'fail' | 'uncertain' | 'not_applicable'
   confidence: number
   evidence: string
 }
@@ -181,8 +181,8 @@ export interface PerDocumentResult {
 export interface ValidationRuleResult {
   rule_name: string
   requirement: string
-  scope?: 'per_document' | 'cross_set'
-  status: 'pass' | 'fail' | 'uncertain'
+  scope?: 'per_document' | 'any_document' | 'cross_set'
+  status: 'pass' | 'fail' | 'uncertain' | 'not_applicable'
   confidence: number
   evidence: string
   extracted: Record<string, unknown>

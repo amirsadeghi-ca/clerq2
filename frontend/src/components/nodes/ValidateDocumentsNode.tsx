@@ -8,7 +8,7 @@ import { useRunContext } from '../../context/run'
 import { ValidationResultsModal } from '../ValidationResultsModal'
 import type { ValidationOutput } from '../../types/workflow'
 
-type RuleStatus = 'pending' | 'running' | 'pass' | 'fail' | 'uncertain'
+type RuleStatus = 'pending' | 'running' | 'pass' | 'fail' | 'uncertain' | 'not_applicable'
 
 function RuleStatusDot({ status }: { status: RuleStatus }) {
   if (status === 'pass')      return <CheckCircle2 size={10} className="shrink-0 text-emerald-400" />
