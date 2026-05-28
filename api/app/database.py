@@ -54,6 +54,8 @@ def run_migrations() -> None:
         _add_column_if_missing(conn, "policies", "email_reply_mode",  "TEXT NOT NULL DEFAULT 'always'")
         _add_column_if_missing(conn, "policies", "email_pass_message", "TEXT")
         _add_column_if_missing(conn, "policies", "email_fail_message", "TEXT")
+        # Phase 6 — human review on the report (notes, overrides, finalize/reopen, audit history)
+        _add_column_if_missing(conn, "workflow_runs", "review", "JSON")
 
 
 def create_tables() -> None:

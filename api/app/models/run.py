@@ -33,6 +33,21 @@ class WorkflowRun(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # Phase 6 — light human review on the report. Null until a reviewer touches it.
+    # Shape:
+    #   {
+    #     "state": "draft" | "finalized",
+    #     "annotations": { "<rule_name>": {
+    #         "note": str|null,
+    #         "override": { "status": str, "reason": str } | null,
+    #         "updated_at": ISO, "updated_by": str|null
+    #     } },
+    #     "history": [ { "action": str, "rule_name": str|null,
+    #                    "details": dict, "at": ISO, "by": str|null } ],
+    #     "finalized_at": ISO|null, "finalized_by": str|null,
+    #     "effective_overall": "pass"|"fail"|"needs_review"  # recomputed from overrides
+    #   }
+    review: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     steps: Mapped[list["WorkflowRunStep"]] = relationship(
         "WorkflowRunStep", back_populates="run", order_by="WorkflowRunStep.id"

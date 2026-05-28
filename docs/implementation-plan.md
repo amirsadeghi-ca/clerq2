@@ -175,7 +175,7 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 ---
 
-## Phase 6 — Light human review on the report (annotate → override → finalize)
+## Phase 6 — Light human review on the report (annotate → override → finalize) ✓
 
 **Why:** the one piece of "human in the loop" that fits the upload→process→report→done loop — inspired by the LexRock reviewer (annotate a finding, optionally override its verdict with a reason, then finalize), with **no** queue, assignment, case states, or multi-tenant.
 

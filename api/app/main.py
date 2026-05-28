@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import create_tables, run_migrations
-from app.routers import workflows, documents, runs, sse, files, library, policies, settings, validate, mail
+from app.routers import workflows, documents, runs, sse, files, library, policies, settings, validate, mail, review
 
 app = FastAPI(title="Clerq2 API", version="0.1.0")
 
@@ -17,6 +17,7 @@ app.add_middleware(
 app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(runs.router, prefix="/api/runs", tags=["runs"])
+app.include_router(review.router, prefix="/api/runs", tags=["review"])  # Phase 6 — human review
 app.include_router(sse.router, prefix="/api/runs", tags=["sse"])
 app.include_router(files.router, prefix="/api/files", tags=["files"])
 app.include_router(library.router, prefix="/api/library", tags=["library"])

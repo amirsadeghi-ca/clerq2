@@ -44,6 +44,7 @@ class RunOut(BaseModel):
     error: str | None
     created_at: datetime
     steps: list[RunStepOut] = []
+    review: dict | None = None  # Phase 6 — human-review state (notes, overrides, finalize/reopen audit)
 
     @model_validator(mode="after")
     def normalize_workflow_id(self):
@@ -52,3 +53,15 @@ class RunOut(BaseModel):
         return self
 
     model_config = {"from_attributes": True}
+
+
+# ─── Phase 6: human review on the report ───────────────────────────────────
+
+class FindingAnnotationIn(BaseModel):
+    """Set / clear a per-finding note and/or override. Null clears the field;
+    omitted fields are left untouched (use null to explicitly clear)."""
+    note: str | None = None
+    override_status: str | None = None  # 'pass' | 'fail' | 'uncertain' | 'not_applicable' | None
+    override_reason: str | None = None  # required when override_status changes the AI verdict
+    clear_note: bool = False           # explicitly clear the note
+    clear_override: bool = False       # explicitly clear the override

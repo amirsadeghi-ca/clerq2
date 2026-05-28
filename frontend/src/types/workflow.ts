@@ -65,6 +65,36 @@ export interface RunStep {
   logs?: string[]
 }
 
+// ── Phase 6: human review on the report ──
+export interface ReviewOverride {
+  status: 'pass' | 'fail' | 'uncertain' | 'not_applicable'
+  reason: string
+}
+
+export interface FindingAnnotation {
+  note?: string | null
+  override?: ReviewOverride | null
+  updated_at?: string
+  updated_by?: string | null
+}
+
+export interface ReviewHistoryEntry {
+  action: string
+  rule_name: string | null
+  details: Record<string, unknown>
+  at: string
+  by: string | null
+}
+
+export interface ReportReview {
+  state: 'draft' | 'finalized'
+  annotations: Record<string, FindingAnnotation>
+  history: ReviewHistoryEntry[]
+  finalized_at: string | null
+  finalized_by: string | null
+  effective_overall: 'pass' | 'fail' | 'needs_review' | null
+}
+
 export interface Run {
   id: number
   workflow_id: number | null
@@ -82,6 +112,7 @@ export interface Run {
   error: string | null
   created_at: string
   steps: RunStep[]
+  review?: ReportReview | null
 }
 
 export interface SSERunUpdate {

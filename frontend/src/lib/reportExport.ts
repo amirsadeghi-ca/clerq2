@@ -59,7 +59,9 @@ export function exportReportJSON(run: Run, output: ValidationOutput | null) {
       version: output.policy_version_num,
     } : null,
     overall: output?.overall ?? null,
+    effective_overall: run.review?.effective_overall ?? output?.overall ?? null,
     results: output?.results ?? [],
+    review: run.review ?? null,
     generated_at: new Date().toISOString(),
   }
   triggerDownload(
@@ -73,21 +75,28 @@ export function exportReportJSON(run: Run, output: ValidationOutput | null) {
 
 export function exportReportCSV(run: Run, output: ValidationOutput | null) {
   const header = [
-    'rule_name', 'scope', 'requirement', 'status', 'confidence_pct',
-    'evidence', 'documents', 'extracted',
+    'rule_name', 'scope', 'requirement', 'ai_status', 'effective_status',
+    'confidence_pct', 'evidence', 'reviewer_note', 'reviewer_override_reason',
+    'documents', 'extracted',
   ]
   const lines: string[] = [header.join(',')]
 
+  const annotations = run.review?.annotations ?? {}
   const results: ValidationRuleResult[] = output?.results ?? []
   for (const r of results) {
+    const ann = annotations[r.rule_name]
+    const effective = ann?.override?.status ?? r.status
     const perDocs = (r.per_document ?? []).map(p => p.document_filename).join('; ')
     const row = [
       r.rule_name,
       r.scope ?? 'per_document',
       r.requirement,
       r.status,
+      effective,
       Math.round((r.confidence ?? 0) * 100),
       r.evidence ?? '',
+      ann?.note ?? '',
+      ann?.override?.reason ?? '',
       perDocs,
       r.extracted && Object.keys(r.extracted).length > 0 ? JSON.stringify(r.extracted) : '',
     ]
@@ -103,7 +112,7 @@ export function exportReportCSV(run: Run, output: ValidationOutput | null) {
 
 export function printReportPDF(run: Run, policy: Policy | null | undefined, output: ValidationOutput | null) {
   const markup = renderToStaticMarkup(
-    createElement(ReportView, { run, policy: policy ?? undefined, output })
+    createElement(ReportView, { run, policy: policy ?? undefined, output, review: run.review ?? null })
   )
   const title = (run.name ?? `Case ${run.id}`) + ' — Report'
   const html = `<!doctype html>

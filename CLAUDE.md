@@ -125,7 +125,8 @@ clerq2/
 │       │   ├── files.py      ← GET /api/files/{path:path} — serve storage files (path traversal protected)
 │       │   ├── library.py    ← CRUD /api/library/ + sample upload/delete
 │       │   ├── policies.py   ← CRUD /api/policies/ + rule CRUD + reorder + version history + restore + enable/disable-inbox
-│       │   └── mail.py       ← GET /mailboxes, POST /inbound (triggers run), GET /messages
+│       │   ├── mail.py       ← GET /mailboxes, POST /inbound (triggers run), GET /messages
+│       │   └── review.py     ← Phase 6 human review: PATCH finding (note/override), POST finalize, POST reopen
 │       │
 │       ├── models/  (additions)
 │       │   ├── document_type.py  ← DocumentType + DocumentTypeSample
@@ -208,6 +209,8 @@ Tables are created automatically on API startup via `create_tables()` then `run_
 
 **Phase 5 (durable report + PDF/JSON/CSV export):** A report is now a first-class artifact with its own stable URL `/reports/:runId` (the `ReportPage` component). The shared `frontend/src/components/ReportView.tsx` renders the report as a self-contained "paper" document (eyebrow + title + policy/version/docs/run/date meta + verdict banner + counts + findings sorted **problems-first** — fail → uncertain → pass → not_applicable). It carries its own stylesheet (`REPORT_CSS`) using fixed print-friendly colors — NOT app theme tokens — so the on-screen page and the exported PDF are visually identical by construction. Export helpers live in `frontend/src/lib/reportExport.ts`: `exportReportJSON` and `exportReportCSV` are client-side Blob downloads; `printReportPDF` renders `ReportView` via `react-dom/server`'s `renderToStaticMarkup`, opens the HTML via a **Blob URL** (not `document.write` — that fails across opener contexts), and the embedded onload script triggers `window.print()`. The `RunDetailModal` in `Validate.tsx` gained a header export bar (CSV / JSON / PDF / Open) that mirrors the report page's actions. Handles `not_applicable` status (gray "N/A" badge), `cross_set` rules (violet "across set" tag + "Documents compared" chip list), and `any_document` rules (sky "any doc" tag). **Gotcha:** when opening a popup for the PDF, do NOT pass `noopener`/`noreferrer` — that strips the write capability in Chromium; the Blob-URL approach sidesteps this entirely.
 
+**Phase 6 (light human review on the report):** A reviewer can annotate findings, override the AI verdict (with a required reason), and finalize a report — no queues/assignment/multi-tenant. State lives in a new JSON `workflow_runs.review` column (migration in `database.py`): `{ state: draft|finalized, annotations: { <rule_name>: { note, override: {status, reason}, updated_at } }, history: [...], finalized_at, effective_overall }`. The AI's original verdict is **never erased** — overrides layer on top and the report shows "AI: X → Reviewer: Y — reason". Backend router `api/app/routers/review.py` (mounted under `/api/runs`): PATCH a finding, POST finalize, POST reopen; `_compute_overall` recomputes the effective verdict from overrides using the same precedence as `validate_documents` (any required fail → fail; else uncertain → needs_review; else pass) — it treats any `requirement` that isn't literally `"optional"` as required (defensive, because the cross-set path can leak the AI's free-text into the result's `requirement` field). Annotating a finalized report returns 409. Frontend: types + `ReportReview` in `types/workflow.ts`; hooks in `frontend/src/api/review.ts` (`useAnnotateFinding`/`useFinalizeReview`/`useReopenReview`, invalidate `['runs','detail',id]`). `ReportView` renders overrides/notes transparently, shows a Draft/Finalized ribbon, and recomputes the verdict/counts from **effective** statuses; it takes a `renderFindingControls` render-prop so the interactive page injects per-finding controls while the static PDF render omits them (`.no-print`). `ReportPage` provides the per-finding "Verdict" pill toggle (selecting the AI's own value clears the override; a different value requires a reason) + "Add note" composer, and a sticky bottom bar with **Finalize report** / **Reopen to amend**. JSON/CSV exports include effective status + reviewer note/override; the PDF reflects the finalized state. Attribution is timestamp-only for now (no auth); `updated_by`/`finalized_by` are placeholders for a future identity phase.
+
 **Phase 3 (cross-set rules):** Each `PolicyRule` has a `scope` column — `per_document` (default) or `cross_set`. In multi-doc runs, `validate_documents` splits rules by scope: **per-document** rules are evaluated with one AI call per document then worst-case merged (existing behavior); **cross-set** rules get a single AI call seeing the WHOLE set (labeled `=== Document: "name" ===` blocks, image total capped at `MAX_SET_IMAGES=30`) so the model can compare documents against each other (consistency, conditional "if form A says Yes then form B present", etc.). Results are tagged with `scope` and re-ordered to match rule position. Cross-set results carry a `per_document` list of the documents compared (frontend renders these as a "Documents compared" chip list rather than per-doc pass/fail). Default `per_document` means existing policies behave identically — when no rule is `cross_set`, only the per-doc path runs. The PolicyEditor rule card has an "Each doc / Across set" toggle (violet) beside Required/Optional; the Validate report shows a "set" badge in the rule list and an "across set" badge in the detail header. Single-doc fallback (workflow editor) evaluates all rules in one call regardless of scope.
 
 **Phase 4 (document relevance + `any_document` scope):** Fixes a packet bug where a rule like "Passport Is Valid" failed because it was checked against *every* document (the PR Card "failed" the passport rule) and worst-case merged. Two changes:
@@ -285,7 +288,8 @@ workflow_runs (
   started_at   DATETIME,
   completed_at DATETIME,
   error        TEXT,
-  created_at   DATETIME
+  created_at   DATETIME,
+  review       JSON                                       -- Phase 6 human review (notes, verdict overrides, finalize/reopen, audit history); null until a reviewer touches it
 )
 -- name column: populated at run creation time (original_filename of the uploaded document).
 -- Future: policy can declare an "extract this field" rule; the validate_documents node will
@@ -333,6 +337,12 @@ POST /api/runs/                                           → Run          body:
 GET  /api/runs/{id}                                       → Run
 GET  /api/runs/?workflow_id={id}                          → Run[]
 POST /api/runs/{id}/cancel                                → Run          marks run+pending steps failed; queued Celery tasks bail at next step boundary
+
+PATCH /api/runs/{id}/review/finding/{rule_name}           → Run          Phase 6 — set/clear a finding's note and/or verdict override;
+                                                            body: {note?, clear_note?, override_status?, override_reason?, clear_override?}
+                                                            a reason is required when override_status differs from the AI verdict; recomputes effective overall
+POST /api/runs/{id}/review/finalize                       → Run          Phase 6 — lock the report as finalized (idempotent)
+POST /api/runs/{id}/review/reopen                         → Run          Phase 6 — reopen a finalized report to amend (logged in history)
 
 GET  /api/runs/{id}/stream                                → SSE stream   events: "update" | "done"
                                                             update data: {run_id, status, error, steps[]}
