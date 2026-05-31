@@ -77,7 +77,7 @@ The app is deployed on the home server **`nas`** (`192.168.2.63`, user `amix`, s
 cd ~/clerq2
 docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
 ```
-To push code changes: `rsync` from the Mac (exclude `.git`, `data/`, `node_modules/`, `.env`, `.DS_Store`) then re-run the compose command (the worker doesn't hot-reload, so a recreate is required).
+**Source sync — local ↔ GitHub ↔ server, one repo `git@github.com:amirsadeghi-ca/clerq2.git`:** edit locally → `git push` → on nas `cd ~/clerq2 && git pull` then re-run the compose command above (the worker doesn't hot-reload, so a recreate is required). nas authenticates to GitHub with a **read-only deploy key** at `~/.ssh/id_ed25519` (registered under the repo's Deploy keys). `.env`, `data/`, and `deploy/cloudflared/{config.yml,credentials.json}` are **gitignored** and live only on the server (a backup sits in `~/clerq2-secrets-backup/`). The **memory files include the sudo password, so they are NOT committed** — they are copied directly to the server at `~/.claude/projects/-home-amix-clerq2/memory/` (this is where Claude Code reads them when run from `/home/amix/clerq2`).
 
 **Deployment gotchas:**
 - **cloudflared can't read `credentials.json` → 530 / error 1033 + restart loop.** The `cloudflare/cloudflared` image runs as a **non-root** user; `cloudflared tunnel create` writes the credentials file mode `600` owned by `amix` (uid 1000), which the container user can't read. Fix: `chmod 644 deploy/cloudflared/credentials.json deploy/cloudflared/config.yml`, then recreate the cloudflared container. If you ever regenerate the tunnel credentials, re-apply the chmod.
