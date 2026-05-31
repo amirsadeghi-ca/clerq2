@@ -23,6 +23,7 @@ import { SendEmailNode } from '../components/nodes/SendEmailNode'
 import { useWorkflow, useUpdateWorkflow } from '../api/workflows'
 import { useTriggerRun, useUploadDocument, useDocuments } from '../api/runs'
 import { useRunContext } from '../context/run'
+import { useI18n } from '../context/i18n'
 import type { Document } from '../types/workflow'
 
 const NODE_TYPES = { input: InputNode, pdf_to_images: PdfToImagesNode, output: OutputNode, validate_documents: ValidateDocumentsNode, show_results: ShowResultsNode, email_input: EmailInputNode, ai: AiNode, send_email: SendEmailNode }
@@ -34,6 +35,7 @@ export function WorkflowEditor() {
   const { id } = useParams<{ id: string }>()
   const workflowId = Number(id)
   const navigate = useNavigate()
+  const { t } = useI18n()
 
   const { data: workflow, isLoading } = useWorkflow(workflowId)
   const updateWf = useUpdateWorkflow()
@@ -134,7 +136,7 @@ export function WorkflowEditor() {
         <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] bg-[var(--c-bg)] px-4">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1 text-[13px]">
-            <Link to="/workflows" className="text-[var(--c-text-4)] hover:text-[var(--c-text-3)] transition-colors">Workflows</Link>
+            <Link to="/workflows" className="text-[var(--c-text-4)] hover:text-[var(--c-text-3)] transition-colors">{t('editor.breadcrumb.workflows')}</Link>
             <ChevronRight size={13} className="text-[var(--c-text-5)]" />
             <span className="font-medium text-[var(--c-text-1)]">{workflow?.name}</span>
           </nav>
@@ -148,21 +150,21 @@ export function WorkflowEditor() {
           )}
 
           {/* Unsaved indicator */}
-          {dirty && <div className="h-1.5 w-1.5 rounded-full bg-amber-400/80" title="Unsaved changes" />}
+          {dirty && <div className="h-1.5 w-1.5 rounded-full bg-amber-400/80" title={t('editor.unsaved')} />}
 
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => navigate(`/workflows/${workflowId}/runs`)}
               className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] text-[var(--c-text-4)] transition-colors hover:text-[var(--c-text-2)] hover:bg-[var(--c-hover-3)]"
             >
-              <History size={13} /> Runs
+              <History size={13} /> {t('editor.btn.runs')}
             </button>
 
             <button
               onClick={() => setShowVersions(true)}
               className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-[12px] text-[var(--c-text-4)] transition-colors hover:text-[var(--c-text-2)] hover:bg-[var(--c-hover-3)]"
             >
-              <GitCommit size={13} /> Versions
+              <GitCommit size={13} /> {t('editor.btn.versions')}
             </button>
 
             <div className="h-4 w-px bg-[var(--c-border)]" />
@@ -177,14 +179,14 @@ export function WorkflowEditor() {
                 : saveState === 'saved'
                 ? <span className="text-emerald-400 text-[11px]">✓</span>
                 : <Save size={11} />}
-              {saveState === 'saved' ? 'Saved' : 'Save'}
+              {saveState === 'saved' ? t('editor.btn.saved') : t('btn.save')}
             </button>
 
             <button
               onClick={() => setShowRunModal(true)}
               className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500"
             >
-              <Play size={11} strokeWidth={2.5} /> Run
+              <Play size={11} strokeWidth={2.5} /> {t('btn.run')}
             </button>
           </div>
         </header>
@@ -252,9 +254,9 @@ export function WorkflowEditor() {
           <div className="w-[400px] rounded-xl border border-[var(--c-border-2)] bg-[var(--c-surface)] shadow-2xl">
             <div className="flex items-center justify-between border-b border-[var(--c-border)] px-5 py-4">
               <div>
-                <p className="text-[14px] font-semibold text-[var(--c-text-1)]">Run workflow</p>
+                <p className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('editor.run.title')}</p>
                 <p className="mt-0.5 text-[12px] text-[var(--c-text-4)]">
-                  Runs <span className="font-mono text-[var(--c-text-4)]">v{versionNum}</span> — the currently saved version
+                  {t('editor.run.subtitle', { version: `v${versionNum}` })}
                 </p>
               </div>
               <button
@@ -272,14 +274,14 @@ export function WorkflowEditor() {
                   onChange={e => e.target.files?.[0] && uploadDoc.mutateAsync(e.target.files[0]).then(d => setSelectedDocId(d.id))}
                 />
                 {uploadDoc.isPending
-                  ? <><Loader2 size={16} className="animate-spin text-indigo-400" /><span className="text-[12px]">Uploading…</span></>
-                  : <><span className="text-[12px] font-medium">Drop PDF or click to upload</span><span className="text-[11px] text-[var(--c-text-5)]">Up to 100 MB</span></>
+                  ? <><Loader2 size={16} className="animate-spin text-indigo-400" /><span className="text-[12px]">{t('btn.uploading')}</span></>
+                  : <><span className="text-[12px] font-medium">{t('editor.run.dropPrompt')}</span><span className="text-[11px] text-[var(--c-text-5)]">{t('editor.run.sizeHint')}</span></>
                 }
               </label>
 
               {documents && documents.length > 0 && (
                 <div>
-                  <p className="mb-1.5 text-[11px] font-medium text-[var(--c-text-5)]">Or choose existing</p>
+                  <p className="mb-1.5 text-[11px] font-medium text-[var(--c-text-5)]">{t('editor.run.orChooseExisting')}</p>
                   <div className="flex max-h-40 flex-col gap-1 overflow-y-auto">
                     {documents.map((doc: Document) => (
                       <button
@@ -311,8 +313,8 @@ export function WorkflowEditor() {
                 className="w-full rounded-lg bg-indigo-600 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
               >
                 {triggerRun.isPending
-                  ? <span className="flex items-center justify-center gap-2"><Loader2 size={13} className="animate-spin" /> Starting…</span>
-                  : 'Run Workflow'}
+                  ? <span className="flex items-center justify-center gap-2"><Loader2 size={13} className="animate-spin" /> {t('editor.run.starting')}</span>
+                  : t('editor.run.submit')}
               </button>
             </div>
           </div>

@@ -161,7 +161,10 @@ def _build_prompt(
             'Example for a passing rule: "This rule requires a valid expiry date. '
             "The document shows an expiry date of 2028-06-15, which is in the future.\" "
             "Always contrast the expectation against the finding — never write evidence that only describes "
-            "what you saw without referencing what the rule demands."
+            "what you saw without referencing what the rule demands.\n"
+            "LANGUAGE: Write the evidence string in the SAME language as the rule it evaluates "
+            "(e.g. if the rule is written in French, the evidence MUST be in French). The two examples "
+            "above are in English only to illustrate the format — match the rule's language, not the example's."
             + relevance_note
             + cross_set_note
         ),
@@ -462,6 +465,15 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
 
         if documents_list:
             # ── Multi-doc mode ──────────────────────────────────────────────
+            # Guard: if NOT A SINGLE document yielded readable content (every file
+            # was empty/corrupt), there is nothing to validate. Fail loudly rather
+            # than returning an empty result set that would compute to a false "pass".
+            # (Single-doc mode already raises in this situation.)
+            if not any(d.get("text_content") or d.get("image_paths") for d in documents_list):
+                raise ValueError(
+                    "No readable content in any document — the file(s) may be empty, "
+                    "corrupt, or an unsupported format."
+                )
             step_log(step_id, (
                 f"{len(documents_list)} document(s) in set — "
                 f"{len(per_doc_rules)} per-document rule(s), {len(cross_set_rules)} cross-set rule(s)"
@@ -532,6 +544,14 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
                     ]
                     for r in cross_results:
                         r["scope"] = "cross_set"
+                        # Carry the authoritative DB requirement (the AI tends to
+                        # leak free text into this field). Without this, an optional
+                        # cross-set rule's failure would wrongly flip the effective
+                        # verdict to "fail" in review._compute_overall, which treats
+                        # any non-"optional" requirement as required.
+                        r["requirement"] = rule_requirements.get(
+                            r.get("rule_name", ""), r.get("requirement", "required")
+                        )
                         r["per_document"] = [
                             {**c, "status": r.get("status", "uncertain"),
                              "confidence": r.get("confidence", 0.0), "evidence": ""}

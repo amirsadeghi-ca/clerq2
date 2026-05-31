@@ -3,9 +3,11 @@ import { Mail, Paperclip, Send, X, Loader2, ArrowLeft, ArrowRight, Inbox } from 
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useMailboxes, useMailMessages, useSendMail } from '../api/mail'
 import { useUploadDocument } from '../api/runs'
+import { useI18n } from '../context/i18n'
 import type { MailMessage } from '../types/workflow'
 
 function MessageRow({ msg }: { msg: MailMessage }) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState(false)
   const isReply = msg.direction === 'outbound'
 
@@ -36,7 +38,7 @@ function MessageRow({ msg }: { msg: MailMessage }) {
                 ? 'bg-indigo-500/10 text-indigo-400'
                 : 'bg-[var(--c-surface-3)] text-[var(--c-text-5)]',
             ].join(' ')}>
-              {isReply ? 'Reply' : 'Sent'}
+              {isReply ? t('mail.badge.reply') : t('mail.badge.sent')}
             </span>
             {msg.subject && (
               <span className="min-w-0 truncate text-[12px] font-medium text-[var(--c-text-2)]">{msg.subject}</span>
@@ -65,7 +67,7 @@ function MessageRow({ msg }: { msg: MailMessage }) {
           {msg.body ? (
             <pre className="whitespace-pre-wrap font-mono text-[12px] text-[var(--c-text-2)]">{msg.body}</pre>
           ) : (
-            <p className="text-[12px] text-[var(--c-text-5)]">(no body)</p>
+            <p className="text-[12px] text-[var(--c-text-5)]">{t('mail.noBody')}</p>
           )}
         </div>
       )}
@@ -74,6 +76,7 @@ function MessageRow({ msg }: { msg: MailMessage }) {
 }
 
 export function MailInbox() {
+  const { t } = useI18n()
   const { data: mailboxes = [] } = useMailboxes()
   const { data: messages = [] } = useMailMessages()
   const uploadDoc = useUploadDocument()
@@ -121,13 +124,13 @@ export function MailInbox() {
         <div className="flex w-[320px] shrink-0 flex-col border-r border-[var(--c-border)]">
           <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] px-5">
             <Mail size={14} className="text-[var(--c-text-4)]" />
-            <span className="text-[14px] font-semibold text-[var(--c-text-1)]">New message</span>
+            <span className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('mail.compose.title')}</span>
           </div>
 
           <div className="flex flex-1 flex-col gap-0 overflow-y-auto">
             {/* From */}
             <div className="border-b border-[var(--c-border)] px-5 py-3">
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-[var(--c-text-5)]">From</label>
+              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-[var(--c-text-5)]">{t('mail.field.from')}</label>
               <input
                 value={fromEmail}
                 onChange={e => setFromEmail(e.target.value)}
@@ -138,10 +141,10 @@ export function MailInbox() {
 
             {/* To */}
             <div className="border-b border-[var(--c-border)] px-5 py-3">
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-[var(--c-text-5)]">To</label>
+              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-[var(--c-text-5)]">{t('mail.field.to')}</label>
               {mailboxes.length === 0 ? (
                 <p className="text-[12px] text-[var(--c-text-5)]">
-                  No mailboxes enabled. Enable an inbox on a policy or workflow first.
+                  {t('mail.to.empty')}
                 </p>
               ) : (
                 <select
@@ -149,7 +152,7 @@ export function MailInbox() {
                   onChange={e => setToAddr(e.target.value)}
                   className="w-full bg-transparent text-[13px] text-[var(--c-text-1)] outline-none"
                 >
-                  <option value="">Select a mailbox…</option>
+                  <option value="">{t('mail.to.select')}</option>
                   {mailboxes.map(mb => (
                     <option key={`${mb.type}-${mb.id}`} value={mb.email_address}>
                       {mb.name} &lt;{mb.email_address}&gt;
@@ -161,11 +164,11 @@ export function MailInbox() {
 
             {/* Subject */}
             <div className="border-b border-[var(--c-border)] px-5 py-3">
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-[var(--c-text-5)]">Subject</label>
+              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-[var(--c-text-5)]">{t('mail.field.subject')}</label>
               <input
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
-                placeholder="Optional subject"
+                placeholder={t('mail.field.subjectPlaceholder')}
                 className="w-full bg-transparent text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none"
               />
             </div>
@@ -175,7 +178,7 @@ export function MailInbox() {
               <textarea
                 value={body}
                 onChange={e => setBody(e.target.value)}
-                placeholder="Message body (optional)"
+                placeholder={t('mail.field.bodyPlaceholder')}
                 rows={5}
                 className="w-full resize-none bg-transparent text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none"
               />
@@ -207,7 +210,7 @@ export function MailInbox() {
                   className="flex items-center gap-1.5 text-[12px] text-[var(--c-text-4)] transition-colors hover:text-[var(--c-text-2)]"
                 >
                   <Paperclip size={12} />
-                  Attach PDF or image
+                  {t('mail.attach')}
                 </button>
               )}
             </div>
@@ -220,14 +223,14 @@ export function MailInbox() {
                 className="flex w-full h-8 items-center justify-center gap-2 rounded bg-indigo-600 text-[13px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
               >
                 {sending
-                  ? <><Loader2 size={13} className="animate-spin" /> Sending…</>
+                  ? <><Loader2 size={13} className="animate-spin" /> {t('mail.sending')}</>
                   : sent
-                  ? 'Sent!'
-                  : <><Send size={13} /> Send</>
+                  ? t('mail.sent')
+                  : <><Send size={13} /> {t('mail.send')}</>
                 }
               </button>
               {!file && toAddr && (
-                <p className="mt-2 text-center text-[11px] text-[var(--c-text-5)]">Attach a file to send</p>
+                <p className="mt-2 text-center text-[11px] text-[var(--c-text-5)]">{t('mail.attachToSend')}</p>
               )}
             </div>
           </div>
@@ -238,14 +241,14 @@ export function MailInbox() {
           <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-5">
             <div className="flex items-center gap-2">
               <Inbox size={14} className="text-[var(--c-text-4)]" />
-              <span className="text-[14px] font-semibold text-[var(--c-text-1)]">Messages</span>
+              <span className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('mail.inbox.title')}</span>
               {messages.length > 0 && (
                 <span className="rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--c-text-4)]">
                   {messages.length}
                 </span>
               )}
             </div>
-            <span className="text-[11px] text-[var(--c-text-5)]">Sent messages and replies · refreshes every 5s</span>
+            <span className="text-[11px] text-[var(--c-text-5)]">{t('mail.inbox.refresh')}</span>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -254,9 +257,9 @@ export function MailInbox() {
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)]">
                   <Mail size={20} className="text-[var(--c-text-5)]" />
                 </div>
-                <p className="text-[13px] font-medium text-[var(--c-text-4)]">No messages yet</p>
+                <p className="text-[13px] font-medium text-[var(--c-text-4)]">{t('mail.inbox.emptyTitle')}</p>
                 <p className="mt-1 max-w-[280px] text-[12px] leading-relaxed text-[var(--c-text-5)]">
-                  Sent messages and automatic replies both appear here. Replies arrive once the validation run finishes.
+                  {t('mail.inbox.emptyBody')}
                 </p>
               </div>
             ) : (

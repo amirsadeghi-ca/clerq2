@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Clerq2 — Rapport de conformité fonctionnelle (AOP 25320-S)</title>
+<style>
+  :root{
+    --bg:#0b0b0d; --surface:#141416; --surface2:#1a1a1e; --border:#26262b;
+    --text:#ededf0; --text2:#a9a9b2; --text3:#76767f; --accent:#6366f1;
+    --green:#10b981; --red:#ef4444; --amber:#f59e0b; --violet:#8b5cf6; --cyan:#06b6d4;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 24px}
+
+  /* Cover */
+  header.cover{
+    border-bottom:1px solid var(--border); padding:72px 0 56px; background:
+      radial-gradient(1200px 400px at 70% -10%, rgba(99,102,241,.10), transparent 60%);
+  }
+  .eyebrow{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1{font-size:38px; line-height:1.15; margin:14px 0 10px; font-weight:700; letter-spacing:-.02em}
+  .sub{font-size:17px; color:var(--text2); max-width:760px}
+  .meta{margin-top:26px; display:flex; gap:28px; flex-wrap:wrap; font-size:13px; color:var(--text3)}
+  .meta b{color:var(--text2); font-weight:600}
+
+  /* Scope banner */
+  .scope{margin:32px 0; padding:18px 20px; border:1px solid var(--border); border-radius:12px; background:var(--surface)}
+  .scope h3{margin:0 0 8px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text3)}
+  .scope .in,.scope .out{display:flex; gap:10px; align-items:flex-start; margin:6px 0; font-size:14px; color:var(--text2)}
+  .scope .tag{flex:0 0 auto; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; margin-top:1px}
+  .tag.inc{background:rgba(16,185,129,.14); color:#34d399}
+  .tag.exc{background:rgba(118,118,127,.16); color:var(--text3)}
+
+  /* TOC */
+  nav.toc{margin:36px 0 8px; padding:18px 20px; border:1px solid var(--border); border-radius:12px; background:var(--surface)}
+  nav.toc h3{margin:0 0 12px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--text3)}
+  nav.toc ol{margin:0; padding-left:20px; columns:2; column-gap:40px}
+  nav.toc li{margin:5px 0; font-size:14px; color:var(--text2); break-inside:avoid}
+
+  /* Sections */
+  section.group{padding:48px 0 8px; border-top:1px solid var(--border); margin-top:40px}
+  section.group:first-of-type{border-top:none}
+  .grouphead{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px}
+  .refbadge{font-size:12px; font-weight:700; color:var(--accent); background:rgba(99,102,241,.12); padding:3px 10px; border-radius:6px; white-space:nowrap}
+  .grouphead h2{font-size:24px; margin:0; font-weight:700; letter-spacing:-.01em}
+  .groupsub{color:var(--text3); font-size:14px; margin:2px 0 24px}
+
+  /* Requirement card */
+  .req{border:1px solid var(--border); border-radius:14px; background:var(--surface); margin:22px 0; overflow:hidden}
+  .req .body{padding:22px 24px 8px}
+  .reqtop{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
+  .reqid{font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--text); background:var(--surface2); border:1px solid var(--border); padding:3px 9px; border-radius:6px}
+  .reqtitle{font-size:17px; font-weight:650; margin:0}
+  .pill{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px}
+  .pill.ok{background:rgba(16,185,129,.14); color:#34d399}
+  blockquote{margin:0 0 14px; padding:12px 16px; border-left:3px solid var(--violet);
+    background:var(--surface2); border-radius:0 8px 8px 0; color:var(--text2); font-size:14px}
+  blockquote .src{display:block; margin-top:6px; font-size:12px; color:var(--text3); font-style:normal}
+  .answer{font-size:14.5px; color:var(--text); margin:0 0 16px}
+  .answer b{color:#fff}
+  figure{margin:0; border-top:1px solid var(--border); background:#0e0e10}
+  figure img{display:block; width:100%; height:auto}
+  figcaption{padding:11px 24px; font-size:12.5px; color:var(--text3); border-top:1px solid var(--border)}
+  figcaption b{color:var(--text2); font-weight:600}
+
+  footer{border-top:1px solid var(--border); margin-top:56px; padding:34px 0 80px; color:var(--text3); font-size:13px}
+
+  @media (max-width:720px){
+    nav.toc ol{columns:1}
+    h1{font-size:28px}
+  }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="wrap">
+    <div class="eyebrow">Conformité fonctionnelle · Functional conformance</div>
+    <h1>Clerq2 — Rapport de traçabilité des exigences</h1>
+    <p class="sub">Démonstration, exigence par exigence, que la solution couvre les besoins fonctionnels de
+      l'appel d'offres <b>25320-S</b> (assistant d'analyse de la <i>recevabilité</i> des dossiers de demande
+      d'autorisation ministérielle, MELCCFP). Chaque exigence est citée puis illustrée par une capture
+      d'écran de l'application réalisant le processus réel.</p>
+    <div class="meta">
+      <span><b>Cas d'usage</b> · Recevabilité — Autorisation ministérielle (LQE)</span>
+      <span><b>Politique</b> · 6 règles, version 9</span>
+      <span><b>Dossiers démontrés</b> · 1 recevable, 1 non recevable</span>
+      <span><b>Interface</b> · Français</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="scope">
+    <h3>Portée de ce rapport · Scope</h3>
+    <div class="in"><span class="tag inc">INCLUS</span><span>Le <b>fonctionnement réel</b> de l'application : lecture multi-format, vérifications, génération du rapport de traçabilité, validation humaine, indicateurs opérationnels, paramétrabilité des règles et interface française.</span></div>
+    <div class="out"><span class="tag exc">EXCLU</span><span>L'<b>intégration</b> aux systèmes ministériels, l'<b>authentification</b> et la <b>sécurité</b> — volontairement hors portée de cette démonstration, à traiter ultérieurement.</span></div>
+  </div>
+
+  <nav class="toc">
+    <h3>Sommaire</h3>
+    <ol>
+      <li><a href="#A">§2.2.1.1 — Module d'assistance à l'analyse</a></li>
+      <li><a href="#B">§2.2.1.2 — Rapport de traçabilité (RT)</a></li>
+      <li><a href="#C">§2.2.1.4 — Suivi & indicateurs opérationnels</a></li>
+      <li><a href="#D">§2.1.6.3 — Paramétrabilité & gouvernance des règles</a></li>
+      <li><a href="#E">§2.5.1 — Interfaces en français</a></li>
+      <li><a href="#X">Annexe 21 — Situation cible (parité)</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============================= SECTION A ============================= -->
+  <section class="group" id="A">
+    <div class="grouphead"><span class="refbadge">§2.2.1.1</span><h2>Module d'assistance à l'analyse de recevabilité</h2></div>
+    <p class="groupsub">L'outil lit les documents d'un dossier, en extrait l'information, et vérifie automatiquement
+      la présence, la cohérence et la conformité formelle des éléments — sans jamais décider à la place de l'humain.</p>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A1</span><h3 class="reqtitle">Lecture et interprétation multi-formats</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'assistant doit lire et interpréter les documents d'un dossier dans des formats variés
+          (CSV, Excel, PDF, Word) et les traiter ensemble comme un seul dossier.
+          <span class="src">AOP 25320-S — §2.2.1.1</span></blockquote>
+        <p class="answer">Une <b>vérification</b> accepte plusieurs fichiers déposés ensemble — PDF, Word, Excel, CSV ou images —
+          et les traite comme <b>un dossier unique</b>. Les PDF/images sont rendus en pages, le texte des fichiers
+          Word/Excel/CSV est extrait, et l'ensemble est soumis au moteur d'analyse.</p>
+      </div>
+      <figure><img src="screenshots/validate.png" alt="Page Vérifications" />
+        <figcaption><b>Vérifications → Recevabilité.</b> Zone de dépôt « PDF, Word, Excel, CSV ou images » et file d'exécution des dossiers (de 3–4 documents chacun), avec statut <i>Terminé</i> / <i>Échoué</i>.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A2</span><h3 class="reqtitle">Extraction des informations et métadonnées</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'assistant doit extraire les informations et métadonnées pertinentes des documents
+          (par ex. nom du demandeur, signatures, dates).
+          <span class="src">AOP 25320-S — §2.2.1.1</span></blockquote>
+        <p class="answer">Chaque constat affiche un bloc <b>EXTRAIT</b> contenant les valeurs lues dans les documents
+          (ici <i>signature = « Marie Tremblay »</i>, <i>date = 2026-02-15</i>), de sorte que la vérification est
+          ancrée dans des éléments vérifiables et non dans une opinion.</p>
+      </div>
+      <figure><img src="screenshots/report-recevable.png" alt="Rapport recevable — extrait" />
+        <figcaption><b>Rapport → constat « Signature et date présentes ».</b> Bloc <i>Extrait</i> avec les valeurs lues, puis ventilation <i>Par document</i>.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A3</span><h3 class="reqtitle">Présence / absence des éléments requis</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'assistant doit identifier la présence ou l'absence des éléments requis selon le type de demande,
+          et signaler clairement les pièces manquantes.
+          <span class="src">AOP 25320-S — §2.2.1.1</span></blockquote>
+        <p class="answer">La règle <b>« Complétude du dossier »</b> (portée <i>sur l'ensemble</i>) confirme que le formulaire,
+          l'inventaire et les annexes requises sont présents. Sur un dossier incomplet, elle est marquée
+          <b>Non conforme</b> et nomme précisément la pièce manquante.</p>
+      </div>
+      <figure><img src="screenshots/report-nonrecevable.png" alt="Rapport non recevable — complétude" />
+        <figcaption><b>Rapport non recevable → « Complétude du dossier ».</b> L'annexe technique exigée est absente ; le constat est <i>Non conforme</i> et liste les documents comparés.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A4</span><h3 class="reqtitle">Correspondance entre formulaires (nom du demandeur identique)</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'assistant doit vérifier la correspondance des informations entre les formulaires d'un dossier —
+          par exemple que le nom du demandeur est identique partout.
+          <span class="src">AOP 25320-S — §2.2.1.1</span></blockquote>
+        <p class="answer">La règle <b>« Nom du demandeur cohérent entre les formulaires »</b> (portée <i>sur l'ensemble</i>)
+          compare les documents entre eux. Lorsqu'un formulaire indique « Constructions Rivière Verte inc. »
+          et un autre « Rivière Verte Construction ltée », la divergence est détectée et expliquée.</p>
+      </div>
+      <figure><img src="screenshots/report-nonrecevable.png" alt="Rapport non recevable — nom demandeur" />
+        <figcaption><b>Rapport non recevable → « Nom du demandeur… ».</b> Constat <i>sur l'ensemble</i> identifiant la divergence de nom entre deux documents.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A5</span><h3 class="reqtitle">Signatures, dates et formats</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'assistant doit vérifier les pièces jointes obligatoires, les signatures, les dates et les formats attendus.
+          <span class="src">AOP 25320-S — §2.2.1.1 ; Annexe 21</span></blockquote>
+        <p class="answer">La règle <b>« Signature et date présentes »</b> vérifie que le formulaire de demande est signé
+          par le représentant et porte une date. La ventilation <b>Par document</b> montre quel document satisfait la règle.</p>
+      </div>
+      <figure><img src="screenshots/policy.png" alt="Éditeur de politique — règles" />
+        <figcaption><b>Politique → règles « Signature et date présentes » et « Dossier rédigé en français ».</b> Critères <i>Accepter lorsque</i> / <i>Échouer lorsque</i> en clair.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A6</span><h3 class="reqtitle">Détection d'incohérences formelles (logique conditionnelle)</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'assistant doit détecter les incohérences formelles — par exemple, lorsqu'une réponse « Oui »
+          implique qu'un document requis soit fourni et que celui-ci est manquant.
+          <span class="src">AOP 25320-S — §2.2.1.1 ; Annexe 21 (Q11 / Réponse 6)</span></blockquote>
+        <p class="answer">La règle <b>« Cohérence logique — travaux en milieu humide »</b> (portée <i>sur l'ensemble</i>)
+          encode exactement ce type de dépendance : si le formulaire répond « Oui » aux travaux en milieu humide,
+          alors l'annexe technique correspondante doit être présente et remplie. Sinon, le constat est <b>Non conforme</b>.</p>
+      </div>
+      <figure><img src="screenshots/report-nonrecevable.png" alt="Cohérence logique conditionnelle" />
+        <figcaption><b>Rapport non recevable.</b> La règle conditionnelle « si Oui → annexe requise » signale l'annexe absente (visible dans la liste complète des constats).</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A7</span><h3 class="reqtitle">Vérification par rapport à une liste approuvée</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'assistant doit pouvoir confronter une valeur extraite à une liste de référence officielle
+          (par ex. modèles d'équipements admissibles).
+          <span class="src">AOP 25320-S — §2.2.1.1 (paramétrabilité des contrôles)</span></blockquote>
+        <p class="answer">La <b>Bibliothèque</b> contient des <b>listes de référence</b> éditables. La règle
+          <b>« Équipements admissibles »</b> confronte chaque équipement de l'inventaire à la liste
+          « Équipements admissibles (LQE) » : une valeur hors liste fait échouer le constat.</p>
+      </div>
+      <figure><img src="screenshots/library-references.png" alt="Bibliothèque — listes de référence" />
+        <figcaption><b>Bibliothèque → Listes de référence.</b> Liste « Équipements admissibles (LQE) » (4 éléments), éditable sans développement.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A8</span><h3 class="reqtitle">Exclusion des documents hors périmètre</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Certains documents (par ex. la « Déclaration d'antécédents ») doivent être exclus de l'analyse
+          de recevabilité et ne pas influencer la conclusion.
+          <span class="src">AOP 25320-S — §2.2.1.1</span></blockquote>
+        <p class="answer">Le moteur évalue la <b>pertinence</b> de chaque document pour chaque règle. La
+          <i>Déclaration d'antécédents</i> est marquée <b>S.O. (sans objet)</b> partout et n'entre pas dans le verdict —
+          prouvant qu'un document hors périmètre est délibérément ignoré.</p>
+      </div>
+      <figure><img src="screenshots/report-recevable.png" alt="Documents hors périmètre — S.O." />
+        <figcaption><b>Rapport recevable → ventilation Par document.</b> « 04_Declaration_antecedents.pdf » et les pièces non concernées portent la mention <b>S.O.</b></figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A9</span><h3 class="reqtitle">Champs texte libres intégrés sans interprétation</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Les champs de texte libre doivent être repris dans le rapport sans interprétation par l'outil.
+          <span class="src">AOP 25320-S — §2.2.1.1 / §2.2.1.2</span></blockquote>
+        <p class="answer">Le rapport transporte les notes en texte libre <b>telles quelles</b>, sous la mention
+          <b>« Note du réviseur »</b>, sans les réinterpréter ni altérer le constat de l'IA.</p>
+      </div>
+      <figure><img src="screenshots/report-nonrecevable.png" alt="Note du réviseur en texte libre" />
+        <figcaption><b>Rapport non recevable → « Note du réviseur ».</b> Texte libre repris intégralement sous le constat concerné.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">A10</span><h3 class="reqtitle">Aucune décision automatisée — l'humain garde le contrôle</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'outil est une aide à la décision : il ne doit jamais rendre la décision officielle à la place de l'humain.
+          <span class="src">AOP 25320-S — §2.1.6.3 / §2.2.1.1 ; Annexe 21</span></blockquote>
+        <p class="answer">Le rapport est produit en <b>Brouillon · Généré par l'IA</b>. La décision n'est jamais
+          automatique : un humain doit relire, le cas échéant <b>modifier le verdict</b> et <b>finaliser</b>.
+          L'outil propose, l'humain dispose.</p>
+      </div>
+      <figure><img src="screenshots/report-nonrecevable.png" alt="Contrôle humain — verdict modifiable" />
+        <figcaption><b>Rapport.</b> Ruban « Brouillon · Généré par l'IA », sélecteur de verdict (Conforme / Non conforme / À réviser / S.O.) et bouton « Finaliser le rapport ».</figcaption></figure>
+    </article>
+  </section>
+
+  <!-- ============================= SECTION B ============================= -->
+  <section class="group" id="B">
+    <div class="grouphead"><span class="refbadge">§2.2.1.2</span><h2>Module de génération du Rapport de traçabilité (RT)</h2></div>
+    <p class="groupsub">Le RT présente les éléments vérifiés sous forme de liste de contrôle, conclut clairement,
+      et offre une validation humaine avant la décision officielle — sans altérer les sources et avec une trace d'audit.</p>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">B1</span><h3 class="reqtitle">Liste de contrôle structurée</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Le RT doit présenter les éléments vérifiés sous forme de liste de contrôle, en mettant en avant
+          les éléments manquants ou incohérents.
+          <span class="src">AOP 25320-S — §2.2.1.2</span></blockquote>
+        <p class="answer">Le rapport liste tous les <b>constats</b> avec leur statut, leur portée (chaque doc / sur l'ensemble),
+          leur confiance et leur preuve. Les problèmes sont présentés <b>en premier</b> (non conforme → à réviser → conforme).</p>
+      </div>
+      <figure><img src="screenshots/report-recevable.png" alt="RT — liste de contrôle" />
+        <figcaption><b>Rapport de validation.</b> En-tête (politique, version, nb. documents, date), bannière de verdict, compte des constats, puis liste de contrôle détaillée.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">B2</span><h3 class="reqtitle">Conclusion : Recevable / Non recevable / Information manquante</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Le RT doit conclure par l'un des trois verdicts : <b>Recevable</b>, <b>Non recevable</b> ou
+          <b>Information manquante</b>.
+          <span class="src">AOP 25320-S — §2.2.1.2 ; Annexe 20</span></blockquote>
+        <p class="answer">La bannière de verdict affiche <b>Conforme (Recevable)</b>, <b>Non conforme (Non recevable)</b> ou
+          <b>À réviser (Information manquante)</b>. Le dossier complet conclut <i>Conforme</i> ; le dossier cassé conclut <i>Non conforme</i>.</p>
+      </div>
+      <figure><img src="screenshots/report-nonrecevable.png" alt="Verdict Non recevable" />
+        <figcaption><b>Rapport.</b> Verdict <b>Non conforme</b> avec décompte « 3 non conforme(s) · 1 à réviser · 2 conforme(s) ».</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">B3</span><h3 class="reqtitle">Validation et modification humaine avant la décision</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Le RT doit permettre la validation et la modification par un humain avant que la décision officielle ne soit rendue.
+          <span class="src">AOP 25320-S — §2.2.1.2</span></blockquote>
+        <p class="answer">Sur chaque constat, le réviseur peut <b>ajouter une note</b> et <b>modifier le verdict</b>
+          (une valeur différente de l'IA exige une justification). Le verdict global est <b>recalculé</b>
+          à partir des dérogations (« Reflète les modifications du réviseur »).</p>
+      </div>
+      <figure><img src="screenshots/report-nonrecevable.png" alt="Validation humaine — note + dérogation" />
+        <figcaption><b>Rapport non recevable.</b> Note du réviseur et dérogation appliquée (« 1 à réviser ») ; verdict global recalculé en conséquence.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">B4</span><h3 class="reqtitle">Sources non altérées — verdict IA original conservé</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Le traitement et le rapport ne doivent pas altérer les documents sources ; la traçabilité de l'analyse
+          d'origine doit être préservée.
+          <span class="src">AOP 25320-S — §2.2.1.1 / §2.2.1.2</span></blockquote>
+        <p class="answer">Une dérogation <b>ne remplace jamais</b> le constat original de l'IA : le rapport affiche
+          <i>« IA : X → Réviseur : Y — motif »</i>. Les documents déposés ne sont jamais modifiés.</p>
+      </div>
+      <figure><img src="screenshots/report-nonrecevable.png" alt="IA vs réviseur conservés" />
+        <figcaption><b>Rapport.</b> Le constat conserve la position de l'IA tout en affichant la dérogation et son motif — transparence complète.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">B5</span><h3 class="reqtitle">Réversibilité — export sans verrou (PDF / JSON / CSV)</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Le RT doit être réversible et exportable sans verrou propriétaire, et un rapport finalisé doit pouvoir
+          être rouvert pour amendement.
+          <span class="src">AOP 25320-S — §2.2.1.2 (réversibilité)</span></blockquote>
+        <p class="answer">Le rapport s'exporte en <b>PDF</b>, <b>JSON</b> et <b>CSV</b> depuis la barre d'actions.
+          Un rapport <b>Finalisé</b> peut être <b>Rouvert pour modifier</b> — chaque réouverture est journalisée.</p>
+      </div>
+      <figure><img src="screenshots/report-recevable.png" alt="Export + réouverture" />
+        <figcaption><b>Rapport finalisé.</b> Barre « CSV · JSON · Télécharger le PDF » en haut ; ruban <b>Finalisé</b> et « Rouvrir pour modifier » en bas.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">B6</span><h3 class="reqtitle">Audit des règles appliquées + trace des validations</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Le RT doit conserver une trace des règles appliquées (et de leur version) et des validations humaines effectuées.
+          <span class="src">AOP 25320-S — §2.2.1.2 / §2.1.6.3</span></blockquote>
+        <p class="answer">Chaque rapport indique la <b>version exacte de la politique</b> exécutée (ici <i>v9</i>) et l'horodatage
+          de finalisation (« Rapport finalisé · 2026-05-28 00 h 51 »). Les modifications de règles sont versionnées (voir §2.1.6.3).</p>
+      </div>
+      <figure><img src="screenshots/report-recevable.png" alt="Trace d'audit — version + horodatage" />
+        <figcaption><b>Rapport.</b> Métadonnées « Politique · Version v9 · Documents · Exécution #81 · Date » et horodatage de finalisation.</figcaption></figure>
+    </article>
+  </section>
+
+  <!-- ============================= SECTION C ============================= -->
+  <section class="group" id="C">
+    <div class="grouphead"><span class="refbadge">§2.2.1.4</span><h2>Module de suivi & indicateurs opérationnels</h2></div>
+    <p class="groupsub">Tableau d'indicateurs calculés à partir des analyses réelles, avec export Excel/CSV.</p>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">C1</span><h3 class="reqtitle">Les six indicateurs opérationnels + export</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Le module de suivi doit présenter : le nombre de dossiers traités ; le nombre d'éléments non conformes
+          détectés ; le temps moyen de génération du RT ; le taux de validation humaine sans modification ;
+          des indicateurs de charge ; le nombre de corrections après génération initiale — avec export Excel/CSV.
+          <span class="src">AOP 25320-S — §2.2.1.4</span></blockquote>
+        <p class="answer">La page <b>Indicateurs</b> affiche les <b>six</b> mesures demandées, calculées sur les analyses réelles :
+          <b>Dossiers traités</b>, <b>Documents examinés</b>, <b>Éléments non conformes détectés</b>,
+          <b>Temps moyen de génération du RT</b>, <b>Validés sans modification</b> et <b>Corrections après génération</b>.
+          S'y ajoutent la <b>répartition des conclusions</b> (Recevable / Non recevable / Information manquante),
+          la <b>charge par jour</b>, le détail par dossier et un bouton <b>Exporter CSV</b>. Filtrable par politique.</p>
+      </div>
+      <figure><img src="screenshots/insights.png" alt="Page Indicateurs" />
+        <figcaption><b>Indicateurs.</b> Les six indicateurs du §2.2.1.4, la répartition des conclusions, la charge de traitement et le détail par dossier — exportables en CSV.</figcaption></figure>
+    </article>
+  </section>
+
+  <!-- ============================= SECTION D ============================= -->
+  <section class="group" id="D">
+    <div class="grouphead"><span class="refbadge">§2.1.6.3</span><h2>Paramétrabilité & gouvernance des règles</h2></div>
+    <p class="groupsub">Les règles sont entièrement paramétrables sans développement, versionnées, et s'appuient sur une
+      bibliothèque de types de documents réutilisables.</p>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">D1</span><h3 class="reqtitle">Paramétrabilité complète sans développement</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'ajout, la modification et la suppression des règles de vérification doivent être possibles sans
+          développement informatique, par un profil administrateur.
+          <span class="src">AOP 25320-S — §2.1.6.3</span></blockquote>
+        <p class="answer">L'éditeur de <b>politique</b> permet d'<b>ajouter une règle</b>, d'en modifier les critères
+          (<i>Accepter lorsque</i> / <i>Échouer lorsque</i> en langage clair), la portée (<i>chaque doc</i> / <i>tout doc</i> /
+          <i>sur l'ensemble</i>) et le caractère obligatoire/facultatif — entièrement par l'interface, sans code.</p>
+      </div>
+      <figure><img src="screenshots/policy.png" alt="Éditeur de politique — paramétrabilité" />
+        <figcaption><b>Politique « Recevabilité — Autorisation ministérielle (LQE) ».</b> Énoncé + 6 règles paramétrables, bascules de portée et d'exigence, « Ajouter une règle ».</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">D2</span><h3 class="reqtitle">Versionnement & traçabilité des modifications</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>La gestion des versions et la traçabilité des modifications apportées aux règles doivent être assurées.
+          <span class="src">AOP 25320-S — §2.1.6.3</span></blockquote>
+        <p class="answer">Chaque enregistrement crée une <b>nouvelle version</b> de la politique. L'<b>Historique</b> liste toutes
+          les versions ; chaque exécution enregistre la version utilisée, de sorte qu'un rapport reste reproductible.</p>
+      </div>
+      <figure><img src="screenshots/policy.png" alt="Historique des versions" />
+        <figcaption><b>Politique.</b> Indicateur de version (« v9 ») et bouton <b>Historique</b> dans la barre supérieure.</figcaption></figure>
+    </article>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">D3</span><h3 class="reqtitle">Bibliothèque de types de documents réutilisables</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>L'outil doit s'appuyer sur des définitions réutilisables des types de documents attendus selon le type de demande.
+          <span class="src">AOP 25320-S — §2.1.6.3 / §2.2.1.1</span></blockquote>
+        <p class="answer">La <b>Bibliothèque</b> regroupe les <b>types de documents</b> (formulaire de demande, annexe technique,
+          inventaire, déclaration d'antécédents…) et les <b>listes de référence</b>, réutilisables par toute politique.</p>
+      </div>
+      <figure><img src="screenshots/library.png" alt="Bibliothèque — types de documents" />
+        <figcaption><b>Bibliothèque → Types de documents.</b> Définitions réutilisables des pièces d'un dossier.</figcaption></figure>
+    </article>
+  </section>
+
+  <!-- ============================= SECTION E ============================= -->
+  <section class="group" id="E">
+    <div class="grouphead"><span class="refbadge">§2.5.1</span><h2>Interfaces utilisateur en français</h2></div>
+    <p class="groupsub">L'ensemble de l'interface est offert en français.</p>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">E1</span><h3 class="reqtitle">Interface entièrement en français</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Les interfaces destinées aux utilisateurs doivent être offertes en français.
+          <span class="src">AOP 25320-S — §2.5.1</span></blockquote>
+        <p class="answer">Toutes les captures de ce rapport sont prises en <b>français</b> : navigation
+          (Tableau de bord, Vérifications, Bibliothèque, Indicateurs…), constats (Recevable / Non recevable),
+          rapport et indicateurs. La langue se bascule entre <b>Français</b> et <b>English</b> dans les Paramètres.</p>
+      </div>
+      <figure><img src="screenshots/settings.png" alt="Paramètres — langue" />
+        <figcaption><b>Paramètres.</b> Sélecteur de langue (Français / English) ; l'application complète est localisée.</figcaption></figure>
+    </article>
+  </section>
+
+  <!-- ============================= ANNEX 21 ============================= -->
+  <section class="group" id="X">
+    <div class="grouphead"><span class="refbadge">Annexe 21</span><h2>Situation cible — parité point par point</h2></div>
+    <p class="groupsub">L'annexe décrit l'IA vérifiant exactement : la <b>signature</b>, la <b>langue</b>, les
+      <b>documents joints</b> et la <b>cohérence logique</b>, le tout produisant un RT — « l'IA = outil d'aide à la décision ».</p>
+
+    <article class="req">
+      <div class="body">
+        <div class="reqtop"><span class="reqid">X1</span><h3 class="reqtitle">Les contrôles de l'annexe, implémentés tels quels</h3><span class="pill ok">Couvert</span></div>
+        <blockquote>Signature présente · Document rédigé en français · Documents joints requis présents ·
+          Cohérence logique (p. ex. la question est remplie lorsque la réponse conditionnelle est « Oui ») → Rapport de traçabilité.
+          <span class="src">AOP 25320-S — Annexe 21 (situation cible)</span></blockquote>
+        <p class="answer">La politique reproduit chacun de ces contrôles : <b>« Signature et date présentes »</b>,
+          <b>« Dossier rédigé en français »</b>, <b>« Complétude du dossier »</b> et
+          <b>« Cohérence logique — travaux en milieu humide »</b> — et émet le RT. L'humain conserve la décision.</p>
+      </div>
+      <figure><img src="screenshots/policy.png" alt="Parité annexe 21" />
+        <figcaption><b>Politique.</b> Les règles de l'annexe 21 transposées une à une, en français, paramétrables.</figcaption></figure>
+    </article>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><b>Clerq2 — Rapport de conformité fonctionnelle.</b> Généré à partir de l'application en cours d'exécution
+      (captures réelles, dossiers synthétiques recevable / non recevable). Portée : fonctionnel uniquement —
+      intégration, authentification et sécurité exclues de cette démonstration.</p>
+  </div>
+</footer>
+
+</body>
+</html>

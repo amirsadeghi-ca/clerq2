@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { X, Terminal, Copy, Check, ArrowDown, Search, Minus, Maximize2 } from 'lucide-react'
+import { useI18n } from '../context/i18n'
 
 interface Props {
   title: string
@@ -39,6 +40,7 @@ const MIN_H = 180
 const DEFAULT_H = 420
 
 export function LogViewer({ title, logs, onClose }: Props) {
+  const { t } = useI18n()
   const [height, setHeight] = useState(DEFAULT_H)
   const [maximized, setMaximized] = useState(false)
   const [query, setQuery] = useState('')
@@ -139,7 +141,7 @@ export function LogViewer({ title, logs, onClose }: Props) {
         <div className="flex items-center gap-2 border-r border-[#1e1e1e] bg-[#1e1e1e] px-4 py-1.5">
           <Terminal size={12} className="text-[#75beff]" />
           <span className="text-[12px] text-[#cccccc]">{title}</span>
-          <span className="ml-1 text-[10px] text-[#666]">{logs.length} lines</span>
+          <span className="ml-1 text-[10px] text-[#666]">{t('runstatus.log.lines', { count: logs.length })}</span>
         </div>
 
         {/* Spacer */}
@@ -149,28 +151,28 @@ export function LogViewer({ title, logs, onClose }: Props) {
         <div className="flex items-center gap-0.5 px-2">
           <button
             onClick={() => setShowSearch(v => !v)}
-            title="Search (⌘F)"
+            title={t('runstatus.log.search')}
             className={`flex h-7 w-7 items-center justify-center rounded text-[#888] transition-colors hover:bg-white/[0.07] hover:text-[#ccc] ${showSearch ? 'bg-white/[0.08] text-[#ccc]' : ''}`}
           >
             <Search size={13} />
           </button>
           <button
             onClick={copyAll}
-            title="Copy all"
+            title={t('runstatus.log.copyAll')}
             className="flex h-7 w-7 items-center justify-center rounded text-[#888] transition-colors hover:bg-white/[0.07] hover:text-[#ccc]"
           >
             {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
           </button>
           <button
             onClick={() => setMaximized(v => !v)}
-            title={maximized ? 'Restore' : 'Maximize'}
+            title={maximized ? t('runstatus.log.restore') : t('runstatus.log.maximize')}
             className="flex h-7 w-7 items-center justify-center rounded text-[#888] transition-colors hover:bg-white/[0.07] hover:text-[#ccc]"
           >
             {maximized ? <Minus size={13} /> : <Maximize2 size={13} />}
           </button>
           <button
             onClick={onClose}
-            title="Close (Esc)"
+            title={t('runstatus.log.close')}
             className="flex h-7 w-7 items-center justify-center rounded text-[#888] transition-colors hover:bg-white/[0.07] hover:text-[#ccc]"
           >
             <X size={13} />
@@ -187,7 +189,7 @@ export function LogViewer({ title, logs, onClose }: Props) {
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Find in logs…"
+            placeholder={t('runstatus.log.find')}
             className="flex-1 bg-transparent text-[12px] text-[#ccc] placeholder-[#444] outline-none"
           />
           {query && (
@@ -212,7 +214,7 @@ export function LogViewer({ title, logs, onClose }: Props) {
       >
         {filtered.length === 0 ? (
           <p className="px-4 py-6 text-[12px] text-[#555]">
-            {query ? 'No matches.' : 'No logs yet — run a workflow to see output here.'}
+            {query ? t('runstatus.log.noMatches') : t('runstatus.log.empty')}
           </p>
         ) : (
           filtered.map((line, i) => <LogLine key={i} line={line} query={query} />)
@@ -226,7 +228,7 @@ export function LogViewer({ title, logs, onClose }: Props) {
           onClick={() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); setAutoScroll(true) }}
           className="absolute bottom-3 right-4 flex items-center gap-1.5 rounded border border-[#444] bg-[#2d2d2d] px-3 py-1.5 text-[11px] text-[#aaa] shadow-lg transition-colors hover:bg-[#333]"
         >
-          <ArrowDown size={11} /> Jump to bottom
+          <ArrowDown size={11} /> {t('runstatus.log.jumpToBottom')}
         </button>
       )}
     </div>

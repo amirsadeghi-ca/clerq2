@@ -1,9 +1,22 @@
+from datetime import datetime, UTC
+
 from celery import chain
 
 from app.database import SessionLocal
 from app.models.document import Document
 from app.models.run import WorkflowRun, WorkflowRunStep, WorkflowRunDocument
 from app.tasks.registry import NODE_REGISTRY
+
+
+def _fail_run(run_id: int, error: str) -> None:
+    """Mark a run failed synchronously (used when a chain can't be built)."""
+    with SessionLocal() as db:
+        run = db.get(WorkflowRun, run_id)
+        if run and run.status in ("pending", "running"):
+            run.status = "failed"
+            run.error = error
+            run.completed_at = datetime.now(UTC)
+            db.commit()
 
 
 def _topological_sort(nodes: list[dict], edges: list[dict]) -> list[dict]:
@@ -13,8 +26,14 @@ def _topological_sort(nodes: list[dict], edges: list[dict]) -> list[dict]:
     adj: dict[str, list[str]] = {n["id"]: [] for n in nodes}
 
     for edge in edges:
-        adj[edge["source"]].append(edge["target"])
-        in_degree[edge["target"]] += 1
+        src, tgt = edge.get("source"), edge.get("target")
+        # Ignore dangling edges that reference a node not in the graph (can happen
+        # with a corrupt/partially-edited definition). Letting them through would
+        # KeyError here and strand the already-committed run in "pending" forever.
+        if src not in id_to_node or tgt not in id_to_node:
+            continue
+        adj[src].append(tgt)
+        in_degree[tgt] += 1
 
     queue = [nid for nid, deg in in_degree.items() if deg == 0]
     result = []
@@ -38,14 +57,26 @@ def trigger_run(run_id: int, definition: dict, docs: list[Document]) -> None:
     for nodes/flows that only understand a single file).
     """
     if not docs:
+        _fail_run(run_id, "No documents provided for this run")
         return
 
-    nodes = definition.get("nodes", [])
-    edges = definition.get("edges", [])
+    nodes = definition.get("nodes", []) or []
+    edges = definition.get("edges", []) or []
     if not nodes:
+        _fail_run(run_id, "Workflow has no nodes — nothing to run. Add at least one node and save.")
         return
 
     sorted_nodes = _topological_sort(nodes, edges)
+    if len(sorted_nodes) < len(nodes):
+        _fail_run(run_id, "Workflow graph contains a cycle — execution order can't be determined.")
+        return
+
+    # Validate all node types are known before creating any step records.
+    unknown = [n.get("type") for n in sorted_nodes if n.get("type") not in NODE_REGISTRY]
+    if unknown:
+        _fail_run(run_id, f"Unknown node type(s): {', '.join(str(u) for u in unknown)}")
+        return
+
     primary_doc = docs[0]
 
     with SessionLocal() as db:

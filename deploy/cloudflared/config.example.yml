@@ -1,0 +1,24 @@
+# Locally-managed Cloudflare Tunnel config (ingress-in-git variant).
+# Copy to config.yml and fill in your tunnel UUID after running:
+#   cloudflared tunnel login
+#   cloudflared tunnel create clerq2
+#   cloudflared tunnel route dns clerq2 app.YOURDOMAIN.com
+#
+# Then move the generated ~/.cloudflared/<UUID>.json to
+# deploy/cloudflared/credentials.json (gitignored).
+#
+# Only used if you switch docker-compose.prod.yml to the locally-managed block.
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Public hostname -> the nginx frontend container on the compose network.
+  - hostname: app.YOURDOMAIN.com
+    service: http://frontend:80
+    originRequest:
+      # Default 30s connect timeout is fine. Do NOT enable
+      # disableChunkedEncoding — SSE relies on chunked streaming.
+      connectTimeout: 30s
+  # Required catch-all.
+  - service: http_status:404

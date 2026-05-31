@@ -1,0 +1,19 @@
+{
+  // Cloudflare Email Worker: receives mail for the zone, extracts the first
+  // PDF/document attachment, uploads it to the Clerq2 API over the tunnel, then
+  // triggers a run via /api/mail/inbound.
+  //
+  // Deploy:  cd deploy/email-worker && npm i && npx wrangler deploy
+  // Secrets: npx wrangler secret put WEBHOOK_SECRET
+  // Verify:  npx wrangler deployments list
+  //          npx wrangler email routing rules list
+  "name": "clerq2-inbound-mail",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    // The public hostname of the app behind the tunnel.
+    "WEBHOOK_BASE": "https://app.YOURDOMAIN.com"
+  }
+  // WEBHOOK_SECRET is set with `wrangler secret put`, never committed.
+}

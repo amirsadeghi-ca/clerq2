@@ -3,8 +3,10 @@ import { useParams, Link } from 'react-router-dom'
 import { ChevronRight, Save, Loader2, Upload, Trash2, BookOpen } from 'lucide-react'
 import { useDocumentType, useUpdateDocumentType, useUploadSample, useDeleteSample } from '../api/library'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useI18n } from '../context/i18n'
 
 export function LibraryEditor() {
+  const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
   const docTypeId = Number(id)
 
@@ -69,14 +71,14 @@ export function LibraryEditor() {
         {/* Header */}
         <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] px-6">
           <Link to="/library" className="text-[12px] text-[var(--c-text-5)] hover:text-[var(--c-text-3)] transition-colors">
-            Library
+            {t('library.title')}
           </Link>
           <ChevronRight size={12} className="text-[var(--c-text-5)]" />
           <input
             value={name}
             onChange={e => { setName(e.target.value); markDirty() }}
             className="min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-[var(--c-text-1)] outline-none placeholder-[var(--c-text-5)]"
-            placeholder="Document type name"
+            placeholder={t('library.documentTypeNamePlaceholderEditor')}
           />
           {dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />}
           <button
@@ -85,7 +87,7 @@ export function LibraryEditor() {
             className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
           >
             {saveState === 'saving' ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-            {saveState === 'saved' ? 'Saved' : 'Save'}
+            {saveState === 'saved' ? t('library.saved') : t('btn.save')}
           </button>
         </header>
 
@@ -94,25 +96,25 @@ export function LibraryEditor() {
           {/* Main content */}
           <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-8">
             <div>
-              <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">Description</label>
+              <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">{t('library.col.description')}</label>
               <textarea
                 value={description}
                 onChange={e => { setDescription(e.target.value); markDirty() }}
-                placeholder="What is this document? What purpose does it serve?"
+                placeholder={t('library.descriptionPlaceholder')}
                 rows={3}
                 className="w-full resize-none rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-2 text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-[11px] font-medium text-[var(--c-text-4)]">AI Instructions</label>
+              <label className="mb-1 block text-[11px] font-medium text-[var(--c-text-4)]">{t('library.aiInstructions')}</label>
               <p className="mb-1.5 text-[11px] text-[var(--c-text-5)]">
-                Tell the AI what to look for — required fields, layout, identifiers, expiry checks, name matching.
+                {t('library.aiInstructionsHint')}
               </p>
               <textarea
                 value={aiInstructions}
                 onChange={e => { setAiInstructions(e.target.value); markDirty() }}
-                placeholder="e.g. Must show full legal name, date of birth, expiry date, and a photograph. Document must not be expired. Name must not be obscured or cropped."
+                placeholder={t('library.aiInstructionsPlaceholder')}
                 rows={6}
                 className="w-full resize-none rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-2 text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
               />
@@ -122,8 +124,8 @@ export function LibraryEditor() {
           {/* Right panel: sample images */}
           <aside className="flex w-[260px] shrink-0 flex-col border-l border-[var(--c-border)] bg-[var(--c-bg)]">
             <div className="border-b border-[var(--c-border)] px-4 py-3">
-              <p className="text-[13px] font-medium text-[var(--c-text-2)]">Sample Images</p>
-              <p className="mt-0.5 text-[11px] text-[var(--c-text-5)]">Help the AI recognize this document</p>
+              <p className="text-[13px] font-medium text-[var(--c-text-2)]">{t('library.sampleImages')}</p>
+              <p className="mt-0.5 text-[11px] text-[var(--c-text-5)]">{t('library.sampleImagesHint')}</p>
             </div>
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
@@ -145,8 +147,8 @@ export function LibraryEditor() {
                 ) : (
                   <Upload size={16} className="text-[var(--c-text-5)]" />
                 )}
-                <p className="text-[11px] text-[var(--c-text-5)]">Drop image or click to upload</p>
-                <p className="text-[10px] text-[var(--c-text-5)]">PNG, JPG up to 10MB</p>
+                <p className="text-[11px] text-[var(--c-text-5)]">{t('library.dropImageHint')}</p>
+                <p className="text-[10px] text-[var(--c-text-5)]">{t('library.fileTypesHint')}</p>
               </div>
               <input
                 ref={fileInputRef}
@@ -182,7 +184,7 @@ export function LibraryEditor() {
               {dt?.samples.length === 0 && (
                 <div className="flex flex-col items-center gap-1 py-4 text-center">
                   <BookOpen size={16} className="text-[var(--c-text-6)]" />
-                  <p className="text-[11px] text-[var(--c-text-5)]">No samples yet</p>
+                  <p className="text-[11px] text-[var(--c-text-5)]">{t('library.noSamples')}</p>
                 </div>
               )}
             </div>

@@ -26,3 +26,19 @@ frontend/dist/
 .vscode/
 *.swp
 *.swo
+
+# Demo video tooling (regenerable)
+demo/bin/ffmpeg
+demo/audio/*.m4a
+demo/tts/
+demo/voices/
+demo/video/
+demo/scenes/
+demo/_frames/
+demo/
+.claude/
+deploy/cloudflared/credentials.json
+deploy/cloudflared/config.yml
+*.pem
+id_ed25519
+id_ed25519.pub

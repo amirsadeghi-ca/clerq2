@@ -1,0 +1,189 @@
+// Policy editor + policy list strings.
+// Quebec French: Politique(s), Règle(s), Énoncé/Consigne (brief), Obligatoire/Facultatif,
+// "Sur l’ensemble" (cross-set), "Directives pour l’IA", "Seuil de confiance".
+
+export const en = {
+  // List page
+  'policy.list.title': 'Validation Policies',
+  'policy.list.new': 'New policy',
+  'policy.list.namePlaceholder': 'Policy name…',
+  'policy.list.empty.title': 'No policies yet',
+  'policy.list.empty.subtitle': 'Create a policy to define document validation rules',
+  'policy.list.col.name': 'Name',
+  'policy.list.col.description': 'Description',
+  'policy.list.col.rules': 'Rules',
+  'policy.list.col.updated': 'Updated',
+  'policy.list.deleteConfirm': 'Delete this policy?',
+
+  // Editor — header
+  'policy.editor.namePlaceholder': 'Policy name',
+  'policy.editor.history': 'History',
+  'policy.editor.saved': 'Saved',
+
+  // Editor — versions modal
+  'policy.versions.title': 'Version history',
+  'policy.versions.subtitle': 'Each save creates a snapshot',
+  'policy.versions.empty': 'No versions yet. Save to create the first snapshot.',
+  'policy.versions.current': 'current',
+  'policy.versions.ruleCount': '{count} rule',
+  'policy.versions.ruleCountPlural': '{count} rules',
+
+  // Editor — left panel
+  'policy.field.name': 'Name',
+  'policy.field.brief': 'Brief',
+  'policy.field.briefHint': 'Sent verbatim to the AI as context before evaluating each rule.',
+  'policy.field.briefPlaceholder': "Describe what this policy validates. E.g. 'Validates a mortgage application packet — the applicant must prove identity, income, and address.'",
+
+  // Editor — email inbox
+  'policy.email.title': 'Email Inbox',
+  'policy.email.on': 'on',
+  'policy.email.enabledClickDisable': 'Inbox enabled — click to disable',
+  'policy.email.enable': 'Enable inbox',
+  'policy.email.replyWhen': 'Reply when',
+  'policy.email.reply.always': 'Always',
+  'policy.email.reply.on_pass': 'Pass',
+  'policy.email.reply.on_fail': 'Fail',
+  'policy.email.reply.never': 'Never',
+  'policy.email.passMessage': 'Pass message',
+  'policy.email.passPlaceholder': 'Leave blank for default summary.',
+  'policy.email.failMessage': 'Fail message',
+  'policy.email.failHintPre': 'Use',
+  'policy.email.failHintPost': 'to include failed checks.',
+  'policy.email.failPlaceholder': 'e.g. Verification failed:\n\n{{failed_rules}}\n\nPlease resubmit.',
+
+  // Editor — rules panel
+  'policy.rules.title': 'Rules',
+  'policy.rules.allRequiredMustPass': 'All required rules must pass for the policy to pass',
+  'policy.rules.add': 'Add rule',
+  'policy.rules.newRuleName': 'New rule',
+  'policy.rules.empty.title': 'No rules yet',
+  'policy.rules.empty.subtitle': 'The brief alone guides the AI. Add rules to enforce specific required checks with explicit pass/fail criteria.',
+  'policy.rules.addFirst': 'Add first rule',
+
+  // Rule card
+  'policy.rule.namePlaceholder': 'Rule name…',
+  'policy.rule.deleteConfirm': 'Delete this rule?',
+  'policy.rule.scope.per_document': 'Each doc',
+  'policy.rule.scope.any_document': 'Any doc',
+  'policy.rule.scope.cross_set': 'Across set',
+  'policy.rule.scopeHint.per_document': 'Every relevant document must satisfy it (documents the rule is not about are ignored)',
+  'policy.rule.scopeHint.any_document': 'Passes if at least one relevant document satisfies it (e.g. the packet must contain a valid passport)',
+  'policy.rule.scopeHint.cross_set': 'Evaluated once across the whole document set (cross-document consistency)',
+  'policy.rule.acceptWhen': 'Accept when',
+  'policy.rule.acceptPlaceholder': 'Describe what makes this check pass…',
+  'policy.rule.failWhen': 'Fail when',
+  'policy.rule.failPlaceholder': 'Describe what makes this check fail…',
+
+  // Rule card — advanced
+  'policy.rule.advanced': 'Advanced',
+  'policy.rule.configured': 'configured',
+  'policy.rule.documentType': 'Document type',
+  'policy.rule.referenceCheck': 'Check against a reference list',
+  'policy.rule.valueMustBe': 'The value must be',
+  'policy.rule.direction.in': 'in',
+  'policy.rule.direction.not_in': 'not in',
+  'policy.rule.noList': '— no list —',
+  'policy.rule.match': 'Match:',
+  'policy.rule.match.exact': 'Exact',
+  'policy.rule.match.smart': 'Smart',
+  'policy.rule.matchHint.exact': 'Safest — the value must match a list entry precisely (case-insensitive)',
+  'policy.rule.matchHint.smart': 'Tolerant of spelling, casing, and formatting variations',
+  'policy.rule.noListsHint': 'Create lists in Library → Reference lists',
+  'policy.rule.aiInstructions': 'Extra AI instructions',
+  'policy.rule.aiPlaceholder': 'Extra guidance for the AI — e.g. cross-check name against cover page, ignore stamps',
+  'policy.rule.confidenceThreshold': 'Confidence threshold',
+  'policy.rule.confidenceHint': 'Results below this threshold are flagged as uncertain.',
+}
+
+export const fr = {
+  // List page
+  'policy.list.title': 'Politiques de validation',
+  'policy.list.new': 'Nouvelle politique',
+  'policy.list.namePlaceholder': 'Nom de la politique…',
+  'policy.list.empty.title': 'Aucune politique pour l’instant',
+  'policy.list.empty.subtitle': 'Créez une politique pour définir les règles de validation des documents',
+  'policy.list.col.name': 'Nom',
+  'policy.list.col.description': 'Description',
+  'policy.list.col.rules': 'Règles',
+  'policy.list.col.updated': 'Mise à jour',
+  'policy.list.deleteConfirm': 'Supprimer cette politique?',
+
+  // Editor — header
+  'policy.editor.namePlaceholder': 'Nom de la politique',
+  'policy.editor.history': 'Historique',
+  'policy.editor.saved': 'Enregistré',
+
+  // Editor — versions modal
+  'policy.versions.title': 'Historique des versions',
+  'policy.versions.subtitle': 'Chaque enregistrement crée un instantané',
+  'policy.versions.empty': 'Aucune version pour l’instant. Enregistrez pour créer le premier instantané.',
+  'policy.versions.current': 'actuelle',
+  'policy.versions.ruleCount': '{count} règle',
+  'policy.versions.ruleCountPlural': '{count} règles',
+
+  // Editor — left panel
+  'policy.field.name': 'Nom',
+  'policy.field.brief': 'Énoncé',
+  'policy.field.briefHint': 'Transmis tel quel à l’IA comme contexte avant l’évaluation de chaque règle.',
+  'policy.field.briefPlaceholder': 'Décrivez ce que valide cette politique. P. ex. « Valide un dossier de demande hypothécaire — le demandeur doit prouver son identité, ses revenus et son adresse. »',
+
+  // Editor — email inbox
+  'policy.email.title': 'Boîte de réception courriel',
+  'policy.email.on': 'activée',
+  'policy.email.enabledClickDisable': 'Boîte activée — cliquez pour désactiver',
+  'policy.email.enable': 'Activer la boîte',
+  'policy.email.replyWhen': 'Répondre lorsque',
+  'policy.email.reply.always': 'Toujours',
+  'policy.email.reply.on_pass': 'Conforme',
+  'policy.email.reply.on_fail': 'Non conforme',
+  'policy.email.reply.never': 'Jamais',
+  'policy.email.passMessage': 'Message de réussite',
+  'policy.email.passPlaceholder': 'Laissez vide pour le résumé par défaut.',
+  'policy.email.failMessage': 'Message d’échec',
+  'policy.email.failHintPre': 'Utilisez',
+  'policy.email.failHintPost': 'pour inclure les vérifications échouées.',
+  'policy.email.failPlaceholder': 'p. ex. Vérification échouée :\n\n{{failed_rules}}\n\nVeuillez soumettre de nouveau.',
+
+  // Editor — rules panel
+  'policy.rules.title': 'Règles',
+  'policy.rules.allRequiredMustPass': 'Toutes les règles obligatoires doivent réussir pour que la politique réussisse',
+  'policy.rules.add': 'Ajouter une règle',
+  'policy.rules.newRuleName': 'Nouvelle règle',
+  'policy.rules.empty.title': 'Aucune règle pour l’instant',
+  'policy.rules.empty.subtitle': 'L’énoncé seul guide l’IA. Ajoutez des règles pour imposer des vérifications obligatoires précises avec des critères de réussite/échec explicites.',
+  'policy.rules.addFirst': 'Ajouter la première règle',
+
+  // Rule card
+  'policy.rule.namePlaceholder': 'Nom de la règle…',
+  'policy.rule.deleteConfirm': 'Supprimer cette règle?',
+  'policy.rule.scope.per_document': 'Chaque doc.',
+  'policy.rule.scope.any_document': 'Tout doc.',
+  'policy.rule.scope.cross_set': 'Sur l’ensemble',
+  'policy.rule.scopeHint.per_document': 'Chaque document pertinent doit la satisfaire (les documents que la règle ne vise pas sont ignorés)',
+  'policy.rule.scopeHint.any_document': 'Réussit si au moins un document pertinent la satisfait (p. ex. le dossier doit contenir un passeport valide)',
+  'policy.rule.scopeHint.cross_set': 'Évaluée une seule fois sur l’ensemble des documents (cohérence entre documents)',
+  'policy.rule.acceptWhen': 'Accepter lorsque',
+  'policy.rule.acceptPlaceholder': 'Décrivez ce qui fait réussir cette vérification…',
+  'policy.rule.failWhen': 'Échouer lorsque',
+  'policy.rule.failPlaceholder': 'Décrivez ce qui fait échouer cette vérification…',
+
+  // Rule card — advanced
+  'policy.rule.advanced': 'Avancé',
+  'policy.rule.configured': 'configuré',
+  'policy.rule.documentType': 'Type de document',
+  'policy.rule.referenceCheck': 'Vérifier par rapport à une liste de référence',
+  'policy.rule.valueMustBe': 'La valeur doit être',
+  'policy.rule.direction.in': 'dans',
+  'policy.rule.direction.not_in': 'absente de',
+  'policy.rule.noList': '— aucune liste —',
+  'policy.rule.match': 'Correspondance :',
+  'policy.rule.match.exact': 'Exact',
+  'policy.rule.match.smart': 'Intelligent',
+  'policy.rule.matchHint.exact': 'Le plus sûr — la valeur doit correspondre exactement à une entrée de la liste (insensible à la casse)',
+  'policy.rule.matchHint.smart': 'Tolérant aux variations d’orthographe, de casse et de format',
+  'policy.rule.noListsHint': 'Créez des listes dans Bibliothèque → Listes de référence',
+  'policy.rule.aiInstructions': 'Directives supplémentaires pour l’IA',
+  'policy.rule.aiPlaceholder': 'Conseils supplémentaires pour l’IA — p. ex. recouper le nom avec la page couverture, ignorer les tampons',
+  'policy.rule.confidenceThreshold': 'Seuil de confiance',
+  'policy.rule.confidenceHint': 'Les résultats sous ce seuil sont signalés comme incertains.',
+}

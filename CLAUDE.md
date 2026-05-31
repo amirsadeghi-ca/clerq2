@@ -18,6 +18,17 @@ The drop zone accepts multiple files. After dropping, the user sees a list of pe
 
 ---
 
+## Marketing / Public Website (`website/`)
+
+Static, deploy-anywhere HTML/CSS/JS (Tailwind CDN + AOS, no build step) for the public-facing site, kept separate from the app so it can be uploaded to cPanel as-is. Two pages:
+
+- **`website/index.html`** — the **Genitechs** company site. Genitechs is positioned as an *AI design, app & integration studio* serving public + private sector clients (services, products, four-step approach, why-us, sectors, FAQ, contact `info@genitechs.ca`). Features two products: **Clerq2** (document intelligence) and **Vision** (structured-form scanning/capture — reads any form layout, extracts fields → structured data, handwriting/checkboxes/tables; cream "form sheet" mockups with an emerald scan beam + field-ring highlights; "early access", no dedicated page yet).
+- **`website/clerq2/index.html`** — the **Clerq2** product landing page (copied from `landing/index.html`), re-branded "Clerq2 **by Genitechs**" with a back-link to `../index.html` and contact pointing to `info@genitechs.ca`.
+
+**Brand colors (Genitechs page):** the org palette is **gold `#D4920A` / `#f0b429`** accent on **deep navy `#060e1a`** (cards `#0e1626`, borders `#1c2638`) — pulled from the live genitechs.ca CSS. Implemented by remapping Tailwind's `indigo-*` utility name to the gold ramp in `tailwind.config` (so all studio chrome turns gold with no per-element edits), plus `.btn-primary`/`.brand-grad`/`:root`/glows in the `<style>` block. Two product colors are kept distinct on top of gold: **Clerq2 = indigo** (its own `clerq-*` Tailwind color: logo, wordmark, pill, "Explore Clerq2" button, why-us bar) and **Vision = emerald**. The **Clerq2 landing** (`website/clerq2/`) keeps its original indigo `#6366f1` brand on dark `#0a0a0a`. Both pages share the same structure/animation system (Inter, grid-bg + glows, glassmorphic nav, light "paper" mockups, marquee, count-up stats, FAQ `<details>`). `landing/index.html` is the original standalone Clerq2 landing (kept; `website/clerq2/` is the deployable copy). Preview locally via `.claude/launch.json` config `website` (python http.server on :4599) or any static server rooted at `website/`. For cPanel: upload the **contents of `website/`** to `public_html` — Genitechs at `/`, Clerq2 at `/clerq2/`.
+
+---
+
 ## Running the App
 
 ```bash
@@ -40,6 +51,38 @@ The API source (`api/app/`) is mounted as a volume — uvicorn auto-reloads Pyth
 - App: http://localhost (nginx on port 80)
 - API: http://localhost:8000 (also proxied through nginx at `/api`)
 - Health check: http://localhost:8000/api/health
+
+---
+
+## Production Deployment (live: https://clerq2.genitechs.ca)
+
+The app is deployed on the home server **`nas`** (`192.168.2.63`, user `amix`, ssh alias `nas`; sudo password is kept in private deployment notes — **never commit it to this repo**) and exposed publicly through a **named Cloudflare Tunnel** at **`clerq2.genitechs.ca`**. The rest of the `genitechs.ca` zone (root site, MX/email) is intentionally untouched — only a single `clerq2` CNAME was added, and Cloudflare Email Routing is **not** enabled.
+
+**Topology:** `browser → https://clerq2.genitechs.ca → cloudflared (container) → frontend:80 → api:8000 → worker → OpenRouter`. No host ports are published in prod; the only ingress is the tunnel.
+
+**What's on nas:**
+- Docker Engine + compose plugin, daemon enabled (survives reboot); `amix` in the `docker` group.
+- App source at `~/clerq2` (delivered by `rsync` from the dev Mac — the local repo has **no git remote**, so deploys are rsync-based, not git-pull).
+- `cloudflared` binary installed on the host (used only for `tunnel login`/`create`/`route dns`); the running tunnel is a **container**.
+- Tunnel **`clerq2`** = id `6beceb78-d6e6-4047-bb55-551933a3e21d` (locally-managed: ingress in git, credentials mounted).
+
+**Files (created on nas, not all in git):**
+- `~/clerq2/.env` — `SECRET_KEY` (generated), `OPENROUTER_API_KEY=` **empty** (set it in the app's Settings, or runs with a `validate_documents` node fail), `OPENROUTER_DEFAULT_MODEL`, DB/redis/storage paths.
+- `deploy/cloudflared/config.yml` — `tunnel:` UUID + ingress `clerq2.genitechs.ca → http://frontend:80` (connectTimeout 30s) + catch-all 404.
+- `deploy/cloudflared/credentials.json` — tunnel secret (gitignored).
+- `deploy/docker-compose.prod.yml` — overlay: strips host ports on `api`/`frontend`, adds the **locally-managed** `cloudflared` service (mounts `config.yml` + `credentials.json`).
+
+**Bring up / redeploy on nas:**
+```bash
+cd ~/clerq2
+docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
+```
+To push code changes: `rsync` from the Mac (exclude `.git`, `data/`, `node_modules/`, `.env`, `.DS_Store`) then re-run the compose command (the worker doesn't hot-reload, so a recreate is required).
+
+**Deployment gotchas:**
+- **cloudflared can't read `credentials.json` → 530 / error 1033 + restart loop.** The `cloudflare/cloudflared` image runs as a **non-root** user; `cloudflared tunnel create` writes the credentials file mode `600` owned by `amix` (uid 1000), which the container user can't read. Fix: `chmod 644 deploy/cloudflared/credentials.json deploy/cloudflared/config.yml`, then recreate the cloudflared container. If you ever regenerate the tunnel credentials, re-apply the chmod.
+- **Broken third-party apt repo blocks `get.docker.com`.** nas had a dead `packagecloud.io/ookla/speedtest-cli` source that made `apt-get update` exit non-zero, aborting the Docker install script. Disable the offending list in `/etc/apt/sources.list.d/` before installing.
+- **Tunnel is locally-managed, not token-based.** The committed/template overlay also documents a token-based variant; the live deploy uses the locally-managed one (`config.yml` + `credentials.json`). Don't enable Email Routing on `genitechs.ca` (it would seize the zone MX and break `info@genitechs.ca`).
 
 ---
 
@@ -162,7 +205,14 @@ clerq2/
         ├── index.css         ← Tailwind base + CSS theme variables (:root light / .dark) + React Flow overrides
         │
         ├── context/
-        │   └── theme.tsx     ← ThemeProvider, useTheme() — mode: light|dark|system; persists to localStorage; applies .dark class on <html>
+        │   ├── theme.tsx     ← ThemeProvider, useTheme() — mode: light|dark|system; persists to localStorage; applies .dark class on <html>
+        │   └── i18n.tsx      ← I18nProvider, useI18n() → {lang, setLang, t}; en|fr (Quebec French); persists to localStorage key `lang`
+        │
+        ├── lib/
+        │   ├── reportExport.ts        ← JSON/CSV/PDF export (takes `t`/`lang` params — see i18n section)
+        │   └── i18n/
+        │       ├── dictionary.ts      ← aggregates strings/*.ts via import.meta.glob (no edit needed to add a namespace)
+        │       └── strings/*.ts       ← one file per namespace: exports flat {en, fr} with namespaced keys (e.g. 'validate.title')
         │
         ├── types/
         │   └── workflow.ts   ← All shared TS types (Workflow, Run, RunStep, SSERunUpdate, etc.)
@@ -172,12 +222,14 @@ clerq2/
         │   ├── workflows.ts  ← useWorkflows, useWorkflow, useCreateWorkflow, useUpdateWorkflow, useArchiveWorkflow, useUnarchiveWorkflow, useFavoriteWorkflow, useUnfavoriteWorkflow, useWorkflowVersions, useRestoreVersion, useEnableWorkflowInbox, useDisableWorkflowInbox
         │   ├── runs.ts       ← useRuns, useRun, useTriggerRun, useCancelRun, useUploadDocument, useDocuments
         │   ├── validate.ts   ← useValidateRuns(policyId?), useTriggerValidateRun
+        │   ├── metrics.ts    ← useInsights(policyId?, source) — operational indicators (§2.2.1.4)
         │   └── mail.ts       ← useMailboxes, useMailMessages (5s poll), useSendMail
         │
         ├── pages/
         │   ├── Dashboard.tsx       ← Widget grid for favorited workflows (at /); per-widget file drop + SSE streaming + results sidebar
         │   ├── Validate.tsx        ← Policy list + run launcher (/validate); sidebar nav label = "Policies"; left panel = policy picker with inline create; right panel = live run queue with per-rule status
         │   ├── MailInbox.tsx       ← Fake email compose + inbox (/mail); left = compose panel (From/To/Subject/Body/Attach/Send); right = message list with inbound+outbound rows
+        │   ├── Insights.tsx        ← Operational indicators (/insights); 6 metric cards + verdict breakdown bars + per-day load chart + per-dossier table + CSV export; policy filter
         │   ├── WorkflowList.tsx    ← Workflow list: create/archive/star; routed at /workflows
         │   ├── WorkflowEditor.tsx  ← Main page: React Flow canvas + NodeConfigPanel/NodePalette + VersionsModal
         │   ├── RunHistory.tsx      ← Run log for a workflow; shows version badge (v3) per run
@@ -213,6 +265,10 @@ Tables are created automatically on API startup via `create_tables()` then `run_
 **Phase 6 (light human review on the report):** A reviewer can annotate findings, override the AI verdict (with a required reason), and finalize a report — no queues/assignment/multi-tenant. State lives in a new JSON `workflow_runs.review` column (migration in `database.py`): `{ state: draft|finalized, annotations: { <rule_name>: { note, override: {status, reason}, updated_at } }, history: [...], finalized_at, effective_overall }`. The AI's original verdict is **never erased** — overrides layer on top and the report shows "AI: X → Reviewer: Y — reason". Backend router `api/app/routers/review.py` (mounted under `/api/runs`): PATCH a finding, POST finalize, POST reopen; `_compute_overall` recomputes the effective verdict from overrides using the same precedence as `validate_documents` (any required fail → fail; else uncertain → needs_review; else pass) — it treats any `requirement` that isn't literally `"optional"` as required (defensive, because the cross-set path can leak the AI's free-text into the result's `requirement` field). Annotating a finalized report returns 409. Frontend: types + `ReportReview` in `types/workflow.ts`; hooks in `frontend/src/api/review.ts` (`useAnnotateFinding`/`useFinalizeReview`/`useReopenReview`, invalidate `['runs','detail',id]`). `ReportView` renders overrides/notes transparently, shows a Draft/Finalized ribbon, and recomputes the verdict/counts from **effective** statuses; it takes a `renderFindingControls` render-prop so the interactive page injects per-finding controls while the static PDF render omits them (`.no-print`). `ReportPage` provides the per-finding "Verdict" pill toggle (selecting the AI's own value clears the override; a different value requires a reason) + "Add note" composer, and a sticky bottom bar with **Finalize report** / **Reopen to amend**. JSON/CSV exports include effective status + reviewer note/override; the PDF reflects the finalized state. Attribution is timestamp-only for now (no auth); `updated_by`/`finalized_by` are placeholders for a future identity phase.
 
 **Phase 7 (reference-data lookups):** A rule can check an extracted value against an editable **Reference List** (e.g. eligible appliance models, approved vendors, valid codes). New `reference_lists` table (`api/app/models/reference_list.py`: id, name, description, `items` JSON list of strings) + CRUD router `api/app/routers/reference_lists.py` (`/api/reference-lists`; items are trimmed, de-duplicated, blanks dropped). `PolicyRule` gains `reference_list_id` (FK), `reference_direction` (`in`|`not_in`), `reference_match` (`exact`|`smart`) — migration in `database.py`, included in the policy version snapshot/restore. In `validate_documents`, reference lists are **pre-loaded while the DB session is open** (into a `reference_specs` map keyed by rule name) and injected per-rule into the prompt by `_reference_clause`: exact = strict case-insensitive membership, smart = tolerant of spelling/format variants; the AI is told to name the list + value in evidence. The whole check rides the existing single AI call (no separate deterministic pass). Frontend: `ReferenceList` type + `api/referenceLists.ts` hooks; the **Library page is now tabbed** (`Document types` | `Reference lists`) with a spreadsheet-style editor modal (one value per line, paste a column); the PolicyEditor rule card's Advanced section gains a self-assembling control — *"The value must be [in|not in] [list ▾]"* + an Exact/Smart match toggle. Verified end-to-end: an off-list value fails, an on-list value passes, and editing the list flips the verdict on the next run.
+
+**Operational indicators / suivi (§2.2.1.4):** A read-only **Insights** page (`/insights`, `frontend/src/pages/Insights.tsx`) surfaces the six operational indicators the RFP's monitoring module requires — **# dossiers traités**, **# éléments non conformes détectés**, **temps moyen de génération du RT**, **taux de validation humaine sans modification**, **indicateurs de charge** (dossiers/jour), **# corrections après génération initiale** — plus a verdict breakdown (Recevable/Non recevable/Information manquante) and a per-dossier table, with a client-side **CSV export**. All numbers are aggregated by `GET /api/metrics/insights` (`api/app/routers/metrics.py`) purely from existing `WorkflowRun` / `WorkflowRunStep` / `review` data — **no new tables, no use-case-specific logic** (a generic feature). RT-generation time is the wall-clock span from first step `started_at` to last step `completed_at` (run-level `started_at` is unset for the canonical validate pipeline). "Validation without modification" = finalized reviews with zero overrides; "corrections" = reviewer overrides + reopen events. Filterable by policy. Nav entry "Indicateurs" (BarChart3 icon).
+
+**Internationalization (EN/FR, §2.5.1):** The whole UI is bilingual via `frontend/src/context/i18n.tsx` (`useI18n()` → `{lang, setLang, t}`, persists to `localStorage.lang`, defaults from `navigator.language`). Strings live in `frontend/src/lib/i18n/strings/*.ts` (one flat `{en, fr}` module per namespace, auto-aggregated by `dictionary.ts` via `import.meta.glob` — add a namespace file, no wiring needed). Quebec-French conventions; verdict labels render as **Recevable / Non recevable / Information manquante**. `validate_documents` now instructs the model to write each finding's **evidence in the same language as the rule** it evaluates (so a French-authored policy yields French evidence). Language toggles in Settings.
 
 **Phase 4 (MELCCFP recevability example — config & data, the capstone):** A ready-made end-to-end example of the RFP use case, built entirely from generic features (no MELCCFP-specific app code). Lives under `samples/recevabilite/`: two synthetic dossiers in mixed formats (`dossier-recevable/` = Word form + PDF annex + CSV inventory + PDF antecedents declaration; `dossier-non-recevable/` = a deliberately broken variant — missing annex, applicant-name mismatch, off-list equipment) plus `seed.sh` which creates the Library document types, the "Équipements admissibles (LQE)" reference list, and the "Recevabilité — Autorisation ministérielle (LQE)" policy (6 rules: signature+date per-doc, French per-doc, completeness cross-set, applicant-name consistency cross-set, wetland→annex logical coherence cross-set, eligible equipment per-doc+reference-list) through the public API. The policy brief excludes the *Déclaration d'antécédents* and the engine's per-document relevance marks it `not_applicable`. Verified: the recevable dossier → **Pass** (antecedents N/A everywhere), the broken dossier → **Fail** on the four expected rules. The config itself lives in the local DB (gitignored); `seed.sh` recreates it. **One generic fix was required during this phase:** `validate_documents` `max_tokens` was raised 2048 → 8192, because a policy with many verbose rules could truncate the AI's JSON response mid-string and break parsing (a generic robustness fix, not MELCCFP-specific).
 
@@ -390,6 +446,11 @@ GET  /api/mail/mailboxes                                 → Mailbox[]        al
 POST /api/mail/inbound                                   → Run              body: {to, from_email, subject?, body?, document_id?}
                                                            matches recipient to policy/workflow, triggers run, stores sender_email for reply
 GET  /api/mail/messages                                  → MailMessage[]    all inbound+outbound messages, newest first
+
+GET  /api/metrics/insights?policy_id=&source=            → Insights         operational indicators (§2.2.1.4); source defaults to "validate"
+                                                           totals{dossiers_processed, documents_processed, nonconformities_detected,
+                                                           avg_rt_seconds, reviews_finalized, human_validation_rate,
+                                                           corrections_after_generation} + verdict_breakdown + by_day[] + per_run[]
 ```
 
 ---
@@ -684,6 +745,10 @@ Policy chaining stays in the Validate section. The user picks an ordered list of
 - **Celery worker does not auto-reload**: The API source (`api/app/`) is a volume mount, so uvicorn picks up Python changes automatically. The Celery worker does NOT — it imports task modules at startup and holds them in memory. After editing any task file (`nodes/*.py`, `executor.py`, etc.), you must `docker compose restart worker` to pick up the changes.
 - **validate_documents + fail_on_missing**: `fail_on_missing` defaults to `False` — the run continues even if required rules fail. When `fail_on_missing=True` and a required rule fails, the step is marked `completed` (so its output is visible) but the *run* is marked `failed`. The step output with validation details is still accessible for debugging.
 - **ValidateDocumentsNode is the focal node**: It is 260px wide (vs 200px for other nodes), has a violet border visible even when unselected, and displays the policy's rule list directly on the canvas. During a run, all rules pulse indigo together ("checking"); after the step completes they resolve to pass/fail/uncertain icons. The same live status appears in the NodeConfigPanel config section with full evidence text. The node fetches its policy rules via `usePolicy(policy_id)` and tracks the active run via `useRunContext().activeRunId` + `useRun(activeRunId)` — both poll/share TanStack Query cache without extra SSE connections.
+- **Runs must never get stuck in `pending`**: `trigger_run` (executor.py) calls `_fail_run` and returns a failed run — instead of returning silently — when the workflow has no nodes, contains a cycle (topological sort yields fewer nodes than input), or references an unknown node type. Likewise `mail.inbound` fails the run when no document is attached (a validation needs at least one document). If you add a new run-creation path, ensure every path either enqueues a chain or fails the run; a silent early-return leaves an orphaned `pending` run forever.
+- **Unreadable documents must not false-pass**: `validate_documents` multi-doc mode raises (failing the run) when *no* document in the set yields any readable content (`text_content` or `image_paths`) — e.g. all files are empty/corrupt/unsupported. Without this guard the per-doc merge produces 0 results, which computes to a vacuous `overall="pass"`. Single-doc mode already raised in this case; the guard makes multi-doc consistent.
+- **Dangling edges must not strand a run in `pending`**: `_topological_sort` (executor.py) skips edges whose `source` or `target` is not a node in the graph. A definition with an edge pointing to a deleted/nonexistent node (corrupt or partially-edited workflow) would otherwise `KeyError` inside `trigger_run` *after* the run row was committed — leaving an orphaned `pending` run forever and 500-ing the create-run request. The cycle check still runs after the dangling edges are dropped.
+- **Cross-set result rows must carry the DB `requirement`, not the AI's**: in `validate_documents`, per-document (`merged`) rows already set `requirement` from the authoritative `PolicyRule.requirement`, but cross-set rows must do the same (the model tends to leak free text into that field). `review.py._compute_overall` reads `requirement` from the stored result row and treats anything not literally `"optional"` as required — so an **optional** cross-set rule whose AI free-text leaked into `requirement` would wrongly flip the effective verdict to `fail` the moment a reviewer touches the report. Fixed by overwriting `r["requirement"]` with the DB value when building cross-set result rows.
 
 ---
 
@@ -715,6 +780,25 @@ style={{ background: 'var(--c-bg)' }}
 maskColor="var(--c-rf-mask)"
 color="var(--c-rf-dot)"   // Background dots
 ```
+
+---
+
+## Internationalization (i18n) — English + Quebec French
+
+The entire UI is bilingual. Language is **English (`en`)** or **Quebec French (`fr`)**, toggled in **Settings → Language** (mirrors the theme picker). The choice persists to `localStorage` under key `lang`; first visit defaults to `fr` if `navigator.language` starts with `fr`, else `en`. The active lang sets `<html lang="en|fr-CA">`.
+
+**Architecture (mirrors `context/theme.tsx`):**
+- `frontend/src/context/i18n.tsx` — `I18nProvider` + `useI18n()` → `{ lang, setLang, t }`. `t(key, vars?)` looks up a flat namespaced key and interpolates `{var}` placeholders. Falls back to the `en` value, then the raw key. Wired into `App.tsx` wrapping everything (inside `ThemeProvider`).
+- `frontend/src/lib/i18n/dictionary.ts` — aggregates **every** `frontend/src/lib/i18n/strings/*.ts` via Vite `import.meta.glob({ eager: true })`. **Adding a namespace requires NO edit here** — drop a new file in `strings/` and it's picked up. (Requires `src/vite-env.d.ts` with `/// <reference types="vite/client" />` for the glob types.)
+- `frontend/src/lib/i18n/strings/*.ts` — one file per namespace, each exporting two flat objects `en` and `fr` with **namespaced keys** (e.g. `'validate.title'`) so merges never collide. Namespaces: `common` (nav, buttons, statuses, verdicts — REUSE these), `settings`, `dashboard`, `validate`, `mail`, `workflows`, `editor`, `nodeconfig`, `runstatus`, `library`, `policy`, `report`.
+
+**Conventions:**
+- In a component: `const { t } = useI18n()`, then `t('ns.key')` for every user-visible string. Each sub-component defined in a file needs its own `const { t } = useI18n()`.
+- Reuse `common.*` for generic buttons/statuses/verdicts instead of duplicating. Map API status/verdict VALUES (`'pass'`, `'fail'`, `'running'`, …) to labels via `common.verdict.*` / `common.status.*` — never translate the values themselves.
+- **Never translate dynamic/DB/AI data**: policy names, briefs, rule names, accept/fail criteria, document filenames, AI evidence/extracted text, model IDs, email addresses, message subjects/bodies, log lines. Only translate static UI chrome.
+- Quebec French specifics: **Courriel** (not e-mail/Mail), **Téléverser** (upload), **Flux de travail** (workflows), **Vérifications** (Checks), guillemets/accents and `’` typographic apostrophes. Dates localize via `fr-CA`.
+- **Non-component modules can't call `useI18n()`**: `lib/reportExport.ts` takes the translator `t` (and `lang`) as function params; callers (`ReportPage`, `Validate`'s `RunDetailModal`) pass them. `ReportView` is rendered both in-app (uses context `t`) and via `renderToStaticMarkup` for PDF export (uses `t`/`lang` passed as props), so PDF and on-screen output match.
+- A new strings module's keys are merged by object key, so **a stray TS type annotation like `const x: Record<string,string> = {...}[k]`** (where the result is actually a `string`) will fail the build — assign the map to a variable first, then index it.
 
 ---
 

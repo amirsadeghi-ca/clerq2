@@ -1,17 +1,25 @@
 import React, { useState, useEffect } from 'react'
-import { Settings2, Eye, EyeOff, CheckCircle2, XCircle, Loader2, Zap, Sun, Moon, Monitor } from 'lucide-react'
+import { Settings2, Eye, EyeOff, CheckCircle2, XCircle, Loader2, Zap, Sun, Moon, Monitor, Languages } from 'lucide-react'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useSettings, useUpdateSettings, useOpenRouterModels, useTestConnection } from '../api/settings'
 import { useTheme, type ThemeMode } from '../context/theme'
-
-const THEME_OPTIONS: { value: ThemeMode; label: string; icon: React.ElementType; desc: string }[] = [
-  { value: 'light',  label: 'Light',  icon: Sun,     desc: 'Always use light mode' },
-  { value: 'dark',   label: 'Dark',   icon: Moon,    desc: 'Always use dark mode' },
-  { value: 'system', label: 'System', icon: Monitor, desc: 'Follow OS preference' },
-]
+import { useI18n, type Lang } from '../context/i18n'
 
 export function Settings() {
   const { mode, setMode } = useTheme()
+  const { lang, setLang, t } = useI18n()
+
+  const THEME_OPTIONS: { value: ThemeMode; label: string; icon: React.ElementType; desc: string }[] = [
+    { value: 'light',  label: t('settings.theme.light'),  icon: Sun,     desc: t('settings.theme.light.desc') },
+    { value: 'dark',   label: t('settings.theme.dark'),   icon: Moon,    desc: t('settings.theme.dark.desc') },
+    { value: 'system', label: t('settings.theme.system'), icon: Monitor, desc: t('settings.theme.system.desc') },
+  ]
+
+  const LANG_OPTIONS: { value: Lang; label: string; desc: string }[] = [
+    { value: 'en', label: t('settings.language.en'), desc: t('settings.language.en.desc') },
+    { value: 'fr', label: t('settings.language.fr'), desc: t('settings.language.fr.desc') },
+  ]
+
   const { data, isLoading } = useSettings()
   const update = useUpdateSettings()
   const testConn = useTestConnection()
@@ -64,23 +72,55 @@ export function Settings() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-[52px] shrink-0 items-center border-b border-[var(--c-border)] px-8">
-          <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">Settings</h1>
+          <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('settings.title')}</h1>
         </header>
 
         <main className="flex-1 overflow-y-auto px-8 py-8">
           {isLoading ? (
-            <p className="text-[13px] text-[var(--c-text-4)]">Loading…</p>
+            <p className="text-[13px] text-[var(--c-text-4)]">{t('common.loading')}</p>
           ) : (
             <form onSubmit={handleSave} className="max-w-lg space-y-8">
+
+              {/* Language */}
+              <section>
+                <div className="mb-4 flex items-center gap-2">
+                  <Languages size={14} className="text-[var(--c-text-4)]" />
+                  <h2 className="text-[13px] font-semibold text-[var(--c-text-2)]">{t('settings.language')}</h2>
+                </div>
+                <div className="rounded-lg border border-[var(--c-border)] bg-[var(--c-surface)] p-5">
+                  <label className="mb-3 block text-[12px] font-medium text-[var(--c-text-3)]">{t('settings.language.label')}</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {LANG_OPTIONS.map(opt => {
+                      const active = lang === opt.value
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setLang(opt.value)}
+                          className={[
+                            'flex flex-col items-center gap-2 rounded-lg border p-4 text-center transition-colors',
+                            active
+                              ? 'border-indigo-500/50 bg-indigo-600/10 text-[var(--c-text-2)]'
+                              : 'border-[var(--c-border-2)] text-[var(--c-text-4)] hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)]',
+                          ].join(' ')}
+                        >
+                          <span className="text-[12px] font-medium">{opt.label}</span>
+                          <span className="text-[10px] leading-snug text-[var(--c-text-5)]">{opt.desc}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </section>
 
               {/* Appearance */}
               <section>
                 <div className="mb-4 flex items-center gap-2">
                   <Sun size={14} className="text-[var(--c-text-4)]" />
-                  <h2 className="text-[13px] font-semibold text-[var(--c-text-2)]">Appearance</h2>
+                  <h2 className="text-[13px] font-semibold text-[var(--c-text-2)]">{t('settings.appearance')}</h2>
                 </div>
                 <div className="rounded-lg border border-[var(--c-border)] bg-[var(--c-surface)] p-5">
-                  <label className="mb-3 block text-[12px] font-medium text-[var(--c-text-3)]">Theme</label>
+                  <label className="mb-3 block text-[12px] font-medium text-[var(--c-text-3)]">{t('settings.theme')}</label>
                   <div className="grid grid-cols-3 gap-2">
                     {THEME_OPTIONS.map(opt => {
                       const Icon = opt.icon
@@ -111,13 +151,13 @@ export function Settings() {
               <section>
                 <div className="mb-4 flex items-center gap-2">
                   <Settings2 size={14} className="text-[var(--c-text-4)]" />
-                  <h2 className="text-[13px] font-semibold text-[var(--c-text-2)]">OpenRouter</h2>
+                  <h2 className="text-[13px] font-semibold text-[var(--c-text-2)]">{t('settings.openrouter')}</h2>
                 </div>
 
                 <div className="space-y-5 rounded-lg border border-[var(--c-border)] bg-[var(--c-surface)] p-5">
                   {/* API Key */}
                   <div className="space-y-1.5">
-                    <label className="text-[12px] font-medium text-[var(--c-text-3)]">API Key</label>
+                    <label className="text-[12px] font-medium text-[var(--c-text-3)]">{t('settings.apiKey')}</label>
                     <div className="relative flex items-center">
                       <input
                         type={showKey ? 'text' : 'password'}
@@ -137,11 +177,11 @@ export function Settings() {
                     </div>
                     {keySet && !dirty && (
                       <p className="flex items-center gap-1 text-[11px] text-emerald-500/80">
-                        <CheckCircle2 size={11} /> API key is set
+                        <CheckCircle2 size={11} /> {t('settings.apiKey.set')}
                       </p>
                     )}
                     <p className="text-[11px] text-[var(--c-text-5)]">
-                      Used for all AI vision calls. Get a key at openrouter.ai.
+                      {t('settings.apiKey.help')}
                     </p>
                   </div>
 
@@ -149,14 +189,14 @@ export function Settings() {
                   {testVerified && (
                     <div className="space-y-1.5 border-t border-[var(--c-border)] pt-5">
                       <div className="flex items-center justify-between">
-                        <label className="text-[12px] font-medium text-[var(--c-text-3)]">Default model</label>
+                        <label className="text-[12px] font-medium text-[var(--c-text-3)]">{t('settings.model')}</label>
                         {modelsLoading && (
                           <span className="flex items-center gap-1 text-[11px] text-[var(--c-text-5)]">
-                            <Loader2 size={11} className="animate-spin" /> Fetching models…
+                            <Loader2 size={11} className="animate-spin" /> {t('settings.model.fetching')}
                           </span>
                         )}
                         {models && (
-                          <span className="text-[11px] text-[var(--c-text-4)]">{models.length} models available</span>
+                          <span className="text-[11px] text-[var(--c-text-4)]">{t('settings.model.available', { count: models.length })}</span>
                         )}
                       </div>
                       <select
@@ -183,7 +223,7 @@ export function Settings() {
                   disabled={update.isPending || !dirty}
                   className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-4 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {update.isPending ? 'Saving…' : 'Save changes'}
+                  {update.isPending ? t('btn.saving') : t('settings.saveChanges')}
                 </button>
 
                 {keySet && !dirty && (
@@ -194,15 +234,15 @@ export function Settings() {
                     className="flex h-7 items-center gap-1.5 rounded border border-[var(--c-border-2)] px-3 text-[12px] text-[var(--c-text-3)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {testConn.isPending
-                      ? <><Loader2 size={12} className="animate-spin" /> Testing…</>
-                      : <><Zap size={12} /> Test connection</>
+                      ? <><Loader2 size={12} className="animate-spin" /> {t('settings.testing')}</>
+                      : <><Zap size={12} /> {t('settings.test')}</>
                     }
                   </button>
                 )}
 
                 {saved && !dirty && (
                   <span className="flex items-center gap-1 text-[12px] text-emerald-500/80">
-                    <CheckCircle2 size={13} /> Saved
+                    <CheckCircle2 size={13} /> {t('settings.saved')}
                   </span>
                 )}
               </div>
@@ -221,7 +261,7 @@ export function Settings() {
                   }
                   <div>
                     {testConn.data.ok
-                      ? <>Connected — model replied: <span className="font-medium">"{testConn.data.response}"</span></>
+                      ? t('settings.connected', { response: testConn.data.response ?? '' })
                       : testConn.data.error
                     }
                   </div>
@@ -230,7 +270,7 @@ export function Settings() {
 
               {update.isError && (
                 <p className="text-[12px] text-red-400">
-                  Failed to save: {update.error?.message}
+                  {t('settings.saveFailed', { error: update.error?.message ?? '' })}
                 </p>
               )}
             </form>

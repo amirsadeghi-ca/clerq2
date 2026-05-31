@@ -6,6 +6,7 @@ import {
   useReferenceLists, useCreateReferenceList, useUpdateReferenceList, useDeleteReferenceList,
 } from '../api/referenceLists'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useI18n } from '../context/i18n'
 import type { ReferenceList } from '../types/workflow'
 
 type Tab = 'documents' | 'references'
@@ -13,6 +14,7 @@ type Tab = 'documents' | 'references'
 // ── Reference list editor modal ─────────────────────────────────────────────
 
 function ReferenceListModal({ list, onClose }: { list: ReferenceList; onClose: () => void }) {
+  const { t } = useI18n()
   const update = useUpdateReferenceList()
   const [name, setName] = useState(list.name)
   const [description, setDescription] = useState(list.description ?? '')
@@ -37,7 +39,7 @@ function ReferenceListModal({ list, onClose }: { list: ReferenceList; onClose: (
         <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-5">
           <div className="flex items-center gap-2">
             <ListChecks size={14} className="text-violet-400" />
-            <span className="text-[13px] font-semibold text-[var(--c-text-1)]">Edit reference list</span>
+            <span className="text-[13px] font-semibold text-[var(--c-text-1)]">{t('library.editReferenceList')}</span>
           </div>
           <button onClick={onClose} className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]">
             <X size={14} />
@@ -46,7 +48,7 @@ function ReferenceListModal({ list, onClose }: { list: ReferenceList; onClose: (
 
         <div className="flex flex-col gap-4 overflow-y-auto p-5">
           <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">Name</label>
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('library.col.name')}</label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
@@ -54,20 +56,20 @@ function ReferenceListModal({ list, onClose }: { list: ReferenceList; onClose: (
             />
           </div>
           <div>
-            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">Description</label>
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('library.col.description')}</label>
             <input
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="Optional"
+              placeholder={t('library.descriptionOptional')}
               className="w-full rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-3 py-1.5 text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none focus:border-indigo-500/50"
             />
           </div>
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">Values</label>
-              <span className="text-[10px] text-[var(--c-text-5)]">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+              <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('library.values')}</label>
+              <span className="text-[10px] text-[var(--c-text-5)]">{itemCount === 1 ? t('library.oneItem') : t('library.nItems', { count: itemCount })}</span>
             </div>
-            <p className="mb-2 text-[11px] text-[var(--c-text-5)]">One value per line — paste a column straight from a spreadsheet.</p>
+            <p className="mb-2 text-[11px] text-[var(--c-text-5)]">{t('library.valuesHint')}</p>
             <textarea
               value={itemsText}
               onChange={e => setItemsText(e.target.value)}
@@ -80,7 +82,7 @@ function ReferenceListModal({ list, onClose }: { list: ReferenceList; onClose: (
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-[var(--c-border)] px-5 py-3">
           <button onClick={onClose} className="h-7 rounded px-3 text-[12px] text-[var(--c-text-4)] transition-colors hover:text-[var(--c-text-2)]">
-            Close
+            {t('btn.close')}
           </button>
           <button
             onClick={handleSave}
@@ -88,7 +90,7 @@ function ReferenceListModal({ list, onClose }: { list: ReferenceList; onClose: (
             className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
           >
             {update.isPending ? <Loader2 size={11} className="animate-spin" /> : null}
-            {saved ? 'Saved' : 'Save'}
+            {saved ? t('library.saved') : t('btn.save')}
           </button>
         </div>
       </div>
@@ -99,6 +101,7 @@ function ReferenceListModal({ list, onClose }: { list: ReferenceList; onClose: (
 // ── Page ─────────────────────────────────────────────────────────────────
 
 export function LibraryList() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('documents')
 
@@ -148,17 +151,17 @@ export function LibraryList() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-8">
           <div className="flex items-center gap-4">
-            <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">Library</h1>
+            <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('library.title')}</h1>
             <div className="flex items-center gap-1">
-              <TabButton value="documents" label="Document types" />
-              <TabButton value="references" label="Reference lists" />
+              <TabButton value="documents" label={t('library.tab.documents')} />
+              <TabButton value="references" label={t('library.tab.references')} />
             </div>
           </div>
           <button
             onClick={() => setCreating(true)}
             className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500"
           >
-            <Plus size={13} strokeWidth={2.5} /> {tab === 'documents' ? 'New document type' : 'New reference list'}
+            <Plus size={13} strokeWidth={2.5} /> {tab === 'documents' ? t('library.newDocumentType') : t('library.newReferenceList')}
           </button>
         </header>
 
@@ -169,7 +172,7 @@ export function LibraryList() {
                 autoFocus
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                placeholder={tab === 'documents' ? 'Document type name…' : 'Reference list name…'}
+                placeholder={tab === 'documents' ? t('library.documentTypeNamePlaceholder') : t('library.referenceListNamePlaceholder')}
                 className="flex-1 rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-1.5 text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
               />
               <button
@@ -178,30 +181,30 @@ export function LibraryList() {
                 className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white disabled:opacity-40 transition-colors hover:bg-indigo-500"
               >
                 {(createDt.isPending || createRef.isPending) && <Loader2 size={11} className="animate-spin" />}
-                Create
+                {t('btn.create')}
               </button>
               <button type="button" onClick={() => { setCreating(false); setNewName('') }} className="h-7 rounded px-2 text-[12px] text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]">
-                Cancel
+                {t('btn.cancel')}
               </button>
             </form>
           )}
 
           {tab === 'documents' ? (
             isLoading ? (
-              <div className="flex items-center gap-2 px-8 py-6 text-[13px] text-[var(--c-text-5)]"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+              <div className="flex items-center gap-2 px-8 py-6 text-[13px] text-[var(--c-text-5)]"><Loader2 size={14} className="animate-spin" /> {t('common.loading')}</div>
             ) : docTypes?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)]"><BookOpen size={20} className="text-[var(--c-text-5)]" /></div>
-                <p className="text-[13px] font-medium text-[var(--c-text-4)]">No document types yet</p>
-                <p className="mt-1 text-[12px] text-[var(--c-text-5)]">Define document types to use in validation policies</p>
+                <p className="text-[13px] font-medium text-[var(--c-text-4)]">{t('library.noDocumentTypes')}</p>
+                <p className="mt-1 text-[12px] text-[var(--c-text-5)]">{t('library.noDocumentTypesHint')}</p>
               </div>
             ) : (
               <div className="divide-y divide-[var(--c-divider)]">
                 <div className="flex items-center px-8 py-2">
-                  <span className="flex-1 text-[11px] font-medium text-[var(--c-text-5)]">Name</span>
-                  <span className="w-48 text-[11px] font-medium text-[var(--c-text-5)]">Description</span>
-                  <span className="w-16 text-right text-[11px] font-medium text-[var(--c-text-5)]">Samples</span>
-                  <span className="ml-8 mr-8 text-[11px] font-medium text-[var(--c-text-5)]">Updated</span>
+                  <span className="flex-1 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.name')}</span>
+                  <span className="w-48 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.description')}</span>
+                  <span className="w-16 text-right text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.samples')}</span>
+                  <span className="ml-8 mr-8 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.updated')}</span>
                 </div>
                 {docTypes?.map(dt => (
                   <div key={dt.id} className="group flex cursor-pointer items-center px-8 py-3 transition-colors hover:bg-[var(--c-hover-1)]" onClick={() => navigate(`/library/${dt.id}`)}>
@@ -214,7 +217,7 @@ export function LibraryList() {
                     <div className="ml-8 flex items-center gap-3">
                       <span className="flex items-center gap-1 text-[12px] text-[var(--c-text-5)]"><Clock size={11} />{new Date(dt.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={e => { e.stopPropagation(); if (confirm('Delete this document type?')) deleteDt.mutate(dt.id) }} className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:text-red-400 hover:bg-red-500/10" title="Delete"><Trash2 size={13} /></button>
+                        <button onClick={e => { e.stopPropagation(); if (confirm(t('library.deleteDocumentTypeConfirm'))) deleteDt.mutate(dt.id) }} className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:text-red-400 hover:bg-red-500/10" title={t('btn.delete')}><Trash2 size={13} /></button>
                       </div>
                       <ChevronRight size={13} className="text-[var(--c-text-6)] group-hover:text-[var(--c-text-5)] transition-colors" />
                     </div>
@@ -225,22 +228,22 @@ export function LibraryList() {
           ) : (
             // ── Reference lists tab ──
             loadingRefs ? (
-              <div className="flex items-center gap-2 px-8 py-6 text-[13px] text-[var(--c-text-5)]"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+              <div className="flex items-center gap-2 px-8 py-6 text-[13px] text-[var(--c-text-5)]"><Loader2 size={14} className="animate-spin" /> {t('common.loading')}</div>
             ) : refLists?.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)]"><ListChecks size={20} className="text-[var(--c-text-5)]" /></div>
-                <p className="text-[13px] font-medium text-[var(--c-text-4)]">No reference lists yet</p>
+                <p className="text-[13px] font-medium text-[var(--c-text-4)]">{t('library.noReferenceLists')}</p>
                 <p className="mt-1 max-w-[340px] text-[12px] leading-relaxed text-[var(--c-text-5)]">
-                  Approved-value lists (eligible models, valid codes, accepted vendors) that a policy rule can check an extracted value against.
+                  {t('library.noReferenceListsHint')}
                 </p>
               </div>
             ) : (
               <div className="divide-y divide-[var(--c-divider)]">
                 <div className="flex items-center px-8 py-2">
-                  <span className="flex-1 text-[11px] font-medium text-[var(--c-text-5)]">Name</span>
-                  <span className="w-48 text-[11px] font-medium text-[var(--c-text-5)]">Description</span>
-                  <span className="w-16 text-right text-[11px] font-medium text-[var(--c-text-5)]">Items</span>
-                  <span className="ml-8 mr-8 text-[11px] font-medium text-[var(--c-text-5)]">Updated</span>
+                  <span className="flex-1 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.name')}</span>
+                  <span className="w-48 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.description')}</span>
+                  <span className="w-16 text-right text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.items')}</span>
+                  <span className="ml-8 mr-8 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.updated')}</span>
                 </div>
                 {refLists?.map(rl => (
                   <div key={rl.id} className="group flex cursor-pointer items-center px-8 py-3 transition-colors hover:bg-[var(--c-hover-1)]" onClick={() => setEditing(rl)}>
@@ -253,7 +256,7 @@ export function LibraryList() {
                     <div className="ml-8 flex items-center gap-3">
                       <span className="flex items-center gap-1 text-[12px] text-[var(--c-text-5)]"><Clock size={11} />{new Date(rl.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={e => { e.stopPropagation(); if (confirm('Delete this reference list?')) deleteRef.mutate(rl.id) }} className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:text-red-400 hover:bg-red-500/10" title="Delete"><Trash2 size={13} /></button>
+                        <button onClick={e => { e.stopPropagation(); if (confirm(t('library.deleteReferenceListConfirm'))) deleteRef.mutate(rl.id) }} className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:text-red-400 hover:bg-red-500/10" title={t('btn.delete')}><Trash2 size={13} /></button>
                       </div>
                       <ChevronRight size={13} className="text-[var(--c-text-6)] group-hover:text-[var(--c-text-5)] transition-colors" />
                     </div>

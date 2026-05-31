@@ -1,16 +1,12 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Mail } from 'lucide-react'
+import { useI18n } from '../../context/i18n'
 
-const FIELD_LABELS: Record<string, string> = {
-  subject: 'Subject',
-  from: 'From',
-  to: 'To',
-  body: 'Body',
-  attachments: 'Attachments',
-}
+const FIELD_KEYS = ['subject', 'from', 'to', 'body', 'attachments']
 
 export function EmailInputNode({ selected, data }: NodeProps) {
-  const fields = (data?.fields as string[] | undefined) ?? Object.keys(FIELD_LABELS)
+  const { t } = useI18n()
+  const fields = (data?.fields as string[] | undefined) ?? FIELD_KEYS
   const count = fields.length
 
   return (
@@ -27,17 +23,17 @@ export function EmailInputNode({ selected, data }: NodeProps) {
         <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[5px] bg-sky-500/15">
           <Mail size={11} className="text-sky-400" strokeWidth={2} />
         </div>
-        <span className="text-[11px] text-[var(--c-text-4)]">Email Input</span>
+        <span className="text-[11px] text-[var(--c-text-4)]">{t('editor.card.email_input.header')}</span>
         <span className="ml-auto rounded-sm bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--c-text-5)]">
-          source
+          {t('editor.sublabel.source')}
         </span>
       </div>
 
       {/* Body */}
       <div className="px-3 py-2.5">
-        <p className="text-[13px] font-medium text-[var(--c-text-1)]">Email Trigger</p>
+        <p className="text-[13px] font-medium text-[var(--c-text-1)]">{t('editor.emailInput.title')}</p>
         <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--c-text-4)]">
-          {count} field{count !== 1 ? 's' : ''} passed downstream
+          {count === 1 ? t('editor.emailInput.field', { count }) : t('editor.emailInput.fields', { count })}
         </p>
       </div>
 

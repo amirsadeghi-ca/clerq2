@@ -1,0 +1,25 @@
+# Production overlay (locally-managed tunnel: ingress in git, credentials mounted).
+# Reaches the public internet only through the tunnel; no host ports published.
+#
+# Usage on the server:
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
+#
+# Requires (created on the server, gitignored — NOT in this repo):
+#   deploy/cloudflared/config.yml        tunnel UUID + ingress hostname -> http://frontend:80
+#   deploy/cloudflared/credentials.json  tunnel secret (chmod 644 so the non-root
+#                                         cloudflared container user can read it)
+services:
+  api:
+    ports: []
+  frontend:
+    ports: []
+  cloudflared:
+    image: cloudflare/cloudflared:2026.5.2
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./deploy/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./deploy/cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      - frontend

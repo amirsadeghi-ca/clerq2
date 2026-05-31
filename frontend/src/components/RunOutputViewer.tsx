@@ -1,5 +1,6 @@
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { useState } from 'react'
+import { useI18n } from '../context/i18n'
 
 interface Props {
   imagePaths: string[]
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function RunOutputViewer({ imagePaths, onClose }: Props) {
+  const { t } = useI18n()
   const [lightbox, setLightbox] = useState<number | null>(null)
 
   function prev() {
@@ -22,8 +24,8 @@ export function RunOutputViewer({ imagePaths, onClose }: Props) {
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--c-border)] px-5 py-4">
           <div>
-            <p className="text-[14px] font-semibold text-[var(--c-text-1)]">Output Images</p>
-            <p className="mt-0.5 text-[12px] text-[var(--c-text-4)]">{imagePaths.length} page{imagePaths.length !== 1 ? 's' : ''}</p>
+            <p className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('runstatus.output.title')}</p>
+            <p className="mt-0.5 text-[12px] text-[var(--c-text-4)]">{imagePaths.length !== 1 ? t('runstatus.output.pageCount', { count: imagePaths.length }) : t('runstatus.output.pageCountOne', { count: imagePaths.length })}</p>
           </div>
           <button
             onClick={onClose}
@@ -44,7 +46,7 @@ export function RunOutputViewer({ imagePaths, onClose }: Props) {
               >
                 <img
                   src={`/api/files/${rel}`}
-                  alt={`Page ${i + 1}`}
+                  alt={t('runstatus.output.page', { n: i + 1 })}
                   className="h-full w-full object-contain"
                   loading="lazy"
                 />
@@ -72,7 +74,7 @@ export function RunOutputViewer({ imagePaths, onClose }: Props) {
 
           <img
             src={`/api/files/${imagePaths[lightbox]}`}
-            alt={`Page ${lightbox + 1}`}
+            alt={t('runstatus.output.page', { n: lightbox + 1 })}
             className="max-h-[90vh] max-w-[85vw] rounded object-contain shadow-2xl"
             onClick={e => e.stopPropagation()}
           />

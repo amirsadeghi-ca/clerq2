@@ -1,6 +1,7 @@
 import { X, RotateCcw, GitCommit } from 'lucide-react'
 import type { WorkflowVersion } from '../types/workflow'
 import { useWorkflowVersions, useRestoreVersion } from '../api/workflows'
+import { useI18n } from '../context/i18n'
 
 interface Props {
   workflowId: number
@@ -9,20 +10,21 @@ interface Props {
   onRestored: () => void
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60_000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
+  if (m < 1) return t('workflows.versions.justNow')
+  if (m < 60) return t('workflows.versions.minutesAgo', { n: m })
   const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
+  if (h < 24) return t('workflows.versions.hoursAgo', { n: h })
   const d = Math.floor(h / 24)
-  return `${d}d ago`
+  return t('workflows.versions.daysAgo', { n: d })
 }
 
 export function VersionsModal({ workflowId, currentVersionNum, onClose, onRestored }: Props) {
   const { data: versions, isLoading } = useWorkflowVersions(workflowId)
   const restoreVersion = useRestoreVersion()
+  const { t } = useI18n()
 
   async function handleRestore(v: WorkflowVersion) {
     await restoreVersion.mutateAsync({ workflowId, versionId: v.id })
@@ -36,8 +38,8 @@ export function VersionsModal({ workflowId, currentVersionNum, onClose, onRestor
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--c-border)] px-5 py-4">
           <div>
-            <p className="text-[14px] font-semibold text-[var(--c-text-1)]">Version history</p>
-            <p className="mt-0.5 text-[12px] text-[var(--c-text-4)]">Each save creates a new version</p>
+            <p className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('workflows.versions.title')}</p>
+            <p className="mt-0.5 text-[12px] text-[var(--c-text-4)]">{t('workflows.versions.subtitle')}</p>
           </div>
           <button
             onClick={onClose}
@@ -50,9 +52,9 @@ export function VersionsModal({ workflowId, currentVersionNum, onClose, onRestor
         {/* Version list */}
         <div className="max-h-[480px] overflow-y-auto">
           {isLoading ? (
-            <div className="px-5 py-8 text-center text-[12px] text-[var(--c-text-5)]">Loading…</div>
+            <div className="px-5 py-8 text-center text-[12px] text-[var(--c-text-5)]">{t('common.loading')}</div>
           ) : !versions?.length ? (
-            <div className="px-5 py-8 text-center text-[12px] text-[var(--c-text-5)]">No versions yet. Save the workflow to create one.</div>
+            <div className="px-5 py-8 text-center text-[12px] text-[var(--c-text-5)]">{t('workflows.versions.empty')}</div>
           ) : (
             <div className="divide-y divide-[var(--c-divider)]">
               {versions.map(v => {
@@ -84,14 +86,14 @@ export function VersionsModal({ workflowId, currentVersionNum, onClose, onRestor
                         </span>
                         {isCurrent && (
                           <span className="rounded bg-indigo-600/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-400 ring-1 ring-indigo-500/20">
-                            current
+                            {t('workflows.versions.current')}
                           </span>
                         )}
                       </div>
                       <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--c-text-5)]">
-                        <span>{timeAgo(v.created_at)}</span>
+                        <span>{timeAgo(v.created_at, t)}</span>
                         <span>·</span>
-                        <span>{v.node_count} node{v.node_count !== 1 ? 's' : ''}</span>
+                        <span>{t(v.node_count !== 1 ? 'workflows.versions.nodeCountPlural' : 'workflows.versions.nodeCount', { n: v.node_count })}</span>
                       </div>
                     </div>
 
@@ -103,7 +105,7 @@ export function VersionsModal({ workflowId, currentVersionNum, onClose, onRestor
                         className="flex shrink-0 items-center gap-1.5 rounded border border-[var(--c-border-2)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--c-text-4)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)] disabled:opacity-40"
                       >
                         <RotateCcw size={11} />
-                        Restore
+                        {t('btn.restore')}
                       </button>
                     )}
                   </div>

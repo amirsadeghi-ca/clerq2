@@ -4,6 +4,7 @@ import type { RunStep, RunStatus, SSERunUpdate, ValidationOutput } from '../type
 import { RunOutputViewer } from './RunOutputViewer'
 import { LogViewer } from './LogViewer'
 import { useRun, useCancelRun } from '../api/runs'
+import { useI18n } from '../context/i18n'
 
 interface Props {
   runId: number
@@ -24,15 +25,19 @@ const STATUS_COLOR: Record<RunStatus, string> = {
   failed: 'text-red-400',
 }
 
-const NODE_LABELS: Record<string, string> = {
-  input: 'Document Input',
-  email_input: 'Email Input',
-  pdf_to_images: 'PDF → Images',
-  ai: 'AI',
-  validate_documents: 'Validate Documents',
-  output: 'Collect Output',
-  send_email: 'Send Email',
-  show_results: 'Show Results',
+const NODE_TYPES = new Set([
+  'input',
+  'email_input',
+  'pdf_to_images',
+  'ai',
+  'validate_documents',
+  'output',
+  'send_email',
+  'show_results',
+])
+
+function nodeLabel(t: (k: string) => string, nodeType: string): string {
+  return NODE_TYPES.has(nodeType) ? t(`runstatus.node.${nodeType}`) : nodeType
 }
 
 const OVERALL_STYLES: Record<string, string> = {
@@ -63,6 +68,7 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
 
   const { data: runData } = useRun(runId)
   const cancelRun = useCancelRun()
+  const { t } = useI18n()
 
   useEffect(() => {
     setSseState(null)
@@ -99,10 +105,10 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
           className="flex cursor-pointer items-center gap-3 px-4 py-2 hover:bg-[var(--c-hover-1)]"
           onClick={() => setExpanded(v => !v)}
         >
-          <span className="text-[12px] font-medium text-[var(--c-text-3)]">Run #{runId}</span>
+          <span className="text-[12px] font-medium text-[var(--c-text-3)]">{t('runstatus.run', { id: runId })}</span>
           {state && (
             <span className={`text-[12px] font-medium ${STATUS_COLOR[state.status]}`}>
-              · {state.status}
+              · {t(`status.${state.status}`)}
             </span>
           )}
           <div className="ml-auto flex items-center gap-2">
@@ -111,7 +117,7 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
                 onClick={e => { e.stopPropagation(); setShowImages(true) }}
                 className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-indigo-400 hover:bg-indigo-500/10 transition-colors"
               >
-                <Images size={11} /> View images
+                <Images size={11} /> {t('runstatus.viewImages')}
               </button>
             )}
             {isActive && (
@@ -120,13 +126,13 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
                 disabled={cancelRun.isPending}
                 className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
               >
-                <Square size={10} fill="currentColor" /> Stop
+                <Square size={10} fill="currentColor" /> {t('btn.stop')}
               </button>
             )}
             <button
               onClick={e => { e.stopPropagation(); onDismiss() }}
               className="rounded p-0.5 text-[var(--c-text-5)] hover:text-[var(--c-text-4)] transition-colors"
-              title="Dismiss"
+              title={t('runstatus.dismiss')}
             >
               <X size={12} />
             </button>
@@ -140,7 +146,7 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
           <div className="px-4 pb-3">
             {!state ? (
               <div className="flex items-center gap-2 text-[11px] text-[var(--c-text-5)]">
-                <Loader2 size={10} className="animate-spin" /> Connecting to worker…
+                <Loader2 size={10} className="animate-spin" /> {t('runstatus.connecting')}
               </div>
             ) : (
               <div className="flex items-center gap-2 overflow-x-auto">
@@ -152,11 +158,11 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
                         <div className="flex items-center gap-2 rounded border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-2">
                           <StepIcon status={step.status} />
                           <span className="text-[12px] text-[var(--c-text-2)]">
-                            {NODE_LABELS[step.node_type] ?? step.node_type}
+                            {nodeLabel(t, step.node_type)}
                           </span>
                           {step.status === 'completed' && step.output_data?.page_count != null && (
                             <span className="text-[10px] text-[var(--c-text-5)] font-mono">
-                              {step.output_data.page_count as number}p
+                              {t('runstatus.pages', { count: step.output_data.page_count as number })}
                             </span>
                           )}
                           {step.status === 'completed' && step.node_type === 'validate_documents' && (() => {
@@ -164,7 +170,7 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
                             if (!vOut?.overall) return null
                             return (
                               <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${OVERALL_STYLES[vOut.overall] ?? ''}`}>
-                                {vOut.overall}
+                                {t(`verdict.${vOut.overall}`)}
                               </span>
                             )
                           })()}
@@ -181,10 +187,10 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
                                 ? 'text-indigo-400 hover:bg-indigo-500/10'
                                 : 'text-[var(--c-text-5)] hover:text-[var(--c-text-4)] hover:bg-white/[0.04]',
                             ].join(' ')}
-                            title="View logs"
+                            title={t('runstatus.viewLogs')}
                           >
                             <Terminal size={10} />
-                            <span>Logs{hasLogs ? ` (${step.logs!.length})` : ''}</span>
+                            <span>{hasLogs ? t('runstatus.logsCount', { count: step.logs!.length }) : t('runstatus.logs')}</span>
                           </button>
                         </div>
                         {step.status === 'completed' && step.node_type === 'validate_documents' && (() => {
@@ -226,7 +232,7 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
 
       {logStep && (
         <LogViewer
-          title={`${NODE_LABELS[logStep.node_type] ?? logStep.node_type} — Logs`}
+          title={t('runstatus.logsTitle', { label: nodeLabel(t, logStep.node_type) })}
           logs={logStep.logs ?? []}
           onClose={() => setLogStep(null)}
         />

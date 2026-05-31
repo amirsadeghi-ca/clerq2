@@ -2,6 +2,10 @@ import type { ReactNode } from 'react'
 import type {
   Run, Policy, ValidationOutput, ValidationRuleResult, ReportReview, FindingAnnotation,
 } from '../types/workflow'
+import { useI18n } from '../context/i18n'
+
+// Translator signature — matches useI18n()'s `t`.
+type Translate = (key: string, vars?: Record<string, string | number>) => string
 
 // ──────────────────────────────────────────────────────────────────────────
 // ReportView renders a validation report as a self-contained "paper" document.
@@ -18,11 +22,26 @@ import type {
 
 type Status = 'pass' | 'fail' | 'uncertain' | 'not_applicable' | string
 
-const STATUS_LABEL: Record<string, string> = {
-  pass: 'Pass', fail: 'Fail', uncertain: 'Needs review', not_applicable: 'N/A',
+// Map a finding status value to a localized label (reusing shared verdict.*).
+function statusLabel(t: Translate, status: string): string {
+  const map: Record<string, string> = {
+    pass: 'verdict.pass',
+    fail: 'verdict.fail',
+    uncertain: 'verdict.needs_review',
+    not_applicable: 'verdict.not_applicable',
+  }
+  const key = map[status] ?? ''
+  return key ? t(key) : status
 }
-const OVERALL_LABEL: Record<string, string> = {
-  pass: 'Pass', fail: 'Fail', needs_review: 'Needs review',
+// Map an overall verdict value to a localized label.
+function overallLabel(t: Translate, overall: string): string {
+  const map: Record<string, string> = {
+    pass: 'verdict.pass',
+    fail: 'verdict.fail',
+    needs_review: 'verdict.needs_review',
+  }
+  const key = map[overall] ?? ''
+  return key ? t(key) : overall
 }
 const STATUS_RANK: Record<string, number> = { fail: 0, uncertain: 1, pass: 2, not_applicable: 3 }
 
@@ -36,11 +55,11 @@ export function effectiveStatus(result: ValidationRuleResult, ann?: FindingAnnot
   return ann?.override?.status ?? result.status
 }
 
-function fmtDate(iso: string | null | undefined): string {
+function fmtDate(iso: string | null | undefined, locale?: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (isNaN(d.getTime())) return iso
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(locale, {
     year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
   })
 }
@@ -115,20 +134,22 @@ export const REPORT_CSS = `
 }
 `
 
-function Badge({ status }: { status: Status }) {
-  return <span className={`badge b-${status}`}>{STATUS_LABEL[status] ?? status}</span>
+function Badge({ status, t }: { status: Status; t: Translate }) {
+  return <span className={`badge b-${status}`}>{statusLabel(t, status)}</span>
 }
 
-function ScopeTag({ scope }: { scope?: string }) {
-  if (scope === 'cross_set') return <span className="tag tag-set">across set</span>
-  if (scope === 'any_document') return <span className="tag tag-any">any doc</span>
+function ScopeTag({ scope, t }: { scope?: string; t: Translate }) {
+  if (scope === 'cross_set') return <span className="tag tag-set">{t('report.tag.acrossSet')}</span>
+  if (scope === 'any_document') return <span className="tag tag-any">{t('report.tag.anyDoc')}</span>
   return null
 }
 
-function Finding({ result, annotation, controls }: {
+function Finding({ result, annotation, controls, t, locale }: {
   result: ValidationRuleResult
   annotation?: FindingAnnotation
   controls?: ReactNode
+  t: Translate
+  locale?: string
 }) {
   const override = annotation?.override ?? null
   const eff = effectiveStatus(result, annotation)
@@ -140,9 +161,9 @@ function Finding({ result, annotation, controls }: {
     <div className={`finding${override ? ' has-override' : ''}`}>
       <div className="finding-head">
         <span className="finding-name">{result.rule_name}</span>
-        <ScopeTag scope={result.scope} />
-        {result.requirement === 'optional' && <span className="tag tag-optional">optional</span>}
-        <Badge status={eff} />
+        <ScopeTag scope={result.scope} t={t} />
+        {result.requirement === 'optional' && <span className="tag tag-optional">{t('report.tag.optional')}</span>}
+        <Badge status={eff} t={t} />
         <span className="conf" style={{ color: '#71717a' }}>{Math.round((result.confidence ?? 0) * 100)}%</span>
       </div>
 
@@ -150,24 +171,24 @@ function Finding({ result, annotation, controls }: {
 
       {override && (
         <div className="override-line">
-          <span className="ai">AI: {STATUS_LABEL[result.status] ?? result.status}</span>
+          <span className="ai">{t('report.ai', { status: statusLabel(t, result.status) })}</span>
           <span className="arrow">→</span>
-          <span className="rev">Reviewer: {STATUS_LABEL[override.status] ?? override.status}</span>
+          <span className="rev">{t('report.reviewer', { status: statusLabel(t, override.status) })}</span>
           {override.reason && <span className="reason">“{override.reason}”</span>}
-          {annotation?.updated_at && <span className="stamp">Reviewed {fmtDate(annotation.updated_at)}</span>}
+          {annotation?.updated_at && <span className="stamp">{t('report.reviewedAt', { date: fmtDate(annotation.updated_at, locale) })}</span>}
         </div>
       )}
 
       {annotation?.note && (
         <div className="note-box">
-          <div className="note-label">Reviewer note</div>
+          <div className="note-label">{t('report.reviewerNote')}</div>
           {annotation.note}
         </div>
       )}
 
       {Object.keys(extracted).length > 0 && (
         <div className="finding-sub">
-          <div className="finding-sub-label">Extracted</div>
+          <div className="finding-sub-label">{t('report.extracted')}</div>
           {Object.entries(extracted).map(([k, v]) => (
             <div className="extract-row" key={k}>
               <span className="extract-k">{k}</span>
@@ -179,17 +200,17 @@ function Finding({ result, annotation, controls }: {
 
       {isCrossSet && perDoc.length > 0 && (
         <div className="finding-sub">
-          <div className="finding-sub-label">Documents compared · {perDoc.length}</div>
+          <div className="finding-sub-label">{t('report.documentsCompared', { n: perDoc.length })}</div>
           {perDoc.map((p, i) => <span className="docchip" key={i}>{p.document_filename}</span>)}
         </div>
       )}
 
       {!isCrossSet && perDoc.length > 1 && (
         <div className="finding-sub">
-          <div className="finding-sub-label">Per document</div>
+          <div className="finding-sub-label">{t('report.perDocument')}</div>
           {perDoc.map((p, i) => (
             <div className="perdoc" key={i}>
-              <Badge status={p.status} />
+              <Badge status={p.status} t={t} />
               <span className="perdoc-name">
                 {p.document_filename}
                 {p.evidence && <div className="perdoc-ev">{p.evidence}</div>}
@@ -205,13 +226,23 @@ function Finding({ result, annotation, controls }: {
   )
 }
 
-export function ReportView({ run, policy, output, review, renderFindingControls }: {
+export function ReportView({ run, policy, output, review, renderFindingControls, t: tProp, lang }: {
   run: Run
   policy?: Policy | null
   output: ValidationOutput | null
   review?: ReportReview | null
   renderFindingControls?: (result: ValidationRuleResult, annotation: FindingAnnotation | undefined) => ReactNode
+  // `t`/`lang` are passed when ReportView is rendered to static markup OUTSIDE
+  // the I18nProvider (PDF export). On the in-app page they're omitted and we
+  // read them from context. useI18n() is always called to satisfy hook rules;
+  // its default `t` (returns the key) is never used because tProp is supplied
+  // in the no-provider path.
+  t?: Translate
+  lang?: string
 }) {
+  const ctx = useI18n()
+  const t = tProp ?? ctx.t
+  const locale = (lang ?? ctx.lang) === 'fr' ? 'fr-CA' : 'en'
   const annotations = review?.annotations ?? {}
   const results = [...(output?.results ?? [])].sort((a, b) => {
     const ea = effectiveStatus(a, annotations[a.rule_name])
@@ -237,37 +268,37 @@ export function ReportView({ run, policy, output, review, renderFindingControls 
     <div className="report-paper">
       <div className="report-head">
         <div className="report-eyebrow-row">
-          <span className="report-eyebrow">Validation report</span>
+          <span className="report-eyebrow">{t('report.eyebrow')}</span>
           {finalized
-            ? <span className="ribbon ribbon-final">Finalized{review?.finalized_at ? ` · ${fmtDate(review.finalized_at)}` : ''}</span>
-            : <span className="ribbon ribbon-draft">Draft · AI-generated</span>}
+            ? <span className="ribbon ribbon-final">{review?.finalized_at ? t('report.ribbon.finalizedAt', { date: fmtDate(review.finalized_at, locale) }) : t('report.ribbon.finalized')}</span>
+            : <span className="ribbon ribbon-draft">{t('report.ribbon.draft')}</span>}
         </div>
-        <div className="report-title">{run.name ?? `Case #${run.id}`}</div>
+        <div className="report-title">{run.name ?? t('report.case', { id: run.id })}</div>
         <div className="report-meta">
-          <span><b>Policy:</b> {output?.policy_name ?? policy?.name ?? '—'}</span>
-          {output?.policy_version_num != null && <span><b>Version:</b> v{output.policy_version_num}</span>}
-          <span><b>Documents:</b> {docCount}</span>
-          <span><b>Run:</b> #{run.id}</span>
-          <span><b>Date:</b> {fmtDate(run.created_at)}</span>
+          <span><b>{t('report.meta.policy')}:</b> {output?.policy_name ?? policy?.name ?? '—'}</span>
+          {output?.policy_version_num != null && <span><b>{t('report.meta.version')}:</b> v{output.policy_version_num}</span>}
+          <span><b>{t('report.meta.documents')}:</b> {docCount}</span>
+          <span><b>{t('report.meta.run')}:</b> #{run.id}</span>
+          <span><b>{t('report.meta.date')}:</b> {fmtDate(run.created_at, locale)}</span>
         </div>
       </div>
 
       {overall && (
         <div className="report-verdict-row">
-          <span className={`report-verdict v-${overall}`}>{OVERALL_LABEL[overall] ?? overall}</span>
+          <span className={`report-verdict v-${overall}`}>{overallLabel(t, overall)}</span>
           <span className="report-counts">
-            {counts.fail > 0 && <span className="c-fail">{counts.fail} fail</span>}
-            {counts.uncertain > 0 && <span className="c-uncertain">{counts.uncertain} need review</span>}
-            <span className="c-pass">{counts.pass} pass</span>
-            {counts.na > 0 && <span>{counts.na} n/a</span>}
+            {counts.fail > 0 && <span className="c-fail">{t('report.counts.fail', { n: counts.fail })}</span>}
+            {counts.uncertain > 0 && <span className="c-uncertain">{t('report.counts.needReview', { n: counts.uncertain })}</span>}
+            <span className="c-pass">{t('report.counts.pass', { n: counts.pass })}</span>
+            {counts.na > 0 && <span>{t('report.counts.na', { n: counts.na })}</span>}
           </span>
-          {hasReview && !finalized && <span className="verdict-note">Reflects reviewer edits</span>}
+          {hasReview && !finalized && <span className="verdict-note">{t('report.reflectsReviewer')}</span>}
         </div>
       )}
 
-      <div className="report-section-label">Findings · {results.length}</div>
+      <div className="report-section-label">{t('report.findings', { n: results.length })}</div>
       {results.length === 0 ? (
-        <div className="finding-evidence">No validation results recorded for this run.</div>
+        <div className="finding-evidence">{t('report.noResults')}</div>
       ) : (
         results.map((r, i) => (
           <Finding
@@ -275,14 +306,16 @@ export function ReportView({ run, policy, output, review, renderFindingControls 
             result={r}
             annotation={annotations[r.rule_name]}
             controls={renderFindingControls?.(r, annotations[r.rule_name])}
+            t={t}
+            locale={locale}
           />
         ))
       )}
 
       <div className="report-foot">
-        Generated by Clerq2 · {output?.policy_name ?? policy?.name ?? ''}
-        {output?.policy_version_num != null ? ` v${output.policy_version_num}` : ''} · {fmtDate(run.created_at)}
-        {finalized && review?.finalized_at ? ` · Finalized ${fmtDate(review.finalized_at)}` : ''}
+        {t('report.generatedBy')} · {output?.policy_name ?? policy?.name ?? ''}
+        {output?.policy_version_num != null ? ` v${output.policy_version_num}` : ''} · {fmtDate(run.created_at, locale)}
+        {finalized && review?.finalized_at ? ` · ${t('report.ribbon.finalized')} ${fmtDate(review.finalized_at, locale)}` : ''}
       </div>
     </div>
   )

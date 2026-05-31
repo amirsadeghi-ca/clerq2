@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, ShieldCheck, Trash2, Loader2, ChevronRight, Clock } from 'lucide-react'
 import { usePolicies, useCreatePolicy, useDeletePolicy } from '../api/policies'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useI18n } from '../context/i18n'
 
 export function PoliciesList() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const { data: policies, isLoading } = usePolicies()
   const createPolicy = useCreatePolicy()
   const deletePolicy = useDeletePolicy()
@@ -25,12 +27,12 @@ export function PoliciesList() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-8">
-          <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">Validation Policies</h1>
+          <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('policy.list.title')}</h1>
           <button
             onClick={() => setCreating(true)}
             className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500"
           >
-            <Plus size={13} strokeWidth={2.5} /> New policy
+            <Plus size={13} strokeWidth={2.5} /> {t('policy.list.new')}
           </button>
         </header>
 
@@ -44,7 +46,7 @@ export function PoliciesList() {
                 autoFocus
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                placeholder="Policy name…"
+                placeholder={t('policy.list.namePlaceholder')}
                 className="flex-1 rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-1.5 text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
               />
               <button
@@ -53,43 +55,43 @@ export function PoliciesList() {
                 className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white disabled:opacity-40 transition-colors hover:bg-indigo-500"
               >
                 {createPolicy.isPending && <Loader2 size={11} className="animate-spin" />}
-                Create
+                {createPolicy.isPending ? t('btn.creating') : t('btn.create')}
               </button>
               <button
                 type="button"
                 onClick={() => { setCreating(false); setNewName('') }}
                 className="h-7 rounded px-2 text-[12px] text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]"
               >
-                Cancel
+                {t('btn.cancel')}
               </button>
             </form>
           )}
 
           {isLoading ? (
             <div className="flex items-center gap-2 px-8 py-6 text-[13px] text-[var(--c-text-5)]">
-              <Loader2 size={14} className="animate-spin" /> Loading…
+              <Loader2 size={14} className="animate-spin" /> {t('common.loading')}
             </div>
           ) : policies?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 text-center">
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)]">
                 <ShieldCheck size={20} className="text-[var(--c-text-5)]" />
               </div>
-              <p className="text-[13px] font-medium text-[var(--c-text-4)]">No policies yet</p>
-              <p className="mt-1 text-[12px] text-[var(--c-text-5)]">Create a policy to define document validation rules</p>
+              <p className="text-[13px] font-medium text-[var(--c-text-4)]">{t('policy.list.empty.title')}</p>
+              <p className="mt-1 text-[12px] text-[var(--c-text-5)]">{t('policy.list.empty.subtitle')}</p>
               <button
                 onClick={() => setCreating(true)}
                 className="mt-5 flex items-center gap-1.5 rounded bg-indigo-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-indigo-500"
               >
-                <Plus size={13} /> New policy
+                <Plus size={13} /> {t('policy.list.new')}
               </button>
             </div>
           ) : (
             <div className="divide-y divide-[var(--c-divider)]">
               <div className="flex items-center px-8 py-2">
-                <span className="flex-1 text-[11px] font-medium text-[var(--c-text-5)]">Name</span>
-                <span className="w-64 text-[11px] font-medium text-[var(--c-text-5)]">Description</span>
-                <span className="w-16 text-right text-[11px] font-medium text-[var(--c-text-5)]">Rules</span>
-                <span className="ml-8 mr-8 text-[11px] font-medium text-[var(--c-text-5)]">Updated</span>
+                <span className="flex-1 text-[11px] font-medium text-[var(--c-text-5)]">{t('policy.list.col.name')}</span>
+                <span className="w-64 text-[11px] font-medium text-[var(--c-text-5)]">{t('policy.list.col.description')}</span>
+                <span className="w-16 text-right text-[11px] font-medium text-[var(--c-text-5)]">{t('policy.list.col.rules')}</span>
+                <span className="ml-8 mr-8 text-[11px] font-medium text-[var(--c-text-5)]">{t('policy.list.col.updated')}</span>
               </div>
 
               {policies?.map(p => (
@@ -121,9 +123,9 @@ export function PoliciesList() {
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={e => { e.stopPropagation(); if (confirm('Delete this policy?')) deletePolicy.mutate(p.id) }}
+                        onClick={e => { e.stopPropagation(); if (confirm(t('policy.list.deleteConfirm'))) deletePolicy.mutate(p.id) }}
                         className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:text-red-400 hover:bg-red-500/10"
-                        title="Delete"
+                        title={t('btn.delete')}
                       >
                         <Trash2 size={13} />
                       </button>

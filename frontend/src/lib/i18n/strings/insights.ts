@@ -1,0 +1,96 @@
+// Operational indicators / monitoring page (suivi). Quebec French conventions.
+
+export const en = {
+  'nav.insights': 'Insights',
+
+  'insights.title': 'Insights',
+  'insights.subtitle': 'Operational indicators across your validation runs',
+  'insights.filter.allPolicies': 'All policies',
+  'insights.exportCsv': 'Export CSV',
+  'insights.empty': 'No runs yet — run a validation to see operational indicators here.',
+  'insights.loading': 'Loading indicators…',
+
+  // Headline metric cards
+  'insights.metric.processed': 'Dossiers processed',
+  'insights.metric.processedHint': 'Completed validations that produced a report',
+  'insights.metric.documents': 'Documents reviewed',
+  'insights.metric.documentsHint': 'Total files examined across all dossiers',
+  'insights.metric.nonconformities': 'Non-conformities detected',
+  'insights.metric.nonconformitiesHint': 'Findings flagged as failed or uncertain',
+  'insights.metric.avgTime': 'Average report time',
+  'insights.metric.avgTimeHint': 'Mean time to generate a traceability report',
+  'insights.metric.humanRate': 'Validated without change',
+  'insights.metric.humanRateHint': 'Reports finalized by a human with no override',
+  'insights.metric.corrections': 'Corrections after generation',
+  'insights.metric.correctionsHint': 'Reviewer overrides + reopen events',
+
+  // Verdict + load sections
+  'insights.verdicts.title': 'Verdict breakdown',
+  'insights.verdict.pass': 'Recevable',
+  'insights.verdict.fail': 'Non recevable',
+  'insights.verdict.needs_review': 'Information manquante',
+  'insights.load.title': 'Processing load',
+  'insights.load.perDay': 'Dossiers per day',
+
+  // Per-run table
+  'insights.table.title': 'Per-dossier detail',
+  'insights.col.dossier': 'Dossier',
+  'insights.col.policy': 'Policy',
+  'insights.col.date': 'Date',
+  'insights.col.docs': 'Docs',
+  'insights.col.verdict': 'Verdict',
+  'insights.col.nonconf': 'Non-conf.',
+  'insights.col.time': 'Time',
+  'insights.col.reviewed': 'Reviewed',
+  'insights.notReviewed': '—',
+  'insights.finalized': 'Finalized',
+  'insights.draft': 'Draft',
+  'insights.seconds': '{n}s',
+  'insights.naLabel': 'N/A',
+}
+
+export const fr = {
+  'nav.insights': 'Indicateurs',
+
+  'insights.title': 'Indicateurs',
+  'insights.subtitle': 'Indicateurs opérationnels de vos analyses de dossiers',
+  'insights.filter.allPolicies': 'Toutes les politiques',
+  'insights.exportCsv': 'Exporter CSV',
+  'insights.empty': 'Aucune analyse pour l’instant — lancez une vérification pour voir les indicateurs ici.',
+  'insights.loading': 'Chargement des indicateurs…',
+
+  'insights.metric.processed': 'Dossiers traités',
+  'insights.metric.processedHint': 'Vérifications complétées ayant produit un rapport',
+  'insights.metric.documents': 'Documents examinés',
+  'insights.metric.documentsHint': 'Nombre total de fichiers examinés dans tous les dossiers',
+  'insights.metric.nonconformities': 'Éléments non conformes détectés',
+  'insights.metric.nonconformitiesHint': 'Constats marqués « non conforme » ou « incertain »',
+  'insights.metric.avgTime': 'Temps moyen de génération du RT',
+  'insights.metric.avgTimeHint': 'Temps moyen pour générer un rapport de traçabilité',
+  'insights.metric.humanRate': 'Validés sans modification',
+  'insights.metric.humanRateHint': 'Rapports finalisés par un humain sans dérogation',
+  'insights.metric.corrections': 'Corrections après génération',
+  'insights.metric.correctionsHint': 'Dérogations du réviseur + réouvertures',
+
+  'insights.verdicts.title': 'Répartition des conclusions',
+  'insights.verdict.pass': 'Recevable',
+  'insights.verdict.fail': 'Non recevable',
+  'insights.verdict.needs_review': 'Information manquante',
+  'insights.load.title': 'Charge de traitement',
+  'insights.load.perDay': 'Dossiers par jour',
+
+  'insights.table.title': 'Détail par dossier',
+  'insights.col.dossier': 'Dossier',
+  'insights.col.policy': 'Politique',
+  'insights.col.date': 'Date',
+  'insights.col.docs': 'Docs',
+  'insights.col.verdict': 'Conclusion',
+  'insights.col.nonconf': 'Non-conf.',
+  'insights.col.time': 'Durée',
+  'insights.col.reviewed': 'Révisé',
+  'insights.notReviewed': '—',
+  'insights.finalized': 'Finalisé',
+  'insights.draft': 'Brouillon',
+  'insights.seconds': '{n}s',
+  'insights.naLabel': 'S.O.',
+}

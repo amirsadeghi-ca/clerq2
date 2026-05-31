@@ -6,6 +6,7 @@ import {
   ExternalLink, Download, FileJson, FileSpreadsheet,
 } from 'lucide-react'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useI18n } from '../context/i18n'
 import { usePolicies, usePolicy, useCreatePolicy, useDeletePolicy } from '../api/policies'
 import { useValidateRuns, useTriggerValidateRun } from '../api/validate'
 import client from '../api/client'
@@ -16,12 +17,12 @@ import { exportReportJSON, exportReportCSV, printReportPDF } from '../lib/report
 
 // ── Shared helpers ────────────────────────────────────────────────────────
 
-const NODE_LABELS: Record<string, string> = {
-  input: 'Input',
-  pdf_to_images: 'PDF → Images',
-  validate_documents: 'Validate',
-  show_results: 'Results',
-  output: 'Output',
+const NODE_LABEL_KEYS: Record<string, string> = {
+  input: 'validate.node.input',
+  pdf_to_images: 'validate.node.pdf_to_images',
+  validate_documents: 'validate.node.validate_documents',
+  show_results: 'validate.node.show_results',
+  output: 'validate.node.output',
 }
 
 const OVERALL_BADGE: Record<string, string> = {
@@ -30,8 +31,8 @@ const OVERALL_BADGE: Record<string, string> = {
   needs_review: 'text-amber-400 bg-amber-500/10 border border-amber-500/25',
 }
 
-const OVERALL_LABEL: Record<string, string> = {
-  pass: 'Pass', fail: 'Fail', needs_review: 'Needs Review',
+const OVERALL_LABEL_KEYS: Record<string, string> = {
+  pass: 'validate.overall.pass', fail: 'validate.overall.fail', needs_review: 'validate.overall.needs_review',
 }
 
 const RESULT_BADGE: Record<string, string> = {
@@ -41,26 +42,27 @@ const RESULT_BADGE: Record<string, string> = {
   not_applicable: 'text-[var(--c-text-4)] bg-[var(--c-surface-3)] border border-[var(--c-border-2)]',
 }
 
-const RESULT_LABEL: Record<string, string> = {
-  pass: 'Pass', fail: 'Fail', uncertain: 'Needs Review', not_applicable: 'N/A',
+const RESULT_LABEL_KEYS: Record<string, string> = {
+  pass: 'verdict.pass', fail: 'verdict.fail', uncertain: 'verdict.needs_review', not_applicable: 'verdict.not_applicable',
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const s = Math.floor(diff / 1000)
   const m = Math.floor(s / 60)
   const h = Math.floor(m / 60)
   const d = Math.floor(h / 24)
-  if (s < 5) return 'just now'
-  if (s < 60) return `${s}s ago`
-  if (m < 60) return `${m}m ago`
-  if (h < 24) return `${h}h ago`
-  return `${d}d ago`
+  if (s < 5) return t('validate.time.justNow')
+  if (s < 60) return t('validate.time.secondsAgo', { count: s })
+  if (m < 60) return t('validate.time.minutesAgo', { count: m })
+  if (h < 24) return t('validate.time.hoursAgo', { count: h })
+  return t('validate.time.daysAgo', { count: d })
 }
 
 // ── Step chip ─────────────────────────────────────────────────────────────
 
 function StepChip({ step }: { step: RunStep }) {
+  const { t } = useI18n()
   const icon = step.status === 'completed' ? <CheckCircle2 size={10} className="text-emerald-400 shrink-0" />
     : step.status === 'running'   ? <Loader2 size={10} className="text-indigo-400 animate-spin shrink-0" />
     : step.status === 'failed'    ? <XCircle size={10} className="text-red-400 shrink-0" />
@@ -78,7 +80,7 @@ function StepChip({ step }: { step: RunStep }) {
         : 'border-[var(--c-border)] bg-[var(--c-surface-2)] text-[var(--c-text-5)]',
     ].join(' ')}>
       {icon}
-      {NODE_LABELS[step.node_type] ?? step.node_type}
+      {NODE_LABEL_KEYS[step.node_type] ? t(NODE_LABEL_KEYS[step.node_type]) : step.node_type}
     </div>
   )
 }
@@ -88,6 +90,7 @@ function StepChip({ step }: { step: RunStep }) {
 function ImageLightbox({ paths, index, onClose }: {
   paths: string[]; index: number; onClose: () => void
 }) {
+  const { t } = useI18n()
   const [i, setI] = useState(index)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -109,7 +112,7 @@ function ImageLightbox({ paths, index, onClose }: {
       </button>
       <img
         src={`/api/files/${paths[i]}`}
-        alt={`Page ${i + 1}`}
+        alt={t('validate.page', { n: i + 1 })}
         className="max-h-[90vh] max-w-[80vw] rounded object-contain shadow-2xl"
         onClick={e => e.stopPropagation()}
       />
@@ -129,6 +132,7 @@ function ImageLightbox({ paths, index, onClose }: {
 type RuleStatus = 'pending' | 'running' | 'pass' | 'fail' | 'uncertain' | 'not_applicable'
 
 function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
+  const { t, lang } = useI18n()
   const [liveSteps, setLiveSteps] = useState<RunStep[]>(run.steps)
   const [liveStatus, setLiveStatus] = useState<RunStatus>(run.status)
   const [selectedRuleIndex, setSelectedRuleIndex] = useState<number | null>(null)
@@ -213,11 +217,11 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
               : 'bg-[var(--c-text-5)]'
             }`} />
             <span className="max-w-[260px] truncate text-[14px] font-semibold text-[var(--c-text-1)]">
-              {run.name ?? `Run #${run.id}`}
+              {run.name ?? t('validate.run', { id: run.id })}
             </span>
             {validationOutput?.overall && (
               <span className={`shrink-0 rounded px-2 py-0.5 text-[11px] font-semibold ${OVERALL_BADGE[validationOutput.overall]}`}>
-                {OVERALL_LABEL[validationOutput.overall]}
+                {t(OVERALL_LABEL_KEYS[validationOutput.overall] ?? '')}
               </span>
             )}
             <div className="flex flex-1 items-center gap-0 overflow-hidden pl-1">
@@ -230,38 +234,38 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                 </div>
               ))}
               {liveSteps.length === 0 && (
-                <span className="text-[11px] text-[var(--c-text-5)]">Queued…</span>
+                <span className="text-[11px] text-[var(--c-text-5)]">{t('validate.queued')}</span>
               )}
             </div>
             {validateDone && validationOutput && (
               <div className="flex shrink-0 items-center gap-1">
                 <button
-                  onClick={() => exportReportCSV(run, validationOutput)}
-                  title="Export CSV"
+                  onClick={() => exportReportCSV(run, validationOutput, t)}
+                  title={t('validate.exportCsvTitle')}
                   className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
                 >
                   <FileSpreadsheet size={11} /> CSV
                 </button>
                 <button
                   onClick={() => exportReportJSON(run, validationOutput)}
-                  title="Export JSON"
+                  title={t('validate.exportJsonTitle')}
                   className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
                 >
                   <FileJson size={11} /> JSON
                 </button>
                 <button
-                  onClick={() => printReportPDF(run, policy ?? null, validationOutput)}
-                  title="Download PDF"
+                  onClick={() => printReportPDF(run, policy ?? null, validationOutput, t, lang)}
+                  title={t('validate.downloadPdfTitle')}
                   className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-indigo-500"
                 >
                   <Download size={11} /> PDF
                 </button>
                 <Link
                   to={`/reports/${run.id}`}
-                  title="Open full report"
+                  title={t('validate.openFullReport')}
                   className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
                 >
-                  <ExternalLink size={11} /> Open
+                  <ExternalLink size={11} /> {t('btn.open')}
                 </Link>
                 <div className="mx-1 h-3.5 w-px bg-[var(--c-border-2)]" />
               </div>
@@ -279,18 +283,18 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
             {/* Left panel — rule list */}
             <div className="flex w-[260px] shrink-0 flex-col overflow-hidden border-r border-[var(--c-border)]">
               <div className="flex shrink-0 items-center justify-between border-b border-[var(--c-border)] px-4 py-2.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">Rules</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('validate.rules')}</span>
                 {isValidating && (
                   <div className="flex items-center gap-1.5">
                     <Loader2 size={10} className="animate-spin text-indigo-400" />
-                    <span className="text-[10px] text-indigo-400">Checking…</span>
+                    <span className="text-[10px] text-indigo-400">{t('validate.checking')}</span>
                   </div>
                 )}
               </div>
               <div className="flex flex-col divide-y divide-[var(--c-divider)] overflow-y-auto">
                 {rules.length === 0 ? (
                   <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--c-text-5)]">
-                    <Loader2 size={10} className="animate-spin" /> Loading…
+                    <Loader2 size={10} className="animate-spin" /> {t('common.loading')}
                   </div>
                 ) : rules.map((rule, i) => {
                   const result = resultsByName.get(rule.name)
@@ -325,13 +329,13 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                         {rule.name}
                       </span>
                       {rule.scope === 'cross_set' && (
-                        <span className="shrink-0 rounded bg-violet-500/12 px-1.5 py-0.5 text-[9px] font-medium text-violet-400 ring-1 ring-violet-500/20" title="Evaluated across the whole set">
-                          set
+                        <span className="shrink-0 rounded bg-violet-500/12 px-1.5 py-0.5 text-[9px] font-medium text-violet-400 ring-1 ring-violet-500/20" title={t('validate.badge.setTitle')}>
+                          {t('validate.badge.set')}
                         </span>
                       )}
                       {rule.scope === 'any_document' && (
-                        <span className="shrink-0 rounded bg-sky-500/12 px-1.5 py-0.5 text-[9px] font-medium text-sky-400 ring-1 ring-sky-500/20" title="Passes if at least one relevant document satisfies it">
-                          any
+                        <span className="shrink-0 rounded bg-sky-500/12 px-1.5 py-0.5 text-[9px] font-medium text-sky-400 ring-1 ring-sky-500/20" title={t('validate.badge.anyTitle')}>
+                          {t('validate.badge.any')}
                         </span>
                       )}
                       {result && (
@@ -357,13 +361,13 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                   <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--c-border)] bg-[var(--c-surface-2)]">
                     <ShieldCheck size={16} className="text-[var(--c-text-5)]" />
                   </div>
-                  <p className="text-[13px] font-medium text-[var(--c-text-4)]">Select a rule to see details</p>
-                  <p className="text-[11px] text-[var(--c-text-5)]">Click any rule on the left, or use ↑ ↓ to navigate.</p>
+                  <p className="text-[13px] font-medium text-[var(--c-text-4)]">{t('validate.selectRule')}</p>
+                  <p className="text-[11px] text-[var(--c-text-5)]">{t('validate.selectRuleHint')}</p>
                 </div>
               ) : isValidating ? (
                 <div className="flex flex-1 items-center justify-center gap-2 py-16">
                   <Loader2 size={14} className="animate-spin text-indigo-400" />
-                  <span className="text-[13px] text-indigo-400">Checking {selectedRule.name}…</span>
+                  <span className="text-[13px] text-indigo-400">{t('validate.checkingRule', { name: selectedRule.name })}</span>
                 </div>
               ) : selectedResult ? (
                 <div className="flex flex-col gap-6 p-6">
@@ -374,24 +378,24 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                       <div className="flex items-center gap-1.5">
                         {selectedRule.scope === 'cross_set' && (
                           <span className="w-fit rounded bg-violet-500/12 px-1.5 py-0.5 text-[9px] font-medium text-violet-400 ring-1 ring-violet-500/20">
-                            across set
+                            {t('validate.scope.crossSet')}
                           </span>
                         )}
                         {selectedRule.scope === 'any_document' && (
                           <span className="w-fit rounded bg-sky-500/12 px-1.5 py-0.5 text-[9px] font-medium text-sky-400 ring-1 ring-sky-500/20">
-                            any document
+                            {t('validate.scope.anyDocument')}
                           </span>
                         )}
                         {selectedRule.requirement === 'optional' && (
                           <span className="w-fit rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[9px] text-[var(--c-text-5)]">
-                            optional
+                            {t('common.optional')}
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className={`rounded px-2.5 py-1 text-[12px] font-semibold ${RESULT_BADGE[selectedResult.status]}`}>
-                        {RESULT_LABEL[selectedResult.status]}
+                        {t(RESULT_LABEL_KEYS[selectedResult.status] ?? '')}
                       </span>
                       <span className={`font-mono text-[14px] font-bold ${
                         selectedResult.status === 'pass' ? 'text-emerald-400'
@@ -408,7 +412,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                   {selectedResult.evidence && (
                     <div className="flex flex-col gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
-                        Evidence
+                        {t('common.evidence')}
                       </span>
                       <p className="text-[13px] leading-relaxed text-[var(--c-text-2)]">
                         {selectedResult.evidence}
@@ -420,7 +424,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                   {selectedResult.extracted && Object.keys(selectedResult.extracted).length > 0 && (
                     <div className="flex flex-col gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
-                        Extracted
+                        {t('validate.extracted')}
                       </span>
                       <div className="overflow-hidden rounded-lg border border-[var(--c-border-2)] bg-[var(--c-surface-2)]">
                         {Object.entries(selectedResult.extracted).map(([k, v], idx, arr) => (
@@ -442,7 +446,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                   {selectedResult.scope === 'cross_set' && selectedResult.per_document && selectedResult.per_document.length > 0 && (
                     <div className="flex flex-col gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
-                        Documents compared · {selectedResult.per_document.length}
+                        {t('validate.documentsCompared', { count: selectedResult.per_document.length })}
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedResult.per_document.map((pd, i) => (
@@ -462,13 +466,13 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                   {selectedResult.scope !== 'cross_set' && selectedResult.per_document && selectedResult.per_document.length > 1 && (
                     <div className="flex flex-col gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
-                        Per document
+                        {t('validate.perDocument')}
                       </span>
                       <div className="flex flex-col divide-y divide-[var(--c-divider)] overflow-hidden rounded-lg border border-[var(--c-border-2)]">
                         {selectedResult.per_document.map((pd, i) => (
                           <div key={i} className="flex items-start gap-3 px-4 py-2.5">
                             <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${RESULT_BADGE[pd.status]}`}>
-                              {RESULT_LABEL[pd.status]}
+                              {t(RESULT_LABEL_KEYS[pd.status] ?? '')}
                             </span>
                             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                               <span className="truncate text-[12px] font-medium text-[var(--c-text-2)]">{pd.document_filename}</span>
@@ -494,7 +498,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                   {imagePaths.length > 0 && (
                     <div className="flex flex-col gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
-                        Pages · {imagePaths.length}
+                        {t('validate.pages', { count: imagePaths.length })}
                       </span>
                       <div className="flex gap-2 overflow-x-auto pb-1">
                         {imagePaths.slice(0, 12).map((rel, idx) => (
@@ -505,7 +509,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                           >
                             <img
                               src={`/api/files/${rel}`}
-                              alt={`Page ${idx + 1}`}
+                              alt={t('validate.page', { n: idx + 1 })}
                               className="h-full w-full object-contain"
                               loading="lazy"
                             />
@@ -528,7 +532,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                 </div>
               ) : (
                 <div className="flex flex-1 items-center justify-center py-16">
-                  <p className="text-[12px] text-[var(--c-text-5)]">No result for this rule.</p>
+                  <p className="text-[12px] text-[var(--c-text-5)]">{t('validate.noResultForRule')}</p>
                 </div>
               )}
             </div>
@@ -550,15 +554,16 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
 // ── Run item (simplified row) ─────────────────────────────────────────────
 
 function RunItem({ run, onOpen }: { run: Run; onOpen: (run: Run) => void }) {
+  const { t } = useI18n()
   const statusDot = run.status === 'completed' ? 'bg-emerald-400'
     : run.status === 'failed'  ? 'bg-red-400'
     : run.status === 'running' ? 'bg-indigo-400 animate-pulse'
     : 'bg-[var(--c-text-5)]'
 
-  const statusLabel = run.status === 'completed' ? <span className="text-emerald-400">completed</span>
-    : run.status === 'failed'  ? <span className="text-red-400">failed</span>
-    : run.status === 'running' ? <span className="text-indigo-400">running</span>
-    : <span className="text-[var(--c-text-5)]">pending</span>
+  const statusLabel = run.status === 'completed' ? <span className="text-emerald-400">{t('status.completed')}</span>
+    : run.status === 'failed'  ? <span className="text-red-400">{t('status.failed')}</span>
+    : run.status === 'running' ? <span className="text-indigo-400">{t('status.running')}</span>
+    : <span className="text-[var(--c-text-5)]">{t('status.pending')}</span>
 
   return (
     <div
@@ -567,22 +572,22 @@ function RunItem({ run, onOpen }: { run: Run; onOpen: (run: Run) => void }) {
     >
       <div className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} />
       <span className="flex-1 truncate text-[13px] font-medium text-[var(--c-text-1)]">
-        {run.name ?? `Run #${run.id}`}
+        {run.name ?? t('validate.run', { id: run.id })}
       </span>
       {run.source === 'mail' && (
-        <span className="flex shrink-0 items-center gap-1 rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[10px] text-[var(--c-text-4)]" title={run.sender_email ?? 'via email'}>
+        <span className="flex shrink-0 items-center gap-1 rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[10px] text-[var(--c-text-4)]" title={run.sender_email ?? t('validate.viaEmail')}>
           <Mail size={9} />
-          mail
+          {t('validate.mail')}
         </span>
       )}
       {run.document_ids && run.document_ids.length > 1 && (
         <span className="flex shrink-0 items-center gap-1 rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[10px] text-[var(--c-text-4)]">
           <FileText size={9} />
-          {run.document_ids.length} docs
+          {t('validate.nDocs', { count: run.document_ids.length })}
         </span>
       )}
       <span className="shrink-0 text-[11px] font-medium">{statusLabel}</span>
-      <span className="shrink-0 text-[10px] text-[var(--c-text-5)]">{timeAgo(run.created_at)}</span>
+      <span className="shrink-0 text-[10px] text-[var(--c-text-5)]">{timeAgo(run.created_at, t)}</span>
       <ChevronRight size={12} className="shrink-0 text-[var(--c-text-5)]" />
     </div>
   )
@@ -603,6 +608,7 @@ function PolicyItem({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const { t } = useI18n()
   return (
     <div
       className={[
@@ -619,20 +625,20 @@ function PolicyItem({
           {policy.name}
         </span>
         <span className="shrink-0 rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[9px] text-[var(--c-text-5)] group-hover:opacity-0 transition-opacity">
-          {policy.rules.length} rule{policy.rules.length !== 1 ? 's' : ''}
+          {policy.rules.length !== 1 ? t('validate.nRules_plural', { count: policy.rules.length }) : t('validate.nRules', { count: policy.rules.length })}
         </span>
         <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             onClick={e => { e.stopPropagation(); onEdit() }}
             className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-2)]"
-            title="Edit policy"
+            title={t('validate.editPolicy')}
           >
             <Pencil size={11} />
           </button>
           <button
-            onClick={e => { e.stopPropagation(); if (confirm(`Delete "${policy.name}"?`)) onDelete() }}
+            onClick={e => { e.stopPropagation(); if (confirm(t('validate.deleteConfirm', { name: policy.name }))) onDelete() }}
             className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:bg-red-500/10 hover:text-red-400"
-            title="Delete policy"
+            title={t('validate.deletePolicy')}
           >
             <Trash2 size={11} />
           </button>
@@ -666,6 +672,7 @@ function LaunchBar({
   uploading: boolean
   error: string | null
 }) {
+  const { t } = useI18n()
   const [drag, setDrag] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -707,8 +714,8 @@ function LaunchBar({
         >
           <Upload size={16} className={drag ? 'text-indigo-400' : 'text-[var(--c-text-5)]'} />
           <div>
-            <p className="text-[13px] font-medium text-[var(--c-text-2)]">Drop documents to validate</p>
-            <p className="text-[11px] text-[var(--c-text-5)]">PDF, Word, Excel, CSV or images · <span className="text-[var(--c-text-4)]">{policy.name}</span> · {policy.rules.length} rule{policy.rules.length !== 1 ? 's' : ''}</p>
+            <p className="text-[13px] font-medium text-[var(--c-text-2)]">{t('validate.dropToValidate')}</p>
+            <p className="text-[11px] text-[var(--c-text-5)]">{t('validate.acceptedFormats')} · <span className="text-[var(--c-text-4)]">{policy.name}</span> · {policy.rules.length !== 1 ? t('validate.nRules_plural', { count: policy.rules.length }) : t('validate.nRules', { count: policy.rules.length })}</p>
           </div>
         </button>
       ) : (
@@ -734,7 +741,7 @@ function LaunchBar({
               className="flex items-center gap-1.5 rounded border border-[var(--c-border-2)] px-2.5 py-1.5 text-[11px] text-[var(--c-text-3)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)]"
             >
               <Plus size={11} />
-              Add more
+              {t('btn.addMore')}
             </button>
             <div className="flex-1" />
             {error && <p className="shrink-0 text-[11px] text-red-400">{error}</p>}
@@ -744,7 +751,7 @@ function LaunchBar({
               className="flex h-8 shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-4 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
             >
               {uploading && <Loader2 size={11} className="animate-spin" />}
-              {uploading ? 'Starting…' : files.length > 1 ? `Run (${files.length})` : 'Run validation'}
+              {uploading ? t('validate.starting') : files.length > 1 ? t('validate.runN', { count: files.length }) : t('validate.runValidation')}
             </button>
           </div>
         </div>
@@ -757,6 +764,7 @@ function LaunchBar({
 
 export function Validate() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const { data: policies, isLoading: loadingPolicies } = usePolicies()
   const createPolicy = useCreatePolicy()
   const deletePolicy = useDeletePolicy()
@@ -804,7 +812,7 @@ export function Validate() {
       setFiles([])
       setOpenRun(newRun)
     } catch (err: unknown) {
-      setRunError(err instanceof Error ? err.message : 'Failed to start run')
+      setRunError(err instanceof Error ? err.message : t('validate.failedToStart'))
     } finally {
       setUploading(false)
     }
@@ -818,11 +826,11 @@ export function Validate() {
         {/* Left panel — policy picker */}
         <div className="flex w-[280px] shrink-0 flex-col border-r border-[var(--c-border)] bg-[var(--c-surface)]">
           <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-4">
-            <h2 className="text-[13px] font-semibold text-[var(--c-text-1)]">Checks</h2>
+            <h2 className="text-[13px] font-semibold text-[var(--c-text-1)]">{t('validate.checks')}</h2>
             <button
               onClick={() => { setCreating(true); setSearch('') }}
               className="flex h-6 w-6 items-center justify-center rounded text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-2)]"
-              title="New policy"
+              title={t('validate.newPolicy')}
             >
               <Plus size={13} strokeWidth={2.5} />
             </button>
@@ -837,7 +845,7 @@ export function Validate() {
                 autoFocus
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                placeholder="Policy name…"
+                placeholder={t('validate.policyNamePlaceholder')}
                 className="flex-1 rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-2.5 py-1.5 text-[12px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
               />
               <button
@@ -845,7 +853,7 @@ export function Validate() {
                 disabled={createPolicy.isPending || !newName.trim()}
                 className="flex h-7 items-center gap-1 rounded bg-indigo-600 px-2.5 text-[11px] font-medium text-white disabled:opacity-40 transition-colors hover:bg-indigo-500"
               >
-                {createPolicy.isPending ? <Loader2 size={10} className="animate-spin" /> : 'Create'}
+                {createPolicy.isPending ? <Loader2 size={10} className="animate-spin" /> : t('btn.create')}
               </button>
               <button
                 type="button"
@@ -863,7 +871,7 @@ export function Validate() {
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search…"
+                placeholder={t('btn.search')}
                 className="flex-1 bg-transparent text-[12px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none"
               />
             </div>
@@ -872,11 +880,11 @@ export function Validate() {
           <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3 pt-1">
             {loadingPolicies ? (
               <div className="flex items-center gap-2 py-4 text-[12px] text-[var(--c-text-5)]">
-                <Loader2 size={12} className="animate-spin" /> Loading…
+                <Loader2 size={12} className="animate-spin" /> {t('common.loading')}
               </div>
             ) : filteredPolicies.length === 0 ? (
               <p className="py-4 text-center text-[12px] text-[var(--c-text-5)]">
-                {search ? 'No matches' : 'No policies yet'}
+                {search ? t('validate.noMatches') : t('validate.noPoliciesYet')}
               </p>
             ) : filteredPolicies.map(p => (
               <PolicyItem
@@ -902,7 +910,7 @@ export function Validate() {
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[var(--c-border)] px-6">
             <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">
-              {selectedPolicy ? selectedPolicy.name : 'Validate'}
+              {selectedPolicy ? selectedPolicy.name : t('validate.title')}
             </h1>
             {runs && runs.length > 0 && (
               <span className="rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--c-text-4)]">
@@ -916,9 +924,9 @@ export function Validate() {
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)]">
                 <ShieldCheck size={22} className="text-[var(--c-text-5)]" />
               </div>
-              <p className="text-[14px] font-medium text-[var(--c-text-3)]">Select a policy</p>
+              <p className="text-[14px] font-medium text-[var(--c-text-3)]">{t('validate.selectAPolicy')}</p>
               <p className="mt-1.5 max-w-[260px] text-[12px] leading-relaxed text-[var(--c-text-5)]">
-                Pick a policy on the left, drop a document, and watch validation run in real time.
+                {t('validate.selectAPolicyHint')}
               </p>
             </div>
           ) : (
@@ -936,15 +944,15 @@ export function Validate() {
               <div className="flex-1 overflow-y-auto">
                 {loadingRuns ? (
                   <div className="flex items-center gap-2 p-6 text-[12px] text-[var(--c-text-5)]">
-                    <Loader2 size={12} className="animate-spin" /> Loading runs…
+                    <Loader2 size={12} className="animate-spin" /> {t('validate.loadingRuns')}
                   </div>
                 ) : runs && runs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-24 text-center">
                     <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)]">
                       <FileText size={16} className="text-[var(--c-text-5)]" />
                     </div>
-                    <p className="text-[13px] font-medium text-[var(--c-text-3)]">No runs yet</p>
-                    <p className="mt-1 text-[11px] text-[var(--c-text-5)]">Drop a document above to start.</p>
+                    <p className="text-[13px] font-medium text-[var(--c-text-3)]">{t('validate.noRunsYet')}</p>
+                    <p className="mt-1 text-[11px] text-[var(--c-text-5)]">{t('validate.dropToStart')}</p>
                   </div>
                 ) : (
                   <div className="w-full">

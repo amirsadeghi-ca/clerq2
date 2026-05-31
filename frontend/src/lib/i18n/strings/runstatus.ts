@@ -1,0 +1,77 @@
+// Run status panel, log viewer, and output image viewer strings.
+// Quebec French conventions: "Journaux" (logs), "Étape" (step),
+// "Exécution" (run), "Arrêter" (stop), "Fermer" (dismiss/close).
+
+export const en = {
+  'runstatus.run': 'Run #{id}',
+  'runstatus.viewImages': 'View images',
+  'runstatus.dismiss': 'Dismiss',
+  'runstatus.connecting': 'Connecting to worker…',
+  'runstatus.logs': 'Logs',
+  'runstatus.logsCount': 'Logs ({count})',
+  'runstatus.viewLogs': 'View logs',
+  'runstatus.logsTitle': '{label} — Logs',
+  'runstatus.pages': '{count}p',
+
+  'runstatus.node.input': 'Document Input',
+  'runstatus.node.email_input': 'Email Input',
+  'runstatus.node.pdf_to_images': 'PDF → Images',
+  'runstatus.node.ai': 'AI',
+  'runstatus.node.validate_documents': 'Validate Documents',
+  'runstatus.node.output': 'Collect Output',
+  'runstatus.node.send_email': 'Send Email',
+  'runstatus.node.show_results': 'Show Results',
+
+  'runstatus.log.lines': '{count} lines',
+  'runstatus.log.search': 'Search (⌘F)',
+  'runstatus.log.copyAll': 'Copy all',
+  'runstatus.log.restore': 'Restore',
+  'runstatus.log.maximize': 'Maximize',
+  'runstatus.log.close': 'Close (Esc)',
+  'runstatus.log.find': 'Find in logs…',
+  'runstatus.log.noMatches': 'No matches.',
+  'runstatus.log.empty': 'No logs yet — run a workflow to see output here.',
+  'runstatus.log.jumpToBottom': 'Jump to bottom',
+
+  'runstatus.output.title': 'Output Images',
+  'runstatus.output.pageCount': '{count} pages',
+  'runstatus.output.pageCountOne': '{count} page',
+  'runstatus.output.page': 'Page {n}',
+}
+
+export const fr = {
+  'runstatus.run': 'Exécution n° {id}',
+  'runstatus.viewImages': 'Voir les images',
+  'runstatus.dismiss': 'Fermer',
+  'runstatus.connecting': 'Connexion au travailleur…',
+  'runstatus.logs': 'Journaux',
+  'runstatus.logsCount': 'Journaux ({count})',
+  'runstatus.viewLogs': 'Voir les journaux',
+  'runstatus.logsTitle': '{label} — Journaux',
+  'runstatus.pages': '{count}p',
+
+  'runstatus.node.input': 'Entrée de document',
+  'runstatus.node.email_input': 'Entrée courriel',
+  'runstatus.node.pdf_to_images': 'PDF en images',
+  'runstatus.node.ai': 'IA',
+  'runstatus.node.validate_documents': 'Valider les documents',
+  'runstatus.node.output': 'Collecte de la sortie',
+  'runstatus.node.send_email': 'Envoyer un courriel',
+  'runstatus.node.show_results': 'Afficher les résultats',
+
+  'runstatus.log.lines': '{count} lignes',
+  'runstatus.log.search': 'Rechercher (⌘F)',
+  'runstatus.log.copyAll': 'Tout copier',
+  'runstatus.log.restore': 'Restaurer',
+  'runstatus.log.maximize': 'Agrandir',
+  'runstatus.log.close': 'Fermer (Échap)',
+  'runstatus.log.find': 'Rechercher dans les journaux…',
+  'runstatus.log.noMatches': 'Aucune correspondance.',
+  'runstatus.log.empty': 'Aucun journal pour l’instant — exécutez un flux pour voir la sortie ici.',
+  'runstatus.log.jumpToBottom': 'Aller au bas',
+
+  'runstatus.output.title': 'Images de sortie',
+  'runstatus.output.pageCount': '{count} pages',
+  'runstatus.output.pageCountOne': '{count} page',
+  'runstatus.output.page': 'Page {n}',
+}

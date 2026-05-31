@@ -1,0 +1,12 @@
+import { chromium } from 'playwright'
+const browser = await chromium.launch()
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })
+await ctx.addInitScript(() => { try { localStorage.setItem('lang','fr') } catch {} })
+const page = await ctx.newPage()
+await page.goto('http://localhost/validate', { waitUntil: 'networkidle' })
+await page.waitForTimeout(1000)
+await page.getByText(/Recevabilité/).first().click()
+await page.waitForTimeout(1500)
+await page.screenshot({ path: '/Users/amirsadeghi/clerq2/report/screenshots/validate.png', fullPage: true })
+console.log('done')
+await browser.close()

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import create_tables, run_migrations
-from app.routers import workflows, documents, runs, sse, files, library, policies, settings, validate, mail, review, reference_lists
+from app.routers import workflows, documents, runs, sse, files, library, policies, settings, validate, mail, review, reference_lists, metrics
 
 app = FastAPI(title="Clerq2 API", version="0.1.0")
 
@@ -26,6 +26,7 @@ app.include_router(policies.router, prefix="/api/policies", tags=["policies"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(validate.router, prefix="/api/validate", tags=["validate"])
 app.include_router(mail.router, prefix="/api/mail", tags=["mail"])
+app.include_router(metrics.router, prefix="/api/metrics", tags=["metrics"])  # operational indicators / suivi
 
 
 @app.on_event("startup")

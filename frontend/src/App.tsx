@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './context/theme'
+import { I18nProvider } from './context/i18n'
 import { RunProvider, useRunContext } from './context/run'
 import { RunStatusPanel } from './components/RunStatusPanel'
 import { Dashboard } from './pages/Dashboard'
@@ -14,6 +15,7 @@ import { Settings } from './pages/Settings'
 import { Validate } from './pages/Validate'
 import { ReportPage } from './pages/ReportPage'
 import { MailInbox } from './pages/MailInbox'
+import { Insights } from './pages/Insights'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +32,7 @@ function GlobalRunStatus() {
 export default function App() {
   return (
     <ThemeProvider>
+      <I18nProvider>
       <QueryClientProvider client={queryClient}>
         <RunProvider>
           <BrowserRouter>
@@ -47,6 +50,7 @@ export default function App() {
                   <Route path="/policies/:id" element={<PolicyEditor />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/mail" element={<MailInbox />} />
+                  <Route path="/insights" element={<Insights />} />
                 </Routes>
               </div>
               <GlobalRunStatus />
@@ -54,6 +58,7 @@ export default function App() {
           </BrowserRouter>
         </RunProvider>
       </QueryClientProvider>
+      </I18nProvider>
     </ThemeProvider>
   )
 }

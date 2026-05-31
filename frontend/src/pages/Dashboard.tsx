@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useWorkflows } from '../api/workflows'
 import client from '../api/client'
+import { useI18n } from '../context/i18n'
 import { LeftSidebar } from '../components/LeftSidebar'
 import type { RunStep, RunStatus, SSERunUpdate, ValidationOutput } from '../types/workflow'
 
@@ -66,14 +67,6 @@ const STATUS_COLORS: Record<RunStatus, string> = {
   running: 'text-indigo-400',
   completed: 'text-emerald-400',
   failed: 'text-red-400',
-}
-
-const NODE_LABELS: Record<string, string> = {
-  input: 'Input',
-  pdf_to_images: 'PDF → Images',
-  output: 'Output',
-  validate_documents: 'Validate',
-  show_results: 'Results',
 }
 
 // ── Sidebar result renderers ──────────────────────────────────────────────
@@ -151,12 +144,6 @@ const OVERALL_STYLES: Record<string, string> = {
   needs_review: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
 }
 
-const OVERALL_LABELS: Record<string, string> = {
-  pass: 'Pass',
-  fail: 'Fail',
-  needs_review: 'Needs Review',
-}
-
 const RESULT_ICON: Record<string, string> = {
   pass: '✓',
   fail: '✗',
@@ -172,6 +159,12 @@ const RESULT_COLORS: Record<string, string> = {
 }
 
 function ValidationResultPanel({ output }: { output: ValidationOutput }) {
+  const { t } = useI18n()
+  const OVERALL_LABELS: Record<string, string> = {
+    pass: t('dashboard.overall.pass'),
+    fail: t('dashboard.overall.fail'),
+    needs_review: t('dashboard.overall.needs_review'),
+  }
   return (
     <div className="flex flex-col gap-3">
       <div className={`flex items-center justify-center rounded-lg border px-4 py-3 ${OVERALL_STYLES[output.overall] ?? ''}`}>
@@ -207,6 +200,7 @@ function ResultsSidebar({
   steps: RunStep[]
   onClose: () => void
 }) {
+  const { t } = useI18n()
   const output = findShowResultsOutput(steps)
   const imagePaths = collectImagePaths(steps)
   const validationOutput = output && 'overall' in output ? (output as unknown as ValidationOutput) : null
@@ -219,7 +213,7 @@ function ResultsSidebar({
           <p className="text-[13px] font-medium text-[var(--c-text-1)]">{workflowName}</p>
           {runStatus && (
             <p className={`text-[11px] font-medium ${STATUS_COLORS[runStatus]}`}>
-              {runStatus}
+              {t(`status.${runStatus}`)}
             </p>
           )}
         </div>
@@ -242,7 +236,7 @@ function ResultsSidebar({
             {JSON.stringify(output, null, 2)}
           </pre>
         ) : (
-          <p className="text-[12px] text-[var(--c-text-5)]">No result data available.</p>
+          <p className="text-[12px] text-[var(--c-text-5)]">{t('dashboard.noResultData')}</p>
         )}
       </div>
     </div>
@@ -265,6 +259,7 @@ function DropZone({
   onDrop: (e: React.DragEvent) => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const { t } = useI18n()
 
   return (
     <div
@@ -287,8 +282,8 @@ function DropZone({
     >
       <Upload size={18} className={dragActive ? 'text-indigo-400' : 'text-[var(--c-text-5)]'} />
       <div className="text-center">
-        <p className="text-[12px] font-medium text-[var(--c-text-3)]">Drop PDF here to run</p>
-        <p className="text-[11px] text-[var(--c-text-5)]">or click to upload</p>
+        <p className="text-[12px] font-medium text-[var(--c-text-3)]">{t('dashboard.dropTitle')}</p>
+        <p className="text-[11px] text-[var(--c-text-5)]">{t('dashboard.dropHint')}</p>
       </div>
       <input
         ref={inputRef}
@@ -317,9 +312,18 @@ function WorkflowWidget({
   onSidebarOpen: (workflowId: number, runStatus: RunStatus, steps: RunStep[]) => void
 }) {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [state, setState] = useState<WidgetState>(emptyWidget())
   const [dragActive, setDragActive] = useState(false)
   const esRef = useRef<EventSource | null>(null)
+
+  const NODE_LABELS: Record<string, string> = {
+    input: t('dashboard.node.input'),
+    pdf_to_images: t('dashboard.node.pdf_to_images'),
+    output: t('dashboard.node.output'),
+    validate_documents: t('dashboard.node.validate_documents'),
+    show_results: t('dashboard.node.show_results'),
+  }
 
   // Last run info
   const [lastRun, setLastRun] = useState<{ id: number; status: RunStatus; created_at: string } | null>(null)
@@ -400,7 +404,7 @@ function WorkflowWidget({
 
       connectSSE(runId)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Upload failed'
+      const message = err instanceof Error ? err.message : t('dashboard.uploadFailed')
       setState(prev => ({ ...prev, uploading: false, error: message }))
     }
   }
@@ -415,10 +419,10 @@ function WorkflowWidget({
     const mins = Math.floor(diff / 60_000)
     const hours = Math.floor(diff / 3_600_000)
     const days = Math.floor(diff / 86_400_000)
-    if (mins < 1) return 'just now'
-    if (mins < 60) return `${mins}m ago`
-    if (hours < 24) return `${hours}h ago`
-    return `${days}d ago`
+    if (mins < 1) return t('dashboard.justNow')
+    if (mins < 60) return t('dashboard.minutesAgo', { mins })
+    if (hours < 24) return t('dashboard.hoursAgo', { hours })
+    return t('dashboard.daysAgo', { days })
   }
 
   return (
@@ -432,10 +436,10 @@ function WorkflowWidget({
         <button
           onClick={() => navigate(`/workflows/${workflowId}`)}
           className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-[var(--c-text-5)] hover:text-[var(--c-text-3)] hover:bg-[var(--c-hover-3)] transition-colors"
-          title="Open in editor"
+          title={t('dashboard.openInEditor')}
         >
           <ExternalLink size={10} />
-          Open
+          {t('btn.open')}
         </button>
       </div>
 
@@ -462,7 +466,7 @@ function WorkflowWidget({
                 onClick={handleClear}
                 className="shrink-0 text-[10px] text-[var(--c-text-5)] hover:text-[var(--c-text-3)] transition-colors"
               >
-                clear
+                {t('dashboard.clear')}
               </button>
             </div>
             {state.error && (
@@ -474,7 +478,7 @@ function WorkflowWidget({
               className="flex h-7 w-full items-center justify-center gap-1.5 rounded bg-indigo-600 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
             >
               {state.uploading && <Loader2 size={11} className="animate-spin" />}
-              {state.uploading ? 'Uploading…' : 'Run workflow'}
+              {state.uploading ? t('btn.uploading') : t('dashboard.runWorkflow')}
             </button>
           </div>
         )}
@@ -484,12 +488,12 @@ function WorkflowWidget({
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <Loader2 size={11} className="animate-spin text-indigo-400" />
-              <span className="text-[12px] text-[var(--c-text-3)]">Running…</span>
+              <span className="text-[12px] text-[var(--c-text-3)]">{t('dashboard.runningEllipsis')}</span>
               <button
                 onClick={handleClear}
                 className="ml-auto text-[10px] text-[var(--c-text-5)] hover:text-[var(--c-text-3)] transition-colors"
               >
-                dismiss
+                {t('dashboard.dismiss')}
               </button>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -516,7 +520,7 @@ function WorkflowWidget({
                 ? <CheckCircle2 size={12} className="text-emerald-400" />
                 : <XCircle size={12} className="text-red-400" />}
               <span className={`text-[12px] font-medium ${state.runStatus === 'completed' ? 'text-emerald-400' : 'text-red-400'}`}>
-                {state.runStatus === 'completed' ? 'Completed' : 'Failed'}
+                {state.runStatus === 'completed' ? t('status.completed') : t('status.failed')}
               </span>
               {findShowResultsOutput(state.steps) && (
                 <button
@@ -524,14 +528,14 @@ function WorkflowWidget({
                   className="ml-auto flex items-center gap-1 rounded px-2 py-0.5 text-[10px] text-indigo-400 hover:bg-indigo-500/10 transition-colors"
                 >
                   <BarChart2 size={10} />
-                  View results
+                  {t('dashboard.viewResults')}
                 </button>
               )}
               <button
                 onClick={handleClear}
                 className="text-[10px] text-[var(--c-text-5)] hover:text-[var(--c-text-3)] transition-colors"
               >
-                reset
+                {t('dashboard.reset')}
               </button>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -566,14 +570,14 @@ function WorkflowWidget({
             : 'bg-[var(--c-text-5)]'
           }`} />
           <span className="text-[11px] text-[var(--c-text-5)]">
-            Last run {formatRelativeTime(lastRun.created_at)}
+            {t('dashboard.lastRun', { time: formatRelativeTime(lastRun.created_at) })}
           </span>
           <span className={`ml-auto text-[10px] font-medium ${
             lastRun.status === 'completed' ? 'text-emerald-400'
             : lastRun.status === 'failed' ? 'text-red-400'
             : 'text-[var(--c-text-5)]'
           }`}>
-            {lastRun.status}
+            {t(`status.${lastRun.status}`)}
           </span>
         </div>
       )}
@@ -592,6 +596,7 @@ interface SidebarData {
 
 export function Dashboard() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const { data: allWorkflows, isLoading } = useWorkflows()
   const favorites = allWorkflows?.filter(wf => wf.is_favorite && !wf.is_archived) ?? []
 
@@ -612,7 +617,7 @@ export function Dashboard() {
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
         <header className="flex h-[52px] shrink-0 items-center border-b border-[var(--c-border)] px-6">
-          <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">Dashboard</h1>
+          <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('dashboard.title')}</h1>
         </header>
 
         {/* Content area with optional sidebar */}
@@ -621,22 +626,22 @@ export function Dashboard() {
           <main className="flex-1 overflow-y-auto p-6">
             {isLoading ? (
               <div className="flex items-center gap-2 text-[13px] text-[var(--c-text-5)]">
-                <Loader2 size={14} className="animate-spin" /> Loading…
+                <Loader2 size={14} className="animate-spin" /> {t('common.loading')}
               </div>
             ) : favorites.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)]">
                   <Star size={22} className="text-[var(--c-text-5)]" />
                 </div>
-                <p className="text-[14px] font-medium text-[var(--c-text-3)]">No favorites yet</p>
+                <p className="text-[14px] font-medium text-[var(--c-text-3)]">{t('dashboard.noFavorites')}</p>
                 <p className="mt-1.5 max-w-[280px] text-[12px] leading-relaxed text-[var(--c-text-5)]">
-                  Star workflows from the Workflows page to add them here as interactive widgets.
+                  {t('dashboard.noFavoritesHint')}
                 </p>
                 <button
                   onClick={() => navigate('/workflows')}
                   className="mt-6 flex items-center gap-1.5 rounded bg-indigo-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-indigo-500"
                 >
-                  Go to Workflows <ArrowRight size={13} />
+                  {t('dashboard.goToWorkflows')} <ArrowRight size={13} />
                 </button>
               </div>
             ) : (

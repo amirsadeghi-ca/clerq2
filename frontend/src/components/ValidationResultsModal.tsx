@@ -1,5 +1,6 @@
 import { X, CheckCircle2, XCircle, AlertCircle, ShieldCheck } from 'lucide-react'
 import type { ValidationRuleResult } from '../types/workflow'
+import { useI18n } from '../context/i18n'
 
 interface Props {
   policyName: string
@@ -8,18 +9,24 @@ interface Props {
   onClose: () => void
 }
 
-const OVERALL_STYLES: Record<string, { badge: string; bg: string; label: string }> = {
-  pass:         { badge: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25', bg: 'bg-emerald-500/5',  label: 'Pass' },
-  fail:         { badge: 'text-red-400 bg-red-500/10 border-red-500/25',             bg: 'bg-red-500/5',     label: 'Fail' },
-  needs_review: { badge: 'text-amber-400 bg-amber-500/10 border-amber-500/25',       bg: 'bg-amber-500/5',   label: 'Needs Review' },
+const OVERALL_STYLES: Record<string, { badge: string; bg: string; labelKey: string }> = {
+  pass:         { badge: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25', bg: 'bg-emerald-500/5',  labelKey: 'validate.overall.pass' },
+  fail:         { badge: 'text-red-400 bg-red-500/10 border-red-500/25',             bg: 'bg-red-500/5',     labelKey: 'validate.overall.fail' },
+  needs_review: { badge: 'text-amber-400 bg-amber-500/10 border-amber-500/25',       bg: 'bg-amber-500/5',   labelKey: 'validate.overall.needs_review' },
 }
 
 const STATUS_ORDER: Record<string, number> = { fail: 0, uncertain: 1, pass: 2, not_applicable: 3 }
 
-const RULE_STYLES: Record<string, { icon: JSX.Element; label: string; text: string; border: string; bg: string }> = {
-  pass:      { icon: <CheckCircle2 size={18} className="text-emerald-400" />, label: 'Pass',      text: 'text-emerald-400', border: 'border-emerald-500/15', bg: '' },
-  fail:      { icon: <XCircle size={18} className="text-red-400" />,          label: 'Fail',      text: 'text-red-400',     border: 'border-red-500/20',     bg: 'bg-red-500/[0.02]' },
-  uncertain: { icon: <AlertCircle size={18} className="text-amber-400" />,    label: 'Uncertain', text: 'text-amber-400',   border: 'border-amber-500/15',   bg: 'bg-amber-500/[0.02]' },
+const RULE_STYLES: Record<string, { icon: JSX.Element; labelKey: string; text: string; border: string; bg: string }> = {
+  pass:      { icon: <CheckCircle2 size={18} className="text-emerald-400" />, labelKey: 'verdict.pass',      text: 'text-emerald-400', border: 'border-emerald-500/15', bg: '' },
+  fail:      { icon: <XCircle size={18} className="text-red-400" />,          labelKey: 'verdict.fail',      text: 'text-red-400',     border: 'border-red-500/20',     bg: 'bg-red-500/[0.02]' },
+  uncertain: { icon: <AlertCircle size={18} className="text-amber-400" />,    labelKey: 'verdict.uncertain', text: 'text-amber-400',   border: 'border-amber-500/15',   bg: 'bg-amber-500/[0.02]' },
+}
+
+const REQ_LABEL_KEYS: Record<string, string> = {
+  required:    'validate.results.requirement.required',
+  optional:    'validate.results.requirement.optional',
+  conditional: 'validate.results.requirement.conditional',
 }
 
 const REQ_BADGE: Record<string, string> = {
@@ -42,6 +49,7 @@ function ConfidenceBar({ value }: { value: number }) {
 }
 
 export function ValidationResultsModal({ policyName, overall, results, onClose }: Props) {
+  const { t } = useI18n()
   const sorted = [...results].sort(
     (a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)
   )
@@ -60,27 +68,27 @@ export function ValidationResultsModal({ policyName, overall, results, onClose }
           <ShieldCheck size={14} className="text-violet-400" strokeWidth={2} />
         </div>
         <div className="flex flex-col">
-          <span className="text-[13px] font-semibold text-[var(--c-text-1)]">Validation Results</span>
+          <span className="text-[13px] font-semibold text-[var(--c-text-1)]">{t('validate.results.title')}</span>
           <span className="text-[11px] text-[var(--c-text-4)]">{policyName}</span>
         </div>
         <span className={`ml-1 rounded border px-2.5 py-0.5 text-[11px] font-semibold ${overall_s?.badge ?? ''}`}>
-          {overall_s?.label ?? overall}
+          {overall_s ? t(overall_s.labelKey) : overall}
         </span>
 
         <div className="ml-auto flex items-center gap-6">
           {nFail > 0 && (
             <span className="flex items-center gap-1.5 text-[13px] text-red-400">
-              <XCircle size={13} /> {nFail} failed
+              <XCircle size={13} /> {t('validate.results.nFailed', { count: nFail })}
             </span>
           )}
           {nUnc > 0 && (
             <span className="flex items-center gap-1.5 text-[13px] text-amber-400">
-              <AlertCircle size={13} /> {nUnc} uncertain
+              <AlertCircle size={13} /> {t('validate.results.nUncertain', { count: nUnc })}
             </span>
           )}
           {nPass > 0 && (
             <span className="flex items-center gap-1.5 text-[13px] text-emerald-400">
-              <CheckCircle2 size={13} /> {nPass} passed
+              <CheckCircle2 size={13} /> {t('validate.results.nPassed', { count: nPass })}
             </span>
           )}
           <button
@@ -112,10 +120,10 @@ export function ValidationResultsModal({ policyName, overall, results, onClose }
                         {result.rule_name}
                       </h3>
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${REQ_BADGE[result.requirement] ?? ''}`}>
-                        {result.requirement}
+                        {REQ_LABEL_KEYS[result.requirement] ? t(REQ_LABEL_KEYS[result.requirement]) : result.requirement}
                       </span>
                       <span className={`ml-auto text-[12px] font-medium ${s?.text ?? ''}`}>
-                        {s?.label ?? result.status}
+                        {s ? t(s.labelKey) : result.status}
                       </span>
                     </div>
                   </div>
@@ -125,7 +133,7 @@ export function ValidationResultsModal({ policyName, overall, results, onClose }
                 {result.evidence && (
                   <div className="mt-4 ml-[34px]">
                     <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
-                      Evidence
+                      {t('common.evidence')}
                     </p>
                     <p className="text-[13px] leading-relaxed text-[var(--c-text-2)]">
                       {result.evidence}
@@ -136,7 +144,7 @@ export function ValidationResultsModal({ policyName, overall, results, onClose }
                 {/* Confidence */}
                 <div className="mt-4 ml-[34px]">
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
-                    Confidence
+                    {t('common.confidence')}
                   </p>
                   <ConfidenceBar value={result.confidence} />
                 </div>
@@ -145,7 +153,7 @@ export function ValidationResultsModal({ policyName, overall, results, onClose }
                 {hasExtracted && (
                   <div className="mt-4 ml-[34px]">
                     <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">
-                      Extracted
+                      {t('validate.extracted')}
                     </p>
                     <div className="rounded-lg border border-[var(--c-border)] bg-[var(--c-surface-2)] px-4 py-3 flex flex-col gap-1.5">
                       {Object.entries(result.extracted).map(([k, v]) => (

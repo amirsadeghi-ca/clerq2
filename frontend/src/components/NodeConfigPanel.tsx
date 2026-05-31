@@ -7,6 +7,7 @@ import { useRunContext } from '../context/run'
 import { useSettings, useOpenRouterModels } from '../api/settings'
 import { ValidationResultsModal } from './ValidationResultsModal'
 import type { ValidationOutput } from '../types/workflow'
+import { useI18n } from '../context/i18n'
 
 interface Props {
   node: Node
@@ -18,22 +19,24 @@ interface Props {
 
 // ── Variable discovery ────────────────────────────────────────────────────────
 
+// `label` holds an i18n key (resolved via t() at render time), not literal text.
 interface VarDef { key: string; label: string }
 interface VarGroup { nodeId: string; nodeType: string; nodeLabel: string; vars: VarDef[] }
 
 const NODE_OUTPUT_VARS: Record<string, VarDef[]> = {
-  input:              [{ key: 'document_id', label: 'Document ID' }, { key: 'file_path', label: 'File Path' }, { key: 'mime_type', label: 'MIME Type' }],
-  email_input:        [{ key: 'subject', label: 'Subject' }, { key: 'from', label: 'From' }, { key: 'to', label: 'To' }, { key: 'body', label: 'Body' }],
-  pdf_to_images:      [{ key: 'image_paths', label: 'Image Paths' }, { key: 'page_count', label: 'Page Count' }, { key: 'document_id', label: 'Document ID' }],
-  validate_documents: [{ key: 'overall', label: 'Overall Result' }, { key: 'results', label: 'Rule Results' }, { key: 'policy_name', label: 'Policy Name' }],
-  ai:                 [{ key: 'ai_response', label: 'AI Response' }],
-  send_email:         [{ key: 'sent_to', label: 'Sent To' }, { key: 'sent_subject', label: 'Sent Subject' }],
+  input:              [{ key: 'document_id', label: 'nodeconfig.var.document_id' }, { key: 'file_path', label: 'nodeconfig.var.file_path' }, { key: 'mime_type', label: 'nodeconfig.var.mime_type' }],
+  email_input:        [{ key: 'subject', label: 'nodeconfig.var.subject' }, { key: 'from', label: 'nodeconfig.var.from' }, { key: 'to', label: 'nodeconfig.var.to' }, { key: 'body', label: 'nodeconfig.var.body' }],
+  pdf_to_images:      [{ key: 'image_paths', label: 'nodeconfig.var.image_paths' }, { key: 'page_count', label: 'nodeconfig.var.page_count' }, { key: 'document_id', label: 'nodeconfig.var.document_id' }],
+  validate_documents: [{ key: 'overall', label: 'nodeconfig.var.overall' }, { key: 'results', label: 'nodeconfig.var.results' }, { key: 'policy_name', label: 'nodeconfig.var.policy_name' }],
+  ai:                 [{ key: 'ai_response', label: 'nodeconfig.var.ai_response' }],
+  send_email:         [{ key: 'sent_to', label: 'nodeconfig.var.sent_to' }, { key: 'sent_subject', label: 'nodeconfig.var.sent_subject' }],
 }
 
+// Values are i18n keys, resolved via t() at render time.
 const NODE_TYPE_LABELS: Record<string, string> = {
-  input: 'Input', email_input: 'Email Input', pdf_to_images: 'PDF → Images',
-  validate_documents: 'Validate Documents', ai: 'AI', send_email: 'Send Email',
-  output: 'Output', show_results: 'Show Results',
+  input: 'nodeconfig.typeLabel.input', email_input: 'nodeconfig.typeLabel.email_input', pdf_to_images: 'nodeconfig.typeLabel.pdf_to_images',
+  validate_documents: 'nodeconfig.typeLabel.validate_documents', ai: 'nodeconfig.typeLabel.ai', send_email: 'nodeconfig.typeLabel.send_email',
+  output: 'nodeconfig.typeLabel.output', show_results: 'nodeconfig.typeLabel.show_results',
 }
 
 const NODE_DOT_COLOR: Record<string, string> = {
@@ -73,6 +76,7 @@ interface PromptEditorProps {
 }
 
 function ToolbarBtn({ label, title, bold, italic, onActivate }: { label: string; title: string; bold?: boolean; italic?: boolean; onActivate: () => void }) {
+  // title is already-translated text passed by the caller
   return (
     <button
       type="button"
@@ -84,6 +88,7 @@ function ToolbarBtn({ label, title, bold, italic, onActivate }: { label: string;
 }
 
 function PromptEditor({ value, onChange, placeholder, rows = 8, varGroups }: PromptEditorProps) {
+  const { t } = useI18n()
   const ref = useRef<HTMLTextAreaElement>(null)
 
   function insertAt(text: string) {
@@ -104,10 +109,10 @@ function PromptEditor({ value, onChange, placeholder, rows = 8, varGroups }: Pro
     const sel = value.slice(s, e2)
     let wrapped: string
     switch (type) {
-      case 'bold':   wrapped = `**${sel || 'bold'}**`; break
-      case 'italic': wrapped = `*${sel || 'italic'}*`; break
-      case 'bullet': wrapped = (sel || 'item').split('\n').map(l => `- ${l}`).join('\n'); break
-      case 'quote':  wrapped = (sel || 'quote').split('\n').map(l => `> ${l}`).join('\n'); break
+      case 'bold':   wrapped = `**${sel || t('nodeconfig.fmt.bold')}**`; break
+      case 'italic': wrapped = `*${sel || t('nodeconfig.fmt.italic')}*`; break
+      case 'bullet': wrapped = (sel || t('nodeconfig.fmt.item')).split('\n').map(l => `- ${l}`).join('\n'); break
+      case 'quote':  wrapped = (sel || t('nodeconfig.fmt.quote')).split('\n').map(l => `> ${l}`).join('\n'); break
     }
     const next = value.slice(0, s) + wrapped + value.slice(e2)
     onChange(next)
@@ -119,20 +124,20 @@ function PromptEditor({ value, onChange, placeholder, rows = 8, varGroups }: Pro
       {/* Variable chips */}
       {varGroups.length > 0 ? (
         <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">Variables</p>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('nodeconfig.variables')}</p>
           <div className="flex flex-col gap-2.5">
             {varGroups.map(group => (
               <div key={group.nodeId}>
                 <div className="mb-1 flex items-center gap-1.5">
                   <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${NODE_DOT_COLOR[group.nodeType] ?? 'bg-[var(--c-text-5)]'}`} />
-                  <span className="text-[10px] text-[var(--c-text-5)]">from {group.nodeLabel}</span>
+                  <span className="text-[10px] text-[var(--c-text-5)]">{t('nodeconfig.var.from_node', { node: t(group.nodeLabel) })}</span>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {group.vars.map(v => (
                     <button
                       key={v.key}
                       type="button"
-                      title={v.label}
+                      title={t(v.label)}
                       onClick={() => insertAt(`{{${v.key}}}`)}
                       className="rounded border border-violet-500/20 bg-violet-500/10 px-1.5 py-0.5 font-mono text-[10px] text-violet-400 transition-colors hover:border-violet-500/40 hover:bg-violet-500/20"
                     >
@@ -146,17 +151,17 @@ function PromptEditor({ value, onChange, placeholder, rows = 8, varGroups }: Pro
         </div>
       ) : (
         <div className="rounded-md border border-dashed border-[var(--c-border-3)] px-3 py-2.5 text-[10px] leading-relaxed text-[var(--c-text-5)]">
-          Connect upstream nodes to see available variables.
+          {t('nodeconfig.var.connectHint')}
         </div>
       )}
 
       {/* Editor */}
       <div>
         <div className="flex items-center gap-0.5 rounded-t-md border border-b-0 border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-1.5 py-1">
-          <ToolbarBtn label="B" title="Bold" bold onActivate={() => applyFmt('bold')} />
-          <ToolbarBtn label="I" title="Italic" italic onActivate={() => applyFmt('italic')} />
-          <ToolbarBtn label="≡" title="Bullet list" onActivate={() => applyFmt('bullet')} />
-          <ToolbarBtn label="❝" title="Blockquote" onActivate={() => applyFmt('quote')} />
+          <ToolbarBtn label="B" title={t('nodeconfig.toolbar.bold')} bold onActivate={() => applyFmt('bold')} />
+          <ToolbarBtn label="I" title={t('nodeconfig.toolbar.italic')} italic onActivate={() => applyFmt('italic')} />
+          <ToolbarBtn label="≡" title={t('nodeconfig.toolbar.bullet')} onActivate={() => applyFmt('bullet')} />
+          <ToolbarBtn label="❝" title={t('nodeconfig.toolbar.quote')} onActivate={() => applyFmt('quote')} />
         </div>
         <textarea
           ref={ref}
@@ -173,18 +178,20 @@ function PromptEditor({ value, onChange, placeholder, rows = 8, varGroups }: Pro
   )
 }
 
+// Values are i18n keys, resolved via t() at render time.
 const NODE_TITLES: Record<string, string> = {
-  input: 'Document Input',
-  email_input: 'Email Input',
-  pdf_to_images: 'PDF → Images',
-  ai: 'AI',
-  validate_documents: 'Validate Documents',
-  output: 'Collect Output',
-  send_email: 'Send Email',
-  show_results: 'Show Results',
+  input: 'nodeconfig.title.input',
+  email_input: 'nodeconfig.title.email_input',
+  pdf_to_images: 'nodeconfig.title.pdf_to_images',
+  ai: 'nodeconfig.title.ai',
+  validate_documents: 'nodeconfig.title.validate_documents',
+  output: 'nodeconfig.title.output',
+  send_email: 'nodeconfig.title.send_email',
+  show_results: 'nodeconfig.title.show_results',
 }
 
 export function NodeConfigPanel({ node, nodes, edges, onUpdate, onClose }: Props) {
+  const { t } = useI18n()
   const data = (node.data ?? {}) as Record<string, unknown>
   const upstreamGroups = getUpstreamVarGroups(node.id, nodes, edges)
   const wide = node.type === 'ai' || node.type === 'send_email'
@@ -197,8 +204,8 @@ export function NodeConfigPanel({ node, nodes, edges, onUpdate, onClose }: Props
     <aside className={`flex ${wide ? 'w-[320px]' : 'w-[220px]'} shrink-0 flex-col border-l border-[var(--c-border)] bg-[var(--c-bg)]`}>
       <div className="flex items-center justify-between border-b border-[var(--c-border)] px-4 py-3">
         <div>
-          <p className="text-[13px] font-medium text-[var(--c-text-2)]">{NODE_TITLES[node.type ?? ''] ?? node.type}</p>
-          <p className="mt-0.5 text-[11px] text-[var(--c-text-5)]">Node configuration</p>
+          <p className="text-[13px] font-medium text-[var(--c-text-2)]">{NODE_TITLES[node.type ?? ''] ? t(NODE_TITLES[node.type ?? '']) : node.type}</p>
+          <p className="mt-0.5 text-[11px] text-[var(--c-text-5)]">{t('nodeconfig.subtitle')}</p>
         </div>
         <button
           onClick={onClose}
@@ -265,22 +272,24 @@ export function NodeConfigPanel({ node, nodes, edges, onUpdate, onClose }: Props
 }
 
 function InputConfig() {
+  const { t } = useI18n()
   return (
     <div>
-      <p className="mb-2 text-[11px] font-medium text-[var(--c-text-4)]">About</p>
+      <p className="mb-2 text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.about')}</p>
       <p className="text-[11px] leading-relaxed text-[var(--c-text-5)]">
-        Accepts any uploaded document. The selected file is passed downstream as the workflow input.
+        {t('nodeconfig.input.about')}
       </p>
     </div>
   )
 }
 
+// label holds an i18n key, resolved via t() at render time.
 const EMAIL_FIELDS = [
-  { key: 'subject', label: 'Subject' },
-  { key: 'from', label: 'From' },
-  { key: 'to', label: 'To' },
-  { key: 'body', label: 'Body' },
-  { key: 'attachments', label: 'Attachments' },
+  { key: 'subject', label: 'nodeconfig.email.field.subject' },
+  { key: 'from', label: 'nodeconfig.email.field.from' },
+  { key: 'to', label: 'nodeconfig.email.field.to' },
+  { key: 'body', label: 'nodeconfig.email.field.body' },
+  { key: 'attachments', label: 'nodeconfig.email.field.attachments' },
 ]
 
 interface EmailInputConfigProps {
@@ -289,6 +298,7 @@ interface EmailInputConfigProps {
 }
 
 function EmailInputConfig({ fields, onChange }: EmailInputConfigProps) {
+  const { t } = useI18n()
   const active = fields ?? EMAIL_FIELDS.map(f => f.key)
 
   function toggle(key: string) {
@@ -301,7 +311,7 @@ function EmailInputConfig({ fields, onChange }: EmailInputConfigProps) {
 
   return (
     <div>
-      <p className="mb-2 text-[11px] font-medium text-[var(--c-text-4)]">Fields to pass downstream</p>
+      <p className="mb-2 text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.email.fields')}</p>
       <div className="flex flex-col gap-1">
         {EMAIL_FIELDS.map(f => {
           const on = active.includes(f.key)
@@ -317,13 +327,13 @@ function EmailInputConfig({ fields, onChange }: EmailInputConfigProps) {
               ].join(' ')}
             >
               <span className={`h-3 w-3 shrink-0 rounded-sm border transition-colors ${on ? 'border-sky-400 bg-sky-400' : 'border-[var(--c-border-3)]'}`} />
-              {f.label}
+              {t(f.label)}
             </button>
           )
         })}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-[var(--c-text-5)]">
-        Enable this workflow's email inbox from the Workflows list to receive emails.
+        {t('nodeconfig.email.inboxHint')}
       </p>
     </div>
   )
@@ -338,6 +348,7 @@ interface AiConfigProps {
 }
 
 function AiConfig({ systemPrompt, model, varGroups, onChangePrompt, onChangeModel }: AiConfigProps) {
+  const { t } = useI18n()
   const { data: settings } = useSettings()
   const apiKeySet = settings?.openrouter_api_key_set ?? false
   const { data: models, isLoading: modelsLoading } = useOpenRouterModels(apiKeySet)
@@ -346,25 +357,25 @@ function AiConfig({ systemPrompt, model, varGroups, onChangePrompt, onChangeMode
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <label className="mb-2 block text-[11px] font-medium text-[var(--c-text-4)]">Prompt</label>
+        <label className="mb-2 block text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.ai.prompt')}</label>
         <PromptEditor
           value={systemPrompt ?? ''}
           onChange={onChangePrompt}
-          placeholder={"Summarise the email in one sentence.\n\nEmail subject: {{subject}}\nFrom: {{from}}\n\n{{body}}"}
+          placeholder={t('nodeconfig.ai.promptPlaceholder')}
           rows={8}
           varGroups={varGroups}
         />
       </div>
 
       <div>
-        <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">Model</label>
+        <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.ai.model')}</label>
         {apiKeySet && !modelsLoading && models && models.length > 0 ? (
           <select
             value={model ?? ''}
             onChange={e => onChangeModel(e.target.value)}
             className="w-full rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-2.5 py-1.5 text-[12px] text-[var(--c-text-2)] outline-none transition-colors focus:border-indigo-500/50"
           >
-            <option value="">— Default ({defaultModel || 'from Settings'}) —</option>
+            <option value="">{t('nodeconfig.ai.defaultOption', { model: defaultModel || t('nodeconfig.ai.defaultFromSettings') })}</option>
             {models.map(m => (
               <option key={m.id} value={m.id}>{m.id}</option>
             ))}
@@ -374,12 +385,12 @@ function AiConfig({ systemPrompt, model, varGroups, onChangePrompt, onChangeMode
             type="text"
             value={model ?? ''}
             onChange={e => onChangeModel(e.target.value)}
-            placeholder={defaultModel || 'e.g. google/gemini-2.0-flash-exp'}
+            placeholder={defaultModel || t('nodeconfig.ai.modelPlaceholder')}
             className="w-full rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-1.5 text-[12px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
           />
         )}
         {!apiKeySet && (
-          <p className="mt-1 text-[10px] text-[var(--c-text-5)]">Set your API key in Settings to pick from available models.</p>
+          <p className="mt-1 text-[10px] text-[var(--c-text-5)]">{t('nodeconfig.ai.apiKeyHint')}</p>
         )}
       </div>
     </div>
@@ -397,6 +408,7 @@ interface SendEmailConfigProps {
 }
 
 function SendEmailConfig({ to, subject, body, varGroups, onChangeTo, onChangeSubject, onChangeBody }: SendEmailConfigProps) {
+  const { t } = useI18n()
   const inputCls = 'w-full rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-1.5 text-[12px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20'
 
   // All flat unique vars for the To/Subject inline chip row
@@ -421,13 +433,13 @@ function SendEmailConfig({ to, subject, body, varGroups, onChangeTo, onChangeSub
       {/* Shared variable chips (flat, for To/Subject insertion) */}
       {allVars.length > 0 && (
         <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">Variables</p>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('nodeconfig.variables')}</p>
           <div className="flex flex-wrap gap-1">
             {allVars.map(v => (
               <button
                 key={v.key}
                 type="button"
-                title={`Click to copy — then paste into any field`}
+                title={t('nodeconfig.send.chipTitle')}
                 onClick={() => {
                   const active = document.activeElement
                   if (active === toRef.current) insertInto(toRef, to ?? '', onChangeTo, `{{${v.key}}}`)
@@ -439,40 +451,40 @@ function SendEmailConfig({ to, subject, body, varGroups, onChangeTo, onChangeSub
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-[10px] text-[var(--c-text-5)]">Focus a field, then click a chip to insert it there.</p>
+          <p className="mt-1.5 text-[10px] text-[var(--c-text-5)]">{t('nodeconfig.send.focusHint')}</p>
         </div>
       )}
 
       <div>
-        <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">To</label>
+        <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.send.to')}</label>
         <input
           ref={toRef}
           type="text"
           value={to ?? ''}
           onChange={e => onChangeTo(e.target.value)}
-          placeholder="{{from}} or alice@example.com"
+          placeholder={t('nodeconfig.send.toPlaceholder')}
           className={inputCls}
         />
       </div>
 
       <div>
-        <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">Subject</label>
+        <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.send.subject')}</label>
         <input
           ref={subjectRef}
           type="text"
           value={subject ?? ''}
           onChange={e => onChangeSubject(e.target.value)}
-          placeholder="Re: {{subject}}"
+          placeholder={t('nodeconfig.send.subjectPlaceholder')}
           className={inputCls}
         />
       </div>
 
       <div>
-        <label className="mb-2 block text-[11px] font-medium text-[var(--c-text-4)]">Body</label>
+        <label className="mb-2 block text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.send.body')}</label>
         <PromptEditor
           value={body ?? ''}
           onChange={onChangeBody}
-          placeholder={"Hi,\n\n{{ai_response}}\n\nBest regards"}
+          placeholder={t('nodeconfig.send.bodyPlaceholder')}
           rows={6}
           varGroups={varGroups}
         />
@@ -487,16 +499,17 @@ interface PdfToImagesConfigProps {
 }
 
 function PdfToImagesConfig({ scale, onChange }: PdfToImagesConfigProps) {
+  const { t } = useI18n()
   const current = scale ?? 2.0
   const options = [
-    { value: 1.0, label: '1× — 72 dpi' },
-    { value: 1.5, label: '1.5× — 108 dpi' },
-    { value: 2.0, label: '2× — 144 dpi (default)' },
-    { value: 3.0, label: '3× — 216 dpi' },
+    { value: 1.0, label: t('nodeconfig.pdf.scale1') },
+    { value: 1.5, label: t('nodeconfig.pdf.scale15') },
+    { value: 2.0, label: t('nodeconfig.pdf.scale2') },
+    { value: 3.0, label: t('nodeconfig.pdf.scale3') },
   ]
   return (
     <div>
-      <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">Render scale</label>
+      <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.pdf.renderScale')}</label>
       <div className="flex flex-col gap-1">
         {options.map(opt => (
           <button
@@ -523,18 +536,19 @@ interface OutputConfigProps {
 }
 
 function OutputConfig({ outputFolder, onChange }: OutputConfigProps) {
+  const { t } = useI18n()
   return (
     <div>
-      <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">Output folder</label>
+      <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.output.folder')}</label>
       <input
         type="text"
         value={outputFolder ?? ''}
         onChange={e => onChange(e.target.value)}
-        placeholder="e.g. exports/invoices"
+        placeholder={t('nodeconfig.output.placeholder')}
         className="w-full rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-1.5 text-[12px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
       />
       <p className="mt-1.5 text-[10px] leading-relaxed text-[var(--c-text-5)]">
-        Relative path within storage. Leave empty to skip copying.
+        {t('nodeconfig.output.hint')}
       </p>
     </div>
   )
@@ -565,17 +579,19 @@ const REQ_BADGE: Record<string, string> = {
 }
 
 function ShowResultsConfig() {
+  const { t } = useI18n()
   return (
     <div>
-      <p className="mb-2 text-[11px] font-medium text-[var(--c-text-4)]">About</p>
+      <p className="mb-2 text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.about')}</p>
       <p className="text-[11px] leading-relaxed text-[var(--c-text-5)]">
-        Add this node to display results on the Dashboard widget. When a run completes, the dashboard will show the output inline.
+        {t('nodeconfig.showResults.about')}
       </p>
     </div>
   )
 }
 
 function ValidateDocumentsConfig({ nodeId, policyId, failOnMissing, onChangePolicyId, onChangeFailOnMissing }: ValidateDocumentsConfigProps) {
+  const { t } = useI18n()
   const { data: policies } = usePolicies()
   const { data: policy } = usePolicy(policyId ?? null)
   const { activeRunId } = useRunContext()
@@ -597,7 +613,7 @@ function ValidateDocumentsConfig({ nodeId, policyId, failOnMissing, onChangePoli
       {/* Policy selector */}
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-[11px] font-medium text-[var(--c-text-4)]">Policy</label>
+          <label className="text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.validate.policy')}</label>
           {policy && policy.current_version_num > 0 && (
             <span className="font-mono text-[10px] text-[var(--c-text-5)]">v{policy.current_version_num}</span>
           )}
@@ -610,7 +626,7 @@ function ValidateDocumentsConfig({ nodeId, policyId, failOnMissing, onChangePoli
           }}
           className="w-full rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-2.5 py-1.5 text-[12px] text-[var(--c-text-2)] outline-none transition-colors focus:border-indigo-500/50"
         >
-          <option value="">— Select a policy —</option>
+          <option value="">{t('nodeconfig.validate.selectPolicy')}</option>
           {policies?.map(p => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
@@ -621,7 +637,7 @@ function ValidateDocumentsConfig({ nodeId, policyId, failOnMissing, onChangePoli
       {rules.length > 0 && (
         <div>
           <p className="mb-2 text-[11px] font-medium text-[var(--c-text-4)]">
-            Rules
+            {t('nodeconfig.validate.rules')}
             <span className="ml-1 font-normal text-[var(--c-text-5)]">({rules.length})</span>
           </p>
           <div className="flex flex-col gap-1.5">
@@ -653,12 +669,12 @@ function ValidateDocumentsConfig({ nodeId, policyId, failOnMissing, onChangePoli
                       )}
                     </div>
                     <span className={`shrink-0 rounded px-1 py-0.5 text-[9px] font-medium ${REQ_BADGE[rule.requirement] ?? ''}`}>
-                      {rule.requirement}
+                      {rule.requirement === 'optional' ? t('common.optional') : rule.requirement === 'required' ? t('common.required') : rule.requirement}
                     </span>
                   </div>
                   {result && (
                     <p className="mt-1.5 font-mono text-[9px] text-[var(--c-text-5)]">
-                      {Math.round(result.confidence * 100)}% confidence
+                      {t('nodeconfig.validate.confidence', { percent: Math.round(result.confidence * 100) })}
                     </p>
                   )}
                 </div>
@@ -675,15 +691,15 @@ function ValidateDocumentsConfig({ nodeId, policyId, failOnMissing, onChangePoli
           className="flex w-full items-center justify-center gap-1.5 rounded-md border border-violet-500/20 py-2 text-[11px] font-medium text-violet-400 transition-colors hover:bg-violet-500/10"
         >
           <ArrowUpRight size={11} />
-          View full results
+          {t('nodeconfig.validate.viewResults')}
         </button>
       )}
 
       {/* Fail on rejection toggle */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] font-medium text-[var(--c-text-4)]">Fail run on rejection</p>
-          <p className="text-[10px] text-[var(--c-text-5)]">Stop workflow if required rules fail</p>
+          <p className="text-[11px] font-medium text-[var(--c-text-4)]">{t('nodeconfig.validate.failTitle')}</p>
+          <p className="text-[10px] text-[var(--c-text-5)]">{t('nodeconfig.validate.failHint')}</p>
         </div>
         <button
           onClick={() => onChangeFailOnMissing(!failOn)}

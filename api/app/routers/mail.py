@@ -139,6 +139,14 @@ def inbound_mail(body: MailInboundRequest, db: Session = Depends(get_db)):
         else:
             definition = latest_version.definition if latest_version else workflow.definition
             trigger_run(run.id, definition, [doc])
+    else:
+        # No attachment: the document pipeline has nothing to process. Fail the
+        # run cleanly so it doesn't linger in "pending" forever.
+        from datetime import datetime, UTC
+        run.status = "failed"
+        run.error = "No document attached — a validation needs at least one document."
+        run.completed_at = datetime.now(UTC)
+        db.commit()
 
     db.refresh(run)
     return run

@@ -12,18 +12,12 @@ import {
 import { useDocumentTypes } from '../api/library'
 import { useReferenceLists } from '../api/referenceLists'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useI18n } from '../context/i18n'
 import type { PolicyRule, PolicyVersion } from '../types/workflow'
 
 const REQUIREMENTS = ['required', 'optional'] as const
-const REQUIREMENT_LABELS: Record<string, string> = { required: 'Required', optional: 'Optional' }
 
 const SCOPES = ['per_document', 'any_document', 'cross_set'] as const
-const SCOPE_LABELS: Record<string, string> = { per_document: 'Each doc', any_document: 'Any doc', cross_set: 'Across set' }
-const SCOPE_HINTS: Record<string, string> = {
-  per_document: 'Every relevant document must satisfy it (documents the rule is not about are ignored)',
-  any_document: 'Passes if at least one relevant document satisfies it (e.g. the packet must contain a valid passport)',
-  cross_set: 'Evaluated once across the whole document set (cross-document consistency)',
-}
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -42,6 +36,7 @@ function PolicyVersionsModal({
 }: {
   policyId: number; currentVersionNum: number; onClose: () => void; onRestored: () => void
 }) {
+  const { t } = useI18n()
   const { data: versions, isLoading } = usePolicyVersions(policyId)
   const restore = useRestorePolicyVersion()
 
@@ -56,8 +51,8 @@ function PolicyVersionsModal({
       <div className="w-[480px] rounded-xl border border-[var(--c-border-2)] bg-[var(--c-surface)] shadow-2xl">
         <div className="flex items-center justify-between border-b border-[var(--c-border)] px-5 py-4">
           <div>
-            <p className="text-[14px] font-semibold text-[var(--c-text-1)]">Version history</p>
-            <p className="mt-0.5 text-[12px] text-[var(--c-text-4)]">Each save creates a snapshot</p>
+            <p className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('policy.versions.title')}</p>
+            <p className="mt-0.5 text-[12px] text-[var(--c-text-4)]">{t('policy.versions.subtitle')}</p>
           </div>
           <button onClick={onClose} className="rounded p-1 text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]">
             <X size={14} />
@@ -65,10 +60,10 @@ function PolicyVersionsModal({
         </div>
         <div className="max-h-[480px] overflow-y-auto">
           {isLoading ? (
-            <div className="px-5 py-8 text-center text-[12px] text-[var(--c-text-5)]">Loading…</div>
+            <div className="px-5 py-8 text-center text-[12px] text-[var(--c-text-5)]">{t('common.loading')}</div>
           ) : !versions?.length ? (
             <div className="px-5 py-8 text-center text-[12px] text-[var(--c-text-5)]">
-              No versions yet. Save to create the first snapshot.
+              {t('policy.versions.empty')}
             </div>
           ) : (
             <div className="divide-y divide-[var(--c-divider)]">
@@ -83,13 +78,13 @@ function PolicyVersionsModal({
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-[13px] font-medium text-[var(--c-text-2)]">v{v.version_num}</span>
                         {isCurrent && (
-                          <span className="rounded bg-indigo-600/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-400 ring-1 ring-indigo-500/20">current</span>
+                          <span className="rounded bg-indigo-600/20 px-1.5 py-0.5 text-[10px] font-medium text-indigo-400 ring-1 ring-indigo-500/20">{t('policy.versions.current')}</span>
                         )}
                       </div>
                       <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--c-text-5)]">
                         <span>{timeAgo(v.created_at)}</span>
                         <span>·</span>
-                        <span>{v.rule_count} rule{v.rule_count !== 1 ? 's' : ''}</span>
+                        <span>{t(v.rule_count !== 1 ? 'policy.versions.ruleCountPlural' : 'policy.versions.ruleCount', { count: v.rule_count })}</span>
                       </div>
                     </div>
                     {!isCurrent && (
@@ -99,7 +94,7 @@ function PolicyVersionsModal({
                         className="flex shrink-0 items-center gap-1.5 rounded border border-[var(--c-border-2)] px-2.5 py-1.5 text-[11px] font-medium text-[var(--c-text-4)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)] disabled:opacity-40"
                       >
                         <RotateCcw size={11} />
-                        Restore
+                        {t('btn.restore')}
                       </button>
                     )}
                   </div>
@@ -127,6 +122,7 @@ interface RuleCardProps {
 }
 
 function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown, isFirst, isLast }: RuleCardProps) {
+  const { t } = useI18n()
   const updateRule = useUpdateRule()
   const deleteRule = useDeleteRule()
   const { data: referenceLists } = useReferenceLists()
@@ -170,16 +166,16 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
           onBlur={saveName}
           onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur() } else if (e.key === 'Escape') { setNameDraft(rule.name); e.currentTarget.blur() } }}
           className="min-w-0 flex-1 rounded bg-transparent px-1 py-0.5 text-[14px] font-semibold text-[var(--c-text-1)] outline-none placeholder-[var(--c-text-5)] caret-indigo-400 transition-colors hover:bg-[var(--c-hover-2)] focus:bg-[var(--c-surface-3)] focus:ring-1 focus:ring-indigo-500/30"
-          placeholder="Rule name…"
+          placeholder={t('policy.rule.namePlaceholder')}
         />
 
         {/* Scope (reach) pills — per-document vs across-set */}
-        <div className="flex shrink-0 items-center gap-1" title={SCOPE_HINTS[rule.scope ?? 'per_document']}>
+        <div className="flex shrink-0 items-center gap-1" title={t(`policy.rule.scopeHint.${rule.scope ?? 'per_document'}`)}>
           {SCOPES.map(sc => (
             <button
               key={sc}
               onClick={() => update('scope', sc)}
-              title={SCOPE_HINTS[sc]}
+              title={t(`policy.rule.scopeHint.${sc}`)}
               className={[
                 'rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors',
                 (rule.scope ?? 'per_document') === sc
@@ -191,7 +187,7 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
                   : 'text-[var(--c-text-5)] hover:text-[var(--c-text-4)]',
               ].join(' ')}
             >
-              {SCOPE_LABELS[sc]}
+              {t(`policy.rule.scope.${sc}`)}
             </button>
           ))}
         </div>
@@ -213,7 +209,7 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
                   : 'text-[var(--c-text-5)] hover:text-[var(--c-text-4)]',
               ].join(' ')}
             >
-              {REQUIREMENT_LABELS[req]}
+              {t(req === 'required' ? 'common.required' : 'common.optional')}
             </button>
           ))}
         </div>
@@ -227,7 +223,7 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
             <ChevronDown size={12} />
           </button>
           <button
-            onClick={() => { if (confirm('Delete this rule?')) deleteRule.mutate({ policyId, ruleId: rule.id }) }}
+            onClick={() => { if (confirm(t('policy.rule.deleteConfirm'))) deleteRule.mutate({ policyId, ruleId: rule.id }) }}
             className="ml-0.5 rounded p-1 text-[var(--c-text-5)] transition-colors hover:bg-red-500/10 hover:text-red-400"
           >
             <Trash2 size={12} />
@@ -240,13 +236,13 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
         <div className="bg-[var(--c-surface)] px-4 py-3">
           <div className="mb-2 flex items-center gap-1.5">
             <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/70">Accept when</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/70">{t('policy.rule.acceptWhen')}</span>
           </div>
           <textarea
             value={acceptDraft}
             onChange={e => setAcceptDraft(e.target.value)}
             onBlur={() => update('accept_criteria', acceptDraft || null)}
-            placeholder="Describe what makes this check pass…"
+            placeholder={t('policy.rule.acceptPlaceholder')}
             rows={3}
             className="w-full resize-none bg-transparent text-[12px] leading-relaxed text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none"
           />
@@ -254,13 +250,13 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
         <div className="bg-[var(--c-surface)] px-4 py-3">
           <div className="mb-2 flex items-center gap-1.5">
             <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400/70">Fail when</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400/70">{t('policy.rule.failWhen')}</span>
           </div>
           <textarea
             value={failDraft}
             onChange={e => setFailDraft(e.target.value)}
             onBlur={() => update('fail_criteria', failDraft || null)}
-            placeholder="Describe what makes this check fail…"
+            placeholder={t('policy.rule.failPlaceholder')}
             rows={3}
             className="w-full resize-none bg-transparent text-[12px] leading-relaxed text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none"
           />
@@ -274,46 +270,46 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
           className="flex w-full items-center gap-2 px-4 py-2 text-[11px] text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]"
         >
           <ChevronRight size={10} className={`transition-transform ${showAdvanced ? 'rotate-90' : ''}`} />
-          Advanced
+          {t('policy.rule.advanced')}
           {hasAdvanced && (
-            <span className="ml-auto rounded bg-indigo-500/12 px-1.5 py-0.5 text-[9px] text-indigo-400">configured</span>
+            <span className="ml-auto rounded bg-indigo-500/12 px-1.5 py-0.5 text-[9px] text-indigo-400">{t('policy.rule.configured')}</span>
           )}
         </button>
 
         {showAdvanced && (
           <div className="flex flex-col gap-4 px-4 pb-4 pt-1">
             <div>
-              <label className="mb-1 block text-[10px] font-medium text-[var(--c-text-5)]">Document type</label>
+              <label className="mb-1 block text-[10px] font-medium text-[var(--c-text-5)]">{t('policy.rule.documentType')}</label>
               <select
                 value={rule.document_type_id ?? ''}
                 onChange={e => update('document_type_id', e.target.value ? Number(e.target.value) : null)}
                 className="w-full rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2.5 py-1.5 text-[11px] text-[var(--c-text-2)] outline-none transition-colors focus:border-indigo-500/50"
               >
-                <option value="">— None —</option>
+                <option value="">— {t('common.none')} —</option>
                 {docTypeOptions.map(dt => <option key={dt.id} value={dt.id}>{dt.name}</option>)}
               </select>
             </div>
 
             {/* Reference-list check (Phase 7) */}
             <div>
-              <label className="mb-1 block text-[10px] font-medium text-[var(--c-text-5)]">Check against a reference list</label>
+              <label className="mb-1 block text-[10px] font-medium text-[var(--c-text-5)]">{t('policy.rule.referenceCheck')}</label>
               <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--c-text-4)]">
-                <span>The value must be</span>
+                <span>{t('policy.rule.valueMustBe')}</span>
                 <select
                   value={rule.reference_direction ?? 'in'}
                   onChange={e => update('reference_direction', e.target.value)}
                   disabled={!rule.reference_list_id}
                   className="rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2 py-1 text-[11px] text-[var(--c-text-2)] outline-none transition-colors focus:border-indigo-500/50 disabled:opacity-50"
                 >
-                  <option value="in">in</option>
-                  <option value="not_in">not in</option>
+                  <option value="in">{t('policy.rule.direction.in')}</option>
+                  <option value="not_in">{t('policy.rule.direction.not_in')}</option>
                 </select>
                 <select
                   value={rule.reference_list_id ?? ''}
                   onChange={e => update('reference_list_id', e.target.value ? Number(e.target.value) : null)}
                   className="min-w-[140px] rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2 py-1 text-[11px] text-[var(--c-text-2)] outline-none transition-colors focus:border-indigo-500/50"
                 >
-                  <option value="">— no list —</option>
+                  <option value="">{t('policy.rule.noList')}</option>
                   {(referenceLists ?? []).map(rl => (
                     <option key={rl.id} value={rl.id}>{rl.name} ({rl.items.length})</option>
                   ))}
@@ -321,14 +317,14 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
               </div>
               {rule.reference_list_id && (
                 <div className="mt-2 flex items-center gap-1">
-                  <span className="mr-1 text-[10px] text-[var(--c-text-5)]">Match:</span>
+                  <span className="mr-1 text-[10px] text-[var(--c-text-5)]">{t('policy.rule.match')}</span>
                   {(['exact', 'smart'] as const).map(m => (
                     <button
                       key={m}
                       onClick={() => update('reference_match', m)}
                       title={m === 'exact'
-                        ? 'Safest — the value must match a list entry precisely (case-insensitive)'
-                        : 'Tolerant of spelling, casing, and formatting variations'}
+                        ? t('policy.rule.matchHint.exact')
+                        : t('policy.rule.matchHint.smart')}
                       className={[
                         'rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors',
                         (rule.reference_match ?? 'smart') === m
@@ -336,23 +332,23 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
                           : 'text-[var(--c-text-5)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-3)]',
                       ].join(' ')}
                     >
-                      {m === 'exact' ? 'Exact' : 'Smart'}
+                      {m === 'exact' ? t('policy.rule.match.exact') : t('policy.rule.match.smart')}
                     </button>
                   ))}
                   {(referenceLists ?? []).length === 0 && (
-                    <span className="ml-2 text-[10px] text-[var(--c-text-5)]">Create lists in Library → Reference lists</span>
+                    <span className="ml-2 text-[10px] text-[var(--c-text-5)]">{t('policy.rule.noListsHint')}</span>
                   )}
                 </div>
               )}
             </div>
 
             <div>
-              <label className="mb-1 block text-[10px] font-medium text-[var(--c-text-5)]">Extra AI instructions</label>
+              <label className="mb-1 block text-[10px] font-medium text-[var(--c-text-5)]">{t('policy.rule.aiInstructions')}</label>
               <textarea
                 value={aiDraft}
                 onChange={e => setAiDraft(e.target.value)}
                 onBlur={() => update('ai_instructions', aiDraft || null)}
-                placeholder="Extra guidance for the AI — e.g. cross-check name against cover page, ignore stamps"
+                placeholder={t('policy.rule.aiPlaceholder')}
                 rows={2}
                 className="w-full resize-none rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2.5 py-1.5 text-[11px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50"
               />
@@ -360,7 +356,7 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
 
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-[10px] font-medium text-[var(--c-text-5)]">Confidence threshold</label>
+                <label className="text-[10px] font-medium text-[var(--c-text-5)]">{t('policy.rule.confidenceThreshold')}</label>
                 <span className="font-mono text-[11px] font-medium text-[var(--c-text-3)]">{Math.round(rule.confidence_threshold * 100)}%</span>
               </div>
               <input
@@ -370,7 +366,7 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
                 onChange={e => update('confidence_threshold', Number(e.target.value) / 100)}
                 className="w-full accent-indigo-500"
               />
-              <p className="mt-1 text-[10px] text-[var(--c-text-5)]">Results below this threshold are flagged as uncertain.</p>
+              <p className="mt-1 text-[10px] text-[var(--c-text-5)]">{t('policy.rule.confidenceHint')}</p>
             </div>
           </div>
         )}
@@ -384,6 +380,7 @@ function RuleCard({ rule, policyId, index, docTypeOptions, onMoveUp, onMoveDown,
 export function PolicyEditor() {
   const { id } = useParams<{ id: string }>()
   const policyId = Number(id)
+  const { t } = useI18n()
 
   const { data: policy, isLoading } = usePolicy(policyId)
   const { data: docTypes } = useDocumentTypes()
@@ -464,11 +461,11 @@ export function PolicyEditor() {
         {/* ── Header ── */}
         <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] px-6">
           <Link to="/validate" className="text-[12px] text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]">
-            Checks
+            {t('nav.checks')}
           </Link>
           <ChevronRight size={12} className="shrink-0 text-[var(--c-text-5)]" />
           <span className="max-w-[220px] truncate text-[13px] font-medium text-[var(--c-text-3)]">
-            {name || 'Untitled'}
+            {name || t('common.untitled')}
           </span>
           {dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />}
 
@@ -484,7 +481,7 @@ export function PolicyEditor() {
               className="flex h-7 items-center gap-1.5 rounded border border-[var(--c-border-2)] px-3 text-[12px] text-[var(--c-text-3)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)]"
             >
               <History size={11} />
-              History
+              {t('policy.editor.history')}
             </button>
             <button
               onClick={handleSave}
@@ -492,7 +489,7 @@ export function PolicyEditor() {
               className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
             >
               {saveState === 'saving' ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-              {saveState === 'saved' ? 'Saved' : 'Save'}
+              {saveState === 'saving' ? t('btn.saving') : saveState === 'saved' ? t('policy.editor.saved') : t('btn.save')}
             </button>
           </div>
         </header>
@@ -505,25 +502,25 @@ export function PolicyEditor() {
 
             {/* Name */}
             <div className="border-b border-[var(--c-border)] px-5 py-5">
-              <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">Name</label>
+              <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('policy.field.name')}</label>
               <input
                 value={name}
                 onChange={e => { setName(e.target.value); markDirty() }}
                 className="w-full bg-transparent text-[15px] font-semibold text-[var(--c-text-1)] outline-none placeholder-[var(--c-text-5)]"
-                placeholder="Policy name"
+                placeholder={t('policy.editor.namePlaceholder')}
               />
             </div>
 
             {/* Brief */}
             <div className="border-b border-[var(--c-border)] px-5 py-4">
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">Brief</label>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('policy.field.brief')}</label>
               <p className="mb-2 text-[11px] leading-relaxed text-[var(--c-text-5)]">
-                Sent verbatim to the AI as context before evaluating each rule.
+                {t('policy.field.briefHint')}
               </p>
               <textarea
                 value={brief}
                 onChange={e => { setBrief(e.target.value); markDirty() }}
-                placeholder="Describe what this policy validates. E.g. 'Validates a mortgage application packet — the applicant must prove identity, income, and address.'"
+                placeholder={t('policy.field.briefPlaceholder')}
                 rows={7}
                 className="w-full resize-none bg-transparent text-[12px] leading-relaxed text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none"
               />
@@ -536,9 +533,9 @@ export function PolicyEditor() {
                 className="flex w-full items-center gap-2 text-left"
               >
                 <Mail size={12} className="shrink-0 text-[var(--c-text-4)]" />
-                <span className="flex-1 text-[12px] font-medium text-[var(--c-text-2)]">Email Inbox</span>
+                <span className="flex-1 text-[12px] font-medium text-[var(--c-text-2)]">{t('policy.email.title')}</span>
                 {policy?.email_inbox_enabled && (
-                  <span className="rounded bg-indigo-500/12 px-1.5 py-0.5 text-[9px] text-indigo-400 ring-1 ring-indigo-500/20">on</span>
+                  <span className="rounded bg-indigo-500/12 px-1.5 py-0.5 text-[9px] text-indigo-400 ring-1 ring-indigo-500/20">{t('policy.email.on')}</span>
                 )}
                 <ChevronRight size={10} className={`shrink-0 text-[var(--c-text-5)] transition-transform ${showEmailSettings ? 'rotate-90' : ''}`} />
               </button>
@@ -554,7 +551,7 @@ export function PolicyEditor() {
                         className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-indigo-500/30 bg-indigo-500/10 text-[11px] text-indigo-400 transition-colors hover:bg-indigo-500/20"
                       >
                         {disableInbox.isPending && <Loader2 size={10} className="animate-spin" />}
-                        Inbox enabled — click to disable
+                        {t('policy.email.enabledClickDisable')}
                       </button>
                     ) : (
                       <button
@@ -563,7 +560,7 @@ export function PolicyEditor() {
                         className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-[var(--c-border-2)] text-[11px] text-[var(--c-text-4)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)]"
                       >
                         {enableInbox.isPending && <Loader2 size={10} className="animate-spin" />}
-                        Enable inbox
+                        {t('policy.email.enable')}
                       </button>
                     )
                   )}
@@ -581,10 +578,9 @@ export function PolicyEditor() {
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-medium text-[var(--c-text-5)]">Reply when</label>
+                        <label className="mb-1.5 block text-[10px] font-medium text-[var(--c-text-5)]">{t('policy.email.replyWhen')}</label>
                         <div className="grid grid-cols-2 gap-1">
                           {(['always', 'on_pass', 'on_fail', 'never'] as const).map(mode => {
-                            const labels: Record<string, string> = { always: 'Always', on_pass: 'Pass', on_fail: 'Fail', never: 'Never' }
                             const active = emailReplyMode === mode
                             return (
                               <button
@@ -597,7 +593,7 @@ export function PolicyEditor() {
                                     : 'bg-[var(--c-surface-2)] text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)]',
                                 ].join(' ')}
                               >
-                                {labels[mode]}
+                                {t(`policy.email.reply.${mode}`)}
                               </button>
                             )
                           })}
@@ -606,11 +602,11 @@ export function PolicyEditor() {
 
                       {(emailReplyMode === 'always' || emailReplyMode === 'on_pass') && (
                         <div>
-                          <label className="mb-1 block text-[10px] font-medium text-emerald-400/80">Pass message</label>
+                          <label className="mb-1 block text-[10px] font-medium text-emerald-400/80">{t('policy.email.passMessage')}</label>
                           <textarea
                             value={emailPassMessage}
                             onChange={e => { setEmailPassMessage(e.target.value); markDirty() }}
-                            placeholder="Leave blank for default summary."
+                            placeholder={t('policy.email.passPlaceholder')}
                             rows={3}
                             className="w-full resize-none rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2.5 py-2 text-[11px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50"
                           />
@@ -619,14 +615,14 @@ export function PolicyEditor() {
 
                       {(emailReplyMode === 'always' || emailReplyMode === 'on_fail') && (
                         <div>
-                          <label className="mb-1 block text-[10px] font-medium text-red-400/80">Fail message</label>
+                          <label className="mb-1 block text-[10px] font-medium text-red-400/80">{t('policy.email.failMessage')}</label>
                           <p className="mb-1.5 text-[10px] text-[var(--c-text-5)]">
-                            Use <code className="rounded bg-[var(--c-surface-3)] px-1 font-mono text-[9px] text-amber-400">{'{{failed_rules}}'}</code> to include failed checks.
+                            {t('policy.email.failHintPre')} <code className="rounded bg-[var(--c-surface-3)] px-1 font-mono text-[9px] text-amber-400">{'{{failed_rules}}'}</code> {t('policy.email.failHintPost')}
                           </p>
                           <textarea
                             value={emailFailMessage}
                             onChange={e => { setEmailFailMessage(e.target.value); markDirty() }}
-                            placeholder={"e.g. Verification failed:\n\n{{failed_rules}}\n\nPlease resubmit."}
+                            placeholder={t('policy.email.failPlaceholder')}
                             rows={5}
                             className="w-full resize-none rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-2.5 py-2 text-[11px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50"
                           />
@@ -643,21 +639,21 @@ export function PolicyEditor() {
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <div className="flex h-[44px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-6">
               <div className="flex items-center gap-2.5">
-                <span className="text-[12px] font-semibold text-[var(--c-text-2)]">Rules</span>
+                <span className="text-[12px] font-semibold text-[var(--c-text-2)]">{t('policy.rules.title')}</span>
                 <span className="rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--c-text-4)]">
                   {policy?.rules.length ?? 0}
                 </span>
                 <span className="text-[11px] text-[var(--c-text-5)]">
-                  All required rules must pass for the policy to pass
+                  {t('policy.rules.allRequiredMustPass')}
                 </span>
               </div>
               <button
-                onClick={() => createRule.mutate({ policyId, name: 'New rule', requirement: 'required' })}
+                onClick={() => createRule.mutate({ policyId, name: t('policy.rules.newRuleName'), requirement: 'required' })}
                 disabled={createRule.isPending}
                 className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
               >
                 {createRule.isPending ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
-                Add rule
+                {t('policy.rules.add')}
               </button>
             </div>
 
@@ -668,16 +664,16 @@ export function PolicyEditor() {
                     <Plus size={16} className="text-[var(--c-text-5)]" />
                   </div>
                   <div>
-                    <p className="text-[13px] font-medium text-[var(--c-text-4)]">No rules yet</p>
+                    <p className="text-[13px] font-medium text-[var(--c-text-4)]">{t('policy.rules.empty.title')}</p>
                     <p className="mt-1 max-w-[280px] text-[11px] leading-relaxed text-[var(--c-text-5)]">
-                      The brief alone guides the AI. Add rules to enforce specific required checks with explicit pass/fail criteria.
+                      {t('policy.rules.empty.subtitle')}
                     </p>
                   </div>
                   <button
-                    onClick={() => createRule.mutate({ policyId, name: 'New rule', requirement: 'required' })}
+                    onClick={() => createRule.mutate({ policyId, name: t('policy.rules.newRuleName'), requirement: 'required' })}
                     className="mt-1 flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500"
                   >
-                    <Plus size={11} /> Add first rule
+                    <Plus size={11} /> {t('policy.rules.addFirst')}
                   </button>
                 </div>
               ) : (

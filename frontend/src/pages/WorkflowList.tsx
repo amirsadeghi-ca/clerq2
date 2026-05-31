@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, GitBranch, Archive, Loader2, ChevronRight, Clock, ArchiveRestore, Star, Mail } from 'lucide-react'
 import { useWorkflows, useCreateWorkflow, useArchiveWorkflow, useUnarchiveWorkflow, useFavoriteWorkflow, useUnfavoriteWorkflow, useEnableWorkflowInbox, useDisableWorkflowInbox } from '../api/workflows'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useI18n } from '../context/i18n'
 
 export function WorkflowList() {
   const navigate = useNavigate()
+  const { t } = useI18n()
   const [showArchived, setShowArchived] = useState(false)
   const { data: workflows, isLoading } = useWorkflows(showArchived)
   const createWf = useCreateWorkflow()
@@ -33,7 +35,7 @@ export function WorkflowList() {
         {/* Page header */}
         <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-8">
           <div className="flex items-center gap-3">
-            <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">Workflows</h1>
+            <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('workflows.title')}</h1>
             <button
               onClick={() => setShowArchived(v => !v)}
               className={[
@@ -44,14 +46,14 @@ export function WorkflowList() {
               ].join(' ')}
             >
               <Archive size={11} />
-              {showArchived ? 'Hide archived' : 'Show archived'}
+              {showArchived ? t('workflows.hideArchived') : t('workflows.showArchived')}
             </button>
           </div>
           <button
             onClick={() => setCreating(true)}
             className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500"
           >
-            <Plus size={13} strokeWidth={2.5} /> New workflow
+            <Plus size={13} strokeWidth={2.5} /> {t('workflows.new')}
           </button>
         </header>
 
@@ -66,7 +68,7 @@ export function WorkflowList() {
                 autoFocus
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                placeholder="Workflow name…"
+                placeholder={t('workflows.namePlaceholder')}
                 className="flex-1 rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-1.5 text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none transition-colors focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
               />
               <button
@@ -75,21 +77,21 @@ export function WorkflowList() {
                 className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white disabled:opacity-40 transition-colors hover:bg-indigo-500"
               >
                 {createWf.isPending && <Loader2 size={11} className="animate-spin" />}
-                Create
+                {createWf.isPending ? t('btn.creating') : t('btn.create')}
               </button>
               <button
                 type="button"
                 onClick={() => { setCreating(false); setNewName('') }}
                 className="h-7 rounded px-2 text-[12px] text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]"
               >
-                Cancel
+                {t('btn.cancel')}
               </button>
             </form>
           )}
 
           {isLoading ? (
             <div className="flex items-center gap-2 px-8 py-6 text-[13px] text-[var(--c-text-5)]">
-              <Loader2 size={14} className="animate-spin" /> Loading…
+              <Loader2 size={14} className="animate-spin" /> {t('common.loading')}
             </div>
           ) : workflows?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 text-center">
@@ -97,17 +99,17 @@ export function WorkflowList() {
                 <GitBranch size={20} className="text-[var(--c-text-5)]" />
               </div>
               <p className="text-[13px] font-medium text-[var(--c-text-4)]">
-                {showArchived ? 'No archived workflows' : 'No workflows yet'}
+                {showArchived ? t('workflows.empty.archived.title') : t('workflows.empty.title')}
               </p>
               <p className="mt-1 text-[12px] text-[var(--c-text-5)]">
-                {showArchived ? 'Archived workflows will appear here' : 'Create one to start processing documents'}
+                {showArchived ? t('workflows.empty.archived.hint') : t('workflows.empty.hint')}
               </p>
               {!showArchived && (
                 <button
                   onClick={() => setCreating(true)}
                   className="mt-5 flex items-center gap-1.5 rounded bg-indigo-600 px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-indigo-500"
                 >
-                  <Plus size={13} /> New workflow
+                  <Plus size={13} /> {t('workflows.new')}
                 </button>
               )}
             </div>
@@ -116,10 +118,10 @@ export function WorkflowList() {
               {/* Table header */}
               <div className="flex items-center px-8 py-2">
                 <span className="w-6 shrink-0" />
-                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-1/2">Name</span>
-                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-14 text-right">Ver.</span>
-                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-16 text-right">Nodes</span>
-                <span className="text-[11px] font-medium text-[var(--c-text-5)] ml-auto mr-16">Updated</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-1/2">{t('workflows.col.name')}</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-14 text-right">{t('workflows.col.version')}</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-16 text-right">{t('workflows.col.nodes')}</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)] ml-auto mr-16">{t('workflows.col.updated')}</span>
               </div>
 
               {workflows?.map(wf => (
@@ -138,7 +140,7 @@ export function WorkflowList() {
                       wf.is_favorite ? unfavoriteWf.mutate(wf.id) : favoriteWf.mutate(wf.id)
                     }}
                     className="mr-1 shrink-0 rounded p-0.5 transition-colors"
-                    title={wf.is_favorite ? 'Remove from dashboard' : 'Add to dashboard'}
+                    title={wf.is_favorite ? t('workflows.star.remove') : t('workflows.star.add')}
                   >
                     <Star
                       size={13}
@@ -151,7 +153,7 @@ export function WorkflowList() {
                     <button
                       onClick={e => { e.stopPropagation(); disableInbox.mutate(wf.id) }}
                       className="mr-2 shrink-0 rounded p-0.5 transition-colors"
-                      title={`Email inbox: ${wf.email_address} — click to disable`}
+                      title={t('workflows.inbox.disable', { address: wf.email_address ?? '' })}
                     >
                       <Mail size={13} className="text-indigo-400" />
                     </button>
@@ -159,7 +161,7 @@ export function WorkflowList() {
                     <button
                       onClick={e => { e.stopPropagation(); enableInbox.mutate(wf.id) }}
                       className="mr-2 shrink-0 rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Enable email inbox"
+                      title={t('workflows.inbox.enable')}
                     >
                       <Mail size={13} className="text-[var(--c-text-6)] hover:text-indigo-400 transition-colors" />
                     </button>
@@ -175,7 +177,7 @@ export function WorkflowList() {
                     </span>
                     {wf.is_archived && (
                       <span className="rounded bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[10px] text-[var(--c-text-5)]">
-                        archived
+                        {t('workflows.archivedBadge')}
                       </span>
                     )}
                   </div>
@@ -200,7 +202,7 @@ export function WorkflowList() {
                         <button
                           onClick={e => { e.stopPropagation(); navigate(`/workflows/${wf.id}/runs`) }}
                           className="rounded p-1 text-[var(--c-text-5)] hover:text-[var(--c-text-3)] hover:bg-[var(--c-hover-3)] transition-colors"
-                          title="Run history"
+                          title={t('workflows.action.runHistory')}
                         >
                           <Clock size={13} />
                         </button>
@@ -209,7 +211,7 @@ export function WorkflowList() {
                         <button
                           onClick={e => { e.stopPropagation(); unarchiveWf.mutate(wf.id) }}
                           className="rounded p-1 text-[var(--c-text-5)] hover:text-[var(--c-text-3)] hover:bg-[var(--c-hover-3)] transition-colors"
-                          title="Unarchive"
+                          title={t('workflows.action.unarchive')}
                         >
                           <ArchiveRestore size={13} />
                         </button>
@@ -217,7 +219,7 @@ export function WorkflowList() {
                         <button
                           onClick={e => { e.stopPropagation(); archiveWf.mutate(wf.id) }}
                           className="rounded p-1 text-[var(--c-text-5)] hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
-                          title="Archive"
+                          title={t('workflows.action.archive')}
                         >
                           <Archive size={13} />
                         </button>

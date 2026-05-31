@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Run, Policy, ValidationOutput, ValidationRuleResult } from '../types/workflow'
+import type { Lang } from './i18n/dictionary'
 import { ReportView, REPORT_CSS } from '../components/ReportView'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -8,7 +9,15 @@ import { ReportView, REPORT_CSS } from '../components/ReportView'
 // The PDF path renders the same ReportView component used on screen into a
 // new print window with the same REPORT_CSS, so the on-screen report and the
 // downloaded PDF are visually identical by construction.
+//
+// These are NOT React components and cannot call useI18n(). The translator
+// `t` (and the active `lang`) are passed in by the caller (ReportPage) so the
+// CSV column headers, PDF document title, and the statically-rendered report
+// markup are localized to match the on-screen page.
 // ──────────────────────────────────────────────────────────────────────────
+
+// Minimal translator signature — matches useI18n()'s `t`.
+type Translate = (key: string, vars?: Record<string, string | number>) => string
 
 function safeFilename(s: string): string {
   return s.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 80) || 'report'
@@ -41,7 +50,21 @@ function baseFilename(run: Run, output: ValidationOutput | null): string {
   return safeFilename(`${date}-${name}${policy}`)
 }
 
+// Map a finding/verdict status value to a localized label (falls back to raw).
+function statusLabel(t: Translate, status: string): string {
+  const map: Record<string, string> = {
+    pass: 'verdict.pass',
+    fail: 'verdict.fail',
+    uncertain: 'verdict.needs_review',
+    not_applicable: 'verdict.not_applicable',
+  }
+  const key = map[status] ?? ''
+  return key ? t(key) : status
+}
+
 // ─── JSON ────────────────────────────────────────────────────────────────
+// JSON is a machine-readable export — keys and status VALUES stay canonical
+// (untranslated) so downstream consumers can parse it reliably.
 
 export function exportReportJSON(run: Run, output: ValidationOutput | null) {
   const payload = {
@@ -73,13 +96,21 @@ export function exportReportJSON(run: Run, output: ValidationOutput | null) {
 
 // ─── CSV ─────────────────────────────────────────────────────────────────
 
-export function exportReportCSV(run: Run, output: ValidationOutput | null) {
+export function exportReportCSV(run: Run, output: ValidationOutput | null, t: Translate) {
   const header = [
-    'rule_name', 'scope', 'requirement', 'ai_status', 'effective_status',
-    'confidence_pct', 'evidence', 'reviewer_note', 'reviewer_override_reason',
-    'documents', 'extracted',
+    t('report.csv.rule_name'),
+    t('report.csv.scope'),
+    t('report.csv.requirement'),
+    t('report.csv.ai_status'),
+    t('report.csv.effective_status'),
+    t('report.csv.confidence_pct'),
+    t('report.csv.evidence'),
+    t('report.csv.reviewer_note'),
+    t('report.csv.reviewer_override_reason'),
+    t('report.csv.documents'),
+    t('report.csv.extracted'),
   ]
-  const lines: string[] = [header.join(',')]
+  const lines: string[] = [header.map(csvEscape).join(',')]
 
   const annotations = run.review?.annotations ?? {}
   const results: ValidationRuleResult[] = output?.results ?? []
@@ -87,12 +118,13 @@ export function exportReportCSV(run: Run, output: ValidationOutput | null) {
     const ann = annotations[r.rule_name]
     const effective = ann?.override?.status ?? r.status
     const perDocs = (r.per_document ?? []).map(p => p.document_filename).join('; ')
+    const requirementLabel = r.requirement === 'optional' ? t('common.optional') : t('common.required')
     const row = [
       r.rule_name,
       r.scope ?? 'per_document',
-      r.requirement,
-      r.status,
-      effective,
+      requirementLabel,
+      statusLabel(t, r.status),
+      statusLabel(t, effective),
       Math.round((r.confidence ?? 0) * 100),
       r.evidence ?? '',
       ann?.note ?? '',
@@ -110,13 +142,22 @@ export function exportReportCSV(run: Run, output: ValidationOutput | null) {
 
 // ─── PDF (via print window) ───────────────────────────────────────────────
 
-export function printReportPDF(run: Run, policy: Policy | null | undefined, output: ValidationOutput | null) {
+export function printReportPDF(
+  run: Run,
+  policy: Policy | null | undefined,
+  output: ValidationOutput | null,
+  t: Translate,
+  lang: Lang,
+) {
+  // ReportView is rendered to static markup OUTSIDE the I18nProvider here, so
+  // it cannot read context — pass `t` explicitly so it localizes identically
+  // to the on-screen page.
   const markup = renderToStaticMarkup(
-    createElement(ReportView, { run, policy: policy ?? undefined, output, review: run.review ?? null })
+    createElement(ReportView, { run, policy: policy ?? undefined, output, review: run.review ?? null, t })
   )
-  const title = (run.name ?? `Case ${run.id}`) + ' — Report'
+  const title = `${run.name ?? t('report.case', { id: run.id })} — ${t('report.export.reportSuffix')}`
   const html = `<!doctype html>
-<html lang="en">
+<html lang="${lang === 'fr' ? 'fr-CA' : 'en'}">
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
@@ -145,7 +186,7 @@ export function printReportPDF(run: Run, policy: Policy | null | undefined, outp
   const w = window.open(url, '_blank')
   if (!w) {
     URL.revokeObjectURL(url)
-    alert('Please allow pop-ups to download the PDF.')
+    alert(t('report.export.allowPopups'))
     return
   }
   // Revoke after the new window has had time to load the resource.

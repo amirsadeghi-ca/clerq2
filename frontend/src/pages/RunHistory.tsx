@@ -5,17 +5,26 @@ import { useRuns } from '../api/runs'
 import { useWorkflow } from '../api/workflows'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { LogViewer } from '../components/LogViewer'
+import { useI18n } from '../context/i18n'
 import type { Run, RunStep, RunStatus } from '../types/workflow'
 
-const NODE_LABELS: Record<string, string> = {
-  input: 'Document Input',
-  email_input: 'Email Input',
-  pdf_to_images: 'PDF → Images',
-  ai: 'AI',
-  validate_documents: 'Validate Documents',
-  output: 'Collect Output',
-  send_email: 'Send Email',
-  show_results: 'Show Results',
+const NODE_KEYS: Record<string, string> = {
+  input: 'workflows.node.input',
+  email_input: 'workflows.node.email_input',
+  pdf_to_images: 'workflows.node.pdf_to_images',
+  ai: 'workflows.node.ai',
+  validate_documents: 'workflows.node.validate_documents',
+  output: 'workflows.node.output',
+  send_email: 'workflows.node.send_email',
+  show_results: 'workflows.node.show_results',
+}
+
+const STATUS_KEYS: Record<string, string> = {
+  pending: 'status.pending',
+  running: 'status.running',
+  completed: 'status.completed',
+  failed: 'status.failed',
+  cancelled: 'status.cancelled',
 }
 
 function StatusDot({ status }: { status: RunStatus }) {
@@ -42,6 +51,8 @@ export function RunHistory() {
   const { id } = useParams<{ id: string }>()
   const workflowId = Number(id)
   const navigate = useNavigate()
+  const { t } = useI18n()
+  const nodeLabel = (type: string) => (NODE_KEYS[type] ? t(NODE_KEYS[type]) : type)
   const { data: workflow } = useWorkflow(workflowId)
   const { data: runs, isLoading } = useRuns(workflowId)
   const [logStep, setLogStep] = useState<{ step: RunStep; runId: number } | null>(null)
@@ -53,7 +64,7 @@ export function RunHistory() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-[52px] shrink-0 items-center gap-1.5 border-b border-[var(--c-border)] px-8">
           <nav className="flex items-center gap-1 text-[13px]">
-            <Link to="/workflows" className="text-[var(--c-text-4)] hover:text-[var(--c-text-3)] transition-colors">Workflows</Link>
+            <Link to="/workflows" className="text-[var(--c-text-4)] hover:text-[var(--c-text-3)] transition-colors">{t('workflows.title')}</Link>
             <ChevronRight size={12} className="text-[var(--c-text-5)]" />
             <Link
               to={`/workflows/${workflowId}`}
@@ -62,32 +73,32 @@ export function RunHistory() {
               {workflow?.name}
             </Link>
             <ChevronRight size={12} className="text-[var(--c-text-5)]" />
-            <span className="text-[var(--c-text-3)]">Runs</span>
+            <span className="text-[var(--c-text-3)]">{t('workflows.runs.crumb')}</span>
           </nav>
         </header>
 
         <main className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center gap-2 px-8 py-6 text-[13px] text-[var(--c-text-5)]">
-              <Loader2 size={14} className="animate-spin" /> Loading…
+              <Loader2 size={14} className="animate-spin" /> {t('common.loading')}
             </div>
           ) : runs?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 text-center">
               <Clock size={24} className="mb-3 text-[var(--c-text-6)]" />
-              <p className="text-[13px] text-[var(--c-text-5)]">No runs yet</p>
+              <p className="text-[13px] text-[var(--c-text-5)]">{t('workflows.runs.empty')}</p>
               <p className="mt-1 text-[12px] text-[var(--c-text-6)]">
-                Trigger a run from the workflow editor.
+                {t('workflows.runs.emptyHint')}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-[var(--c-divider)]">
               {/* Table header */}
               <div className="flex items-center px-8 py-2">
-                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-16">Status</span>
-                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-16">Run</span>
-                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-12">Ver.</span>
-                <span className="text-[11px] font-medium text-[var(--c-text-5)]">Steps</span>
-                <span className="text-[11px] font-medium text-[var(--c-text-5)] ml-auto">Date</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-16">{t('workflows.col.status')}</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-16">{t('workflows.col.run')}</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)] w-12">{t('workflows.col.version')}</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)]">{t('workflows.col.steps')}</span>
+                <span className="text-[11px] font-medium text-[var(--c-text-5)] ml-auto">{t('workflows.col.date')}</span>
               </div>
 
               {runs?.map((run: Run) => (
@@ -96,7 +107,7 @@ export function RunHistory() {
                     {/* Status */}
                     <div className="flex w-16 items-center gap-2">
                       <StatusDot status={run.status} />
-                      <span className="text-[12px] text-[var(--c-text-4)]">{run.status}</span>
+                      <span className="text-[12px] text-[var(--c-text-4)]">{STATUS_KEYS[run.status] ? t(STATUS_KEYS[run.status]) : run.status}</span>
                     </div>
 
                     {/* Run # */}
@@ -123,7 +134,7 @@ export function RunHistory() {
                             <div className="flex items-center gap-1.5 rounded border border-[var(--c-border)] bg-[var(--c-surface-2)] px-2.5 py-1.5">
                               <StepStatus status={step.status} />
                               <span className="text-[11px] text-[var(--c-text-4)]">
-                                {NODE_LABELS[step.node_type] ?? step.node_type}
+                                {nodeLabel(step.node_type)}
                               </span>
                               {step.node_type === 'validate_documents' && !!step.output_data?.policy_name && (
                                 <span className="flex items-center gap-0.5 font-mono text-[10px] text-[var(--c-text-5)]">
@@ -141,7 +152,7 @@ export function RunHistory() {
                                     ? 'text-indigo-400 hover:bg-indigo-500/10'
                                     : 'text-[var(--c-text-6)] hover:text-[var(--c-text-5)]',
                                 ].join(' ')}
-                                title="View logs"
+                                title={t('workflows.runs.viewLogs')}
                               >
                                 <Terminal size={10} />
                                 {hasLogs && <span>{step.logs!.length}</span>}
@@ -183,7 +194,7 @@ export function RunHistory() {
 
       {logStep && (
         <LogViewer
-          title={`Run #${logStep.runId} · ${NODE_LABELS[logStep.step.node_type] ?? logStep.step.node_type} — Logs`}
+          title={t('workflows.runs.logsTitle', { id: logStep.runId, node: nodeLabel(logStep.step.node_type) })}
           logs={logStep.step.logs ?? []}
           onClose={() => setLogStep(null)}
         />

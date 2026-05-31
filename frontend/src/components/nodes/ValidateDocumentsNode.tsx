@@ -5,6 +5,7 @@ import { ShieldCheck, CheckCircle2, XCircle, AlertCircle, ArrowUpRight } from 'l
 import { usePolicy } from '../../api/policies'
 import { useRun } from '../../api/runs'
 import { useRunContext } from '../../context/run'
+import { useI18n } from '../../context/i18n'
 import { ValidationResultsModal } from '../ValidationResultsModal'
 import type { ValidationOutput } from '../../types/workflow'
 
@@ -24,13 +25,14 @@ const OVERALL_BADGE: Record<string, string> = {
   needs_review: 'text-amber-400 bg-amber-500/10 border border-amber-500/25',
 }
 
-const OVERALL_LABEL: Record<string, string> = {
-  pass: 'pass', fail: 'fail', needs_review: 'review',
+const OVERALL_LABEL_KEY: Record<string, string> = {
+  pass: 'verdict.pass', fail: 'verdict.fail', needs_review: 'editor.validate.overall.review',
 }
 
 const MAX_RULES_SHOWN = 5
 
 export function ValidateDocumentsNode({ id, selected, data }: NodeProps) {
+  const { t } = useI18n()
   const policyId = data?.policy_id as number | undefined
   const { data: policy } = usePolicy(policyId ?? null)
   const { activeRunId } = useRunContext()
@@ -70,22 +72,22 @@ export function ValidateDocumentsNode({ id, selected, data }: NodeProps) {
             <ShieldCheck size={13} className="text-violet-400" strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold leading-tight text-[var(--c-text-1)]">Validate Documents</p>
+            <p className="text-[11px] font-semibold leading-tight text-[var(--c-text-1)]">{t('editor.validate.title')}</p>
             {policy ? (
               <p className="truncate text-[10px] leading-tight text-violet-400/70">{policy.name}</p>
             ) : (
               <p className="text-[10px] leading-tight text-[var(--c-text-5)]">
-                {policyId ? 'Loading…' : 'No policy'}
+                {policyId ? t('common.loading') : t('editor.validate.noPolicy')}
               </p>
             )}
           </div>
           {validationOut?.overall ? (
             <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${OVERALL_BADGE[validationOut.overall] ?? ''}`}>
-              {OVERALL_LABEL[validationOut.overall] ?? validationOut.overall}
+              {OVERALL_LABEL_KEY[validationOut.overall] ? t(OVERALL_LABEL_KEY[validationOut.overall]) : validationOut.overall}
             </span>
           ) : (
             <span className="shrink-0 rounded-sm bg-[var(--c-surface-3)] px-1.5 py-0.5 text-[9px] font-medium text-[var(--c-text-5)]">
-              validate
+              {t('editor.validate.badge')}
             </span>
           )}
         </div>
@@ -94,7 +96,7 @@ export function ValidateDocumentsNode({ id, selected, data }: NodeProps) {
         <div className="flex flex-col gap-1 px-3 py-2.5">
           {rules.length === 0 ? (
             <p className="py-0.5 text-[11px] text-[var(--c-text-5)]">
-              {policyId ? 'Loading rules…' : 'Select a policy to see rules'}
+              {policyId ? t('editor.validate.loadingRules') : t('editor.validate.selectPolicy')}
             </p>
           ) : (
             <>
@@ -120,7 +122,7 @@ export function ValidateDocumentsNode({ id, selected, data }: NodeProps) {
                       {rule.name}
                     </span>
                     {rule.requirement === 'optional' && (
-                      <span className="shrink-0 text-[9px] text-[var(--c-text-5)]">opt</span>
+                      <span className="shrink-0 text-[9px] text-[var(--c-text-5)]">{t('editor.validate.opt')}</span>
                     )}
                     {result && (
                       <span className="shrink-0 font-mono text-[9px] text-[var(--c-text-5)]">
@@ -131,7 +133,7 @@ export function ValidateDocumentsNode({ id, selected, data }: NodeProps) {
                 )
               })}
               {hiddenCount > 0 && (
-                <p className="pt-0.5 text-[10px] text-[var(--c-text-5)]">+{hiddenCount} more rules</p>
+                <p className="pt-0.5 text-[10px] text-[var(--c-text-5)]">{t('editor.validate.moreRules', { count: hiddenCount })}</p>
               )}
             </>
           )}
@@ -145,7 +147,7 @@ export function ValidateDocumentsNode({ id, selected, data }: NodeProps) {
               className="flex w-full items-center justify-center gap-1.5 rounded-md py-1.5 text-[11px] font-medium text-violet-400 transition-colors hover:bg-violet-500/10"
             >
               <ArrowUpRight size={11} />
-              View full results
+              {t('editor.validate.viewFullResults')}
             </button>
           </div>
         )}
