@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Building2, ShieldAlert, Users, Plus, X, KeyRound, Pencil, Mail, Copy, RotateCw, Trash2 } from 'lucide-react'
+import { Building2, ShieldAlert, Users, Plus, X, KeyRound, Pencil, Mail, Copy, RotateCw, Trash2, AlertTriangle } from 'lucide-react'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useI18n } from '../context/i18n'
 import { useAuth } from '../context/auth'
 import {
   useAdminTenants, useAdminTenantUsers, useCreateTenant, useUpdateTenant,
-  useCreateUser, useUpdateUser, useSetUserPassword,
+  useCreateUser, useUpdateUser, useSetUserPassword, useDeleteUser,
   type AdminTenant, type AdminUser,
 } from '../api/admin'
 import { useInvites, useCreateInvite, useRevokeInvite, useResendInvite, type Invite } from '../api/tenant'
@@ -233,6 +233,44 @@ function SetPasswordModal({ user, tenantId, onClose }: { user: AdminUser; tenant
   )
 }
 
+function DeleteUserModal({ user, tenantId, onClose }: { user: AdminUser; tenantId: number; onClose: () => void }) {
+  const { t } = useI18n()
+  const del = useDeleteUser(tenantId)
+  const [error, setError] = useState<string | null>(null)
+
+  async function onConfirm() {
+    setError(null)
+    try {
+      await del.mutateAsync(user.id)
+      onClose()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      setError(e.response?.data?.detail || 'Failed')
+    }
+  }
+
+  return (
+    <ModalShell title={t('admin.deleteUser.confirm.title', { email: user.email })} onClose={onClose}>
+      <div className="mb-4 flex gap-3 rounded-lg border border-red-500/25 bg-red-500/8 px-4 py-3">
+        <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-400" />
+        <p className="text-[12px] text-[var(--c-text-2)]">{t('admin.deleteUser.confirm.body')}</p>
+      </div>
+      {error && <div className="mb-3 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">{error}</div>}
+      <div className="flex items-center justify-end gap-2">
+        <button type="button" onClick={onClose} className={SECONDARY_BTN}>{t('btn.cancel')}</button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={del.isPending}
+          className="flex h-7 items-center gap-1.5 rounded bg-red-600 px-4 text-[12px] font-medium text-white hover:bg-red-500 disabled:opacity-40"
+        >
+          {t('admin.deleteUser.confirm.submit')}
+        </button>
+      </div>
+    </ModalShell>
+  )
+}
+
 function InviteFormModal({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const create = useCreateInvite()
@@ -408,6 +446,7 @@ export function AdminPage() {
   const [showTenantModal, setShowTenantModal] = useState<{ existing: AdminTenant | null } | null>(null)
   const [showUserModal, setShowUserModal] = useState<{ existing: AdminUser | null } | null>(null)
   const [passwordModal, setPasswordModal] = useState<AdminUser | null>(null)
+  const [deleteModal, setDeleteModal] = useState<AdminUser | null>(null)
   const [showInviteModal, setShowInviteModal] = useState(false)
 
   const selectedTenant = useMemo(
@@ -588,6 +627,13 @@ export function AdminPage() {
                                 >
                                   <Pencil size={12} />
                                 </button>
+                                <button
+                                  onClick={() => setDeleteModal(u)}
+                                  title={t('admin.deleteUser')}
+                                  className="rounded p-1 text-[var(--c-text-4)] hover:text-red-400 hover:bg-red-500/10"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -610,6 +656,9 @@ export function AdminPage() {
       )}
       {passwordModal && selectedTenant && (
         <SetPasswordModal user={passwordModal} tenantId={selectedTenant.id} onClose={() => setPasswordModal(null)} />
+      )}
+      {deleteModal && selectedTenant && (
+        <DeleteUserModal user={deleteModal} tenantId={selectedTenant.id} onClose={() => setDeleteModal(null)} />
       )}
       {showInviteModal && (
         <InviteFormModal onClose={() => setShowInviteModal(false)} />

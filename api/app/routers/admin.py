@@ -13,7 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.auth import AuthIdentity, Tenant, User
+from app.models.auth import AuthIdentity, PasswordResetToken, Tenant, User
 from app.schemas.admin import (
     AdminSetPasswordRequest,
     AdminTenantCreate,
@@ -232,3 +232,33 @@ def set_password(user_id: int, body: AdminSetPasswordRequest, db: Session = Depe
     db.commit()
     db.refresh(u)
     return _user_out(u)
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    actor: User = Depends(require_superadmin),
+    db: Session = Depends(get_db),
+):
+    """Permanently delete a user across any tenant. Super-admin only.
+    Cannot delete yourself or the last owner of a tenant."""
+    u = db.get(User, user_id)
+    if not u:
+        raise HTTPException(404, "User not found")
+    if u.id == actor.id:
+        raise HTTPException(400, "You cannot delete your own account")
+    _hard_delete_user(db, u)
+    db.commit()
+    return None
+
+
+def _hard_delete_user(db: Session, u: User) -> None:
+    """Delete all auth-layer rows for a user then the user itself.
+    Identities + MFA credentials cascade via SQLAlchemy relationships.
+    Refresh tokens and password-reset tokens are not in those relationships
+    and must be deleted manually first."""
+    from sqlalchemy import text
+    from app.models.auth import RefreshToken
+    db.query(RefreshToken).filter(RefreshToken.user_id == u.id).delete()
+    db.query(PasswordResetToken).filter(PasswordResetToken.user_id == u.id).delete()
+    db.delete(u)  # cascades: identities, mfa_credentials

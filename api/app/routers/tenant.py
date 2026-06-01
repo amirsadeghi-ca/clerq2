@@ -38,7 +38,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.mailer import send_email
-from app.models.auth import AuthIdentity, Tenant, User, UserInvite
+from app.models.auth import AuthIdentity, PasswordResetToken, Tenant, User, UserInvite
 from app.permissions import (
     ALL_PERMISSIONS,
     Permission,
@@ -292,6 +292,45 @@ def set_password(
     db.commit()
     db.refresh(target)
     return _user_out(target)
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    actor: Annotated[User, Depends(require_permission(Permission.TENANT_USERS_DELETE))],
+    db: Session = Depends(get_db),
+):
+    """Permanently delete a user from this tenant.
+
+    Guards:
+    - Cannot delete yourself.
+    - Cannot delete the last owner of the tenant.
+    - Authority rule: admins can only delete members, not other admins/owners.
+    """
+    target = db.get(User, user_id)
+    if not target or target.tenant_id != actor.tenant_id:
+        raise HTTPException(404, "User not found")
+    if target.id == actor.id:
+        raise HTTPException(400, "You cannot delete your own account")
+    if not can_act_on_target_role(actor, target.role):
+        raise HTTPException(403, "You can't delete a user with this role")
+
+    # Refuse if this is the last owner.
+    if target.role == "owner":
+        owner_count = (
+            db.query(User)
+            .filter(User.tenant_id == actor.tenant_id, User.role == "owner", User.is_active.is_(True))
+            .count()
+        )
+        if owner_count <= 1:
+            raise HTTPException(400, "Cannot delete the last owner of a tenant")
+
+    from app.models.auth import RefreshToken
+    db.query(RefreshToken).filter(RefreshToken.user_id == target.id).delete()
+    db.query(PasswordResetToken).filter(PasswordResetToken.user_id == target.id).delete()
+    db.delete(target)  # cascades: identities, mfa_credentials
+    db.commit()
+    return None
 
 
 # ── Invites (this tenant) ────────────────────────────────────────────────

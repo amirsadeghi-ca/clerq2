@@ -93,3 +93,14 @@ export function useSetUserPassword(tenantId: number) {
     onSuccess: () => { qc.invalidateQueries({ queryKey: tenantUsersKey(tenantId) }) },
   })
 }
+
+export function useDeleteUser(tenantId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (userId: number) => { await client.delete(`/admin/users/${userId}`) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: tenantUsersKey(tenantId) })
+      qc.invalidateQueries({ queryKey: tenantsKey })
+    },
+  })
+}

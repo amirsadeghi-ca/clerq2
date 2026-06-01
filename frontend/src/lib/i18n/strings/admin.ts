@@ -47,6 +47,12 @@ export const en = {
   'admin.invite.revoke': 'Revoke',
   'admin.invite.resend': 'Resend',
   'admin.invite.expires': 'Expires {when}',
+
+  'admin.deleteUser': 'Delete user',
+  'admin.deleteUser.confirm.title': 'Delete {email}?',
+  'admin.deleteUser.confirm.body': 'This will permanently remove the user, their password, MFA credentials, and all active sessions. This cannot be undone.',
+  'admin.deleteUser.confirm.submit': 'Delete permanently',
+  'admin.deleteUser.error': 'Could not delete user: {error}',
 }
 
 export const fr = {
@@ -98,4 +104,10 @@ export const fr = {
   'admin.invite.revoke': 'Révoquer',
   'admin.invite.resend': 'Renvoyer',
   'admin.invite.expires': 'Expire le {when}',
+
+  'admin.deleteUser': 'Supprimer l\'utilisateur',
+  'admin.deleteUser.confirm.title': 'Supprimer {email} ?',
+  'admin.deleteUser.confirm.body': "Cette action supprimera définitivement l'utilisateur, son mot de passe, ses identifiants MFA et toutes ses sessions actives. Cette action est irréversible.",
+  'admin.deleteUser.confirm.submit': 'Supprimer définitivement',
+  'admin.deleteUser.error': "Impossible de supprimer l'utilisateur : {error}",
 }

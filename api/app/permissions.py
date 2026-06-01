@@ -34,25 +34,27 @@ from app.security import get_current_user
 
 class Permission:
     # Tenant-level user management
-    TENANT_USERS_INVITE = "tenant.users.invite"
-    TENANT_USERS_REMOVE = "tenant.users.remove"
-    TENANT_USERS_UPDATE_ROLE = "tenant.users.update_role"
-    TENANT_USERS_SET_PASSWORD = "tenant.users.set_password"
-    TENANT_USERS_READ = "tenant.users.read"
+    TENANT_USERS_READ          = "tenant.users.read"
+    TENANT_USERS_INVITE        = "tenant.users.invite"
+    TENANT_USERS_REMOVE        = "tenant.users.remove"    # deactivate (soft, reversible)
+    TENANT_USERS_DELETE        = "tenant.users.delete"    # hard-delete (permanent)
+    TENANT_USERS_UPDATE_ROLE   = "tenant.users.update_role"
+    TENANT_USERS_SET_PASSWORD  = "tenant.users.set_password"
 
     # Tenant settings + permission matrix
-    TENANT_SETTINGS_UPDATE = "tenant.settings.update"
+    TENANT_SETTINGS_UPDATE    = "tenant.settings.update"
     TENANT_PERMISSIONS_MANAGE = "tenant.permissions.manage"
 
 
 ALL_PERMISSIONS: list[dict] = [
-    {"key": Permission.TENANT_USERS_READ,         "label": "View users",            "category": "Users"},
-    {"key": Permission.TENANT_USERS_INVITE,       "label": "Invite users",          "category": "Users"},
-    {"key": Permission.TENANT_USERS_REMOVE,       "label": "Remove users",          "category": "Users"},
-    {"key": Permission.TENANT_USERS_UPDATE_ROLE,  "label": "Change user role",      "category": "Users"},
-    {"key": Permission.TENANT_USERS_SET_PASSWORD, "label": "Reset user password",   "category": "Users"},
-    {"key": Permission.TENANT_SETTINGS_UPDATE,    "label": "Update tenant settings","category": "Tenant"},
-    {"key": Permission.TENANT_PERMISSIONS_MANAGE, "label": "Manage role permissions","category": "Tenant"},
+    {"key": Permission.TENANT_USERS_READ,          "label": "View users",              "category": "Users"},
+    {"key": Permission.TENANT_USERS_INVITE,        "label": "Invite users",            "category": "Users"},
+    {"key": Permission.TENANT_USERS_REMOVE,        "label": "Deactivate users",        "category": "Users"},
+    {"key": Permission.TENANT_USERS_DELETE,        "label": "Delete users permanently","category": "Users"},
+    {"key": Permission.TENANT_USERS_UPDATE_ROLE,   "label": "Change user role",        "category": "Users"},
+    {"key": Permission.TENANT_USERS_SET_PASSWORD,  "label": "Reset user password",     "category": "Users"},
+    {"key": Permission.TENANT_SETTINGS_UPDATE,     "label": "Update tenant settings",  "category": "Tenant"},
+    {"key": Permission.TENANT_PERMISSIONS_MANAGE,  "label": "Manage role permissions", "category": "Tenant"},
 ]
 
 ALL_PERMISSION_KEYS: set[str] = {p["key"] for p in ALL_PERMISSIONS}
@@ -63,6 +65,7 @@ def _users_only() -> set[str]:
         Permission.TENANT_USERS_READ,
         Permission.TENANT_USERS_INVITE,
         Permission.TENANT_USERS_REMOVE,
+        Permission.TENANT_USERS_DELETE,
         Permission.TENANT_USERS_UPDATE_ROLE,
         Permission.TENANT_USERS_SET_PASSWORD,
     }

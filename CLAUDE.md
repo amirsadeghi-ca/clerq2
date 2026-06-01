@@ -2,7 +2,7 @@
 
 > **INSTRUCTION FOR CLAUDE:** After completing any task — no matter how small — update this file to reflect what changed. New files, deleted files, changed conventions, new endpoints, new node types, new environment variables, new gotchas, design decisions. Do this before marking the task done. This file is the single source of truth for the project; keeping it current is part of every task.
 
-> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Clerq2 wordmark. Current version: **1.3.0**.
+> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Clerq2 wordmark. Current version: **1.4.0**.
 
 > **REBUILD AFTER EVERY CHANGE:** After making any code change, always rebuild and restart the affected Docker services so the user sees the result immediately. For frontend changes: `docker compose build frontend && docker compose up -d --no-deps --force-recreate frontend`. For backend/API changes: `docker compose build api worker && docker compose up -d --no-deps --force-recreate api worker`. Never finish a task without confirming the running app reflects the change.
 
@@ -110,7 +110,23 @@ The frontend has a full **`/admin`** page (`frontend/src/pages/AdminPage.tsx`) �
 
 **Permission system (RBAC, per-tenant, code-defined).** Permission keys are namespaced strings declared in `api/app/permissions.py` (`Permission.TENANT_USERS_INVITE`, `Permission.TENANT_USERS_REMOVE`, etc.). The `(role → set of permission keys)` mapping is stored **per tenant** in `tenant_role_permissions(tenant_id, role, permission_key)` so each tenant can later customize. Defaults from `DEFAULT_ROLE_PERMISSIONS` are seeded on tenant creation (see `seed_default_role_permissions()` called from the admin tenant-create endpoint and the alembic seed loop). Today: **owner** = everything, **admin** = invite/remove/update_role/set_password/read users, **member** = nothing. Super-admins (`User.is_superadmin`) bypass these checks. Authority rule beyond permission keys (in `can_act_on_target_role()`): a tenant `admin` cannot invite, remove, change role of, or reset password of another `admin`/`owner` — only `owner`s (and super-admins) can.
 
-**Adding a permission:** add `Permission.X = "x.y.z"` in `app/permissions.py`, list it in `ALL_PERMISSIONS` (label + category, for the UI editor), update `DEFAULT_ROLE_PERMISSIONS` so each role gets its default, and write a migration that inserts the new (tenant_id, role, "x.y.z") rows for existing tenants. Then gate routes with `Depends(require_permission(Permission.X))`.
+**Adding a permission — full checklist (do ALL of these or the permission is incomplete):**
+1. Add `Permission.X = "x.y.z"` in `app/permissions.py` (namespaced: `tenant.resource.action`).
+2. Add an entry to `ALL_PERMISSIONS` (key, label, category) — this drives the UI permission editor.
+3. Add it to `DEFAULT_ROLE_PERMISSIONS` for the appropriate roles (owner always gets everything; choose whether admin/member should get it by default).
+4. Write a new Alembic migration (`api/alembic/versions/00NN_…py`) that seeds the `(tenant_id, role, key)` rows into every existing tenant. Use the idempotent pattern (check before insert).
+5. Gate the endpoint with `Depends(require_permission(Permission.X))` or a manual `get_permissions_for` check.
+6. Enforce the authority rule via `can_act_on_target_role(actor, target.role)` where applicable — permission keys alone don't prevent an admin from acting on another admin/owner.
+
+**Current permissions (`tenant.users.*`):**
+- `tenant.users.read` — view the user list
+- `tenant.users.invite` — send invite links
+- `tenant.users.remove` — deactivate a user (`is_active=false`, reversible)
+- `tenant.users.delete` — permanently hard-delete a user (irreversible; added migration 0006)
+- `tenant.users.update_role` — change a user's role
+- `tenant.users.set_password` — admin-set a user's password
+
+**Delete vs Remove:** `remove` = soft deactivate (reversible, keeps the row). `delete` = hard delete (permanent — removes user, identities, MFA credentials, refresh tokens, password-reset tokens). Both respect `can_act_on_target_role`; delete also guards: cannot delete yourself, cannot delete the last owner of a tenant.
 
 **Tenant-scoped self-administration (`/api/tenant/*`).** Endpoints for tenant owners/admins to manage their own tenant without super-admin. Gated by `require_permission(...)`; always implicitly scoped to the caller's home tenant. Super-admins also pass these checks (the permissions helper returns all keys for them).
 ```
