@@ -284,12 +284,26 @@ def _fetch_inbound_attachments(email_id: str, api_key: str) -> list[dict]:
     return resp.json().get("data", []) or []
 
 
+_INLINE_IMAGE_LOGO_MAX = 50_000  # bytes — small inline images are usually signature logos
+
+
 def _save_attachment_as_document(db: Session, tenant_id: int, att: dict) -> Document | None:
-    """Download one attachment and persist it as a Document. Skips inline parts
-    (signatures/logos) and anything over the size cap. Returns None on skip/fail."""
-    if (att.get("content_disposition") or "").lower() == "inline":
+    """Download one attachment and persist it as a Document. Returns None on skip/fail.
+
+    We keep real documents even when the sender's client marks them `inline`
+    (Apple Mail does this for PDFs). The only things we drop are: parts with no
+    filename (truly embedded content) and *small inline images* — the classic
+    signature-logo case — which would otherwise be ingested as bogus documents.
+    """
+    filename = (att.get("filename") or "").strip()
+    if not filename:
         return None
     size = att.get("size") or 0
+    disposition = (att.get("content_disposition") or "").lower()
+    ctype = (att.get("content_type") or "").lower()
+    if disposition == "inline" and ctype.startswith("image/") and 0 < size < _INLINE_IMAGE_LOGO_MAX:
+        log.info("[mail:inbound] skipping small inline image %r (%s bytes)", filename, size)
+        return None
     if size and size > settings.mail_max_attachment_bytes:
         log.warning("[mail:inbound] attachment %r over size cap (%s bytes) — skipped", att.get("filename"), size)
         return None
