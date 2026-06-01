@@ -109,6 +109,16 @@ export function LoginPage() {
 
         {step === 'credentials' && (
           <form onSubmit={onCredentials}>
+            <div className="mb-5 flex flex-col items-center gap-2">
+              <svg width="48" height="48" viewBox="0 0 1024 1024" fill="none">
+                <path d="M384 212H586L708 334V740C708 781 675 814 634 814H390C349 814 316 781 316 740V280C316 242 346 212 384 212Z" fill="#6366f1"/>
+                <path d="M586 212V334H708L586 212Z" fill="#4f46e5"/>
+                <rect x="426" y="418" width="172" height="56" rx="28" fill="white"/>
+                <rect x="486" y="418" width="52" height="278" rx="26" fill="white"/>
+                <rect x="426" y="640" width="172" height="56" rx="28" fill="white"/>
+              </svg>
+              <span className="text-[15px] font-semibold tracking-tight text-[var(--c-text-1)]">Interpret</span>
+            </div>
             <h1 className="mb-1 text-[20px] font-semibold">{t('auth.signin.title')}</h1>
             <p className="mb-6 text-[13px] text-[var(--c-text-3)]">{t('auth.signin.subtitle')}</p>
 

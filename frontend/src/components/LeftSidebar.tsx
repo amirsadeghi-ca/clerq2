@@ -43,11 +43,13 @@ export function LeftSidebar() {
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-[var(--c-border)] bg-[var(--c-bg)]">
       {/* Brand */}
       <div className="flex h-[52px] items-center gap-2.5 border-b border-[var(--c-border)] px-4">
-        <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[6px] bg-indigo-600">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M6 1L10.5 9H1.5L6 1Z" fill="white" />
-          </svg>
-        </div>
+        <svg width="26" height="26" viewBox="0 0 1024 1024" fill="none" className="shrink-0">
+          <path d="M384 212H586L708 334V740C708 781 675 814 634 814H390C349 814 316 781 316 740V280C316 242 346 212 384 212Z" fill="#6366f1"/>
+          <path d="M586 212V334H708L586 212Z" fill="#4f46e5"/>
+          <rect x="426" y="418" width="172" height="56" rx="28" fill="white"/>
+          <rect x="486" y="418" width="52" height="278" rx="26" fill="white"/>
+          <rect x="426" y="640" width="172" height="56" rx="28" fill="white"/>
+        </svg>
         <span className="text-[13px] font-semibold tracking-tight text-[var(--c-text-1)]">Interpret</span>
         {!isProd && (
           <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
