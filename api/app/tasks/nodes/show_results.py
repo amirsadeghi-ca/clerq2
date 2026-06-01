@@ -31,6 +31,7 @@ def _send_reply(run_id: int, input_data: dict) -> None:
         run = db.get(WorkflowRun, run_id)
         if not (run and run.sender_email):
             return
+        sender_email = run.sender_email  # capture before the session closes (avoid DetachedInstanceError)
 
         overall = input_data.get("overall")  # 'pass' | 'fail' | 'needs_review' | None
         results = input_data.get("results", [])
@@ -102,7 +103,7 @@ def _send_reply(run_id: int, input_data: dict) -> None:
 
     # Send the real email outside the DB session. Skip the local test-fixture
     # domain so UI-driven /mail compose tests don't fire real mail.
-    to_addr = (run.sender_email or "").strip()
+    to_addr = (sender_email or "").strip()
     if "@" in to_addr and not to_addr.lower().endswith("@interpret.local"):
         html_body = f'<pre style="font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;font-size:13px">{_html.escape(body)}</pre>'
         send_email(to=to_addr, subject=subject, html=html_body, text=body, reply_to=reply_to)
