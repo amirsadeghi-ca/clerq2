@@ -1,7 +1,7 @@
 from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -10,23 +10,27 @@ from app.models.workflow import Workflow
 from app.models.workflow_version import WorkflowVersion
 from app.models.run import WorkflowRun
 from app.schemas.run import RunCreate, RunOut
+from app.security import get_current_tenant_id
 from app.tasks.executor import trigger_run
 
 router = APIRouter()
 
 
 @router.post("/", response_model=RunOut, status_code=201)
-def create_run(body: RunCreate, db: Session = Depends(get_db)):
+def create_run(
+    body: RunCreate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
     wf = db.get(Workflow, body.workflow_id)
-    if not wf:
+    if not wf or wf.tenant_id != tenant_id:
         raise HTTPException(404, "Workflow not found")
     if wf.is_archived:
         raise HTTPException(400, "Cannot run an archived workflow")
     doc = db.get(Document, body.document_id)
-    if not doc:
+    if not doc or doc.tenant_id != tenant_id:
         raise HTTPException(404, "Document not found")
 
-    # Get the latest version to record which version is being run
     latest_version = db.scalar(
         select(WorkflowVersion)
         .where(WorkflowVersion.workflow_id == wf.id)
@@ -35,6 +39,7 @@ def create_run(body: RunCreate, db: Session = Depends(get_db)):
     )
 
     run = WorkflowRun(
+        tenant_id=tenant_id,
         workflow_id=wf.id,
         document_id=doc.id,
         status="pending",
@@ -45,7 +50,6 @@ def create_run(body: RunCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(run)
 
-    # Use the versioned definition if available, fall back to workflow cache
     definition = latest_version.definition if latest_version else wf.definition
     trigger_run(run.id, definition, [doc])
     db.refresh(run)
@@ -53,25 +57,33 @@ def create_run(body: RunCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=list[RunOut])
-def list_runs(workflow_id: int | None = None, db: Session = Depends(get_db)):
-    q = db.query(WorkflowRun).order_by(WorkflowRun.created_at.desc())
+def list_runs(
+    workflow_id: int | None = None,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    q = (
+        db.query(WorkflowRun)
+        .filter(WorkflowRun.tenant_id == tenant_id)
+        .order_by(WorkflowRun.created_at.desc())
+    )
     if workflow_id:
         q = q.filter(WorkflowRun.workflow_id == workflow_id)
     return q.all()
 
 
 @router.get("/{run_id}", response_model=RunOut)
-def get_run(run_id: int, db: Session = Depends(get_db)):
+def get_run(run_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
     run = db.get(WorkflowRun, run_id)
-    if not run:
+    if not run or run.tenant_id != tenant_id:
         raise HTTPException(404, "Run not found")
     return run
 
 
 @router.post("/{run_id}/cancel", response_model=RunOut)
-def cancel_run(run_id: int, db: Session = Depends(get_db)):
+def cancel_run(run_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
     run = db.get(WorkflowRun, run_id)
-    if not run:
+    if not run or run.tenant_id != tenant_id:
         raise HTTPException(404, "Run not found")
     if run.status not in ("pending", "running"):
         raise HTTPException(400, f"Run is already {run.status}")

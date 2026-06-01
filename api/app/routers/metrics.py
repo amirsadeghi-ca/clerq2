@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.run import WorkflowRun, WorkflowRunStep
+from app.security import get_current_tenant_id
 
 router = APIRouter()
 
@@ -57,8 +58,9 @@ def insights(
     policy_id: int | None = None,
     source: str = "validate",
     db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
 ):
-    q = db.query(WorkflowRun)
+    q = db.query(WorkflowRun).filter(WorkflowRun.tenant_id == tenant_id)
     if source and source != "all":
         q = q.filter(WorkflowRun.source == source)
     if policy_id is not None:

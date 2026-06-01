@@ -9,6 +9,7 @@ class MailMessage(Base):
     __tablename__ = "mail_messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     run_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("workflow_runs.id"), nullable=True)
     document_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("documents.id"), nullable=True)
     direction: Mapped[str] = mapped_column(Text, nullable=False)  # 'inbound' | 'outbound'

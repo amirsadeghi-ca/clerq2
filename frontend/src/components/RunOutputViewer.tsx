@@ -1,4 +1,5 @@
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { fileUrl } from '../lib/fileUrl'
 import { useState } from 'react'
 import { useI18n } from '../context/i18n'
 
@@ -45,7 +46,7 @@ export function RunOutputViewer({ imagePaths, onClose }: Props) {
                 className="group relative aspect-[3/4] overflow-hidden rounded-lg border border-[var(--c-border)] bg-[var(--c-surface-2)] transition-[border-color] hover:border-[var(--c-border-3)]"
               >
                 <img
-                  src={`/api/files/${rel}`}
+                  src={fileUrl(`${rel}`)}
                   alt={t('runstatus.output.page', { n: i + 1 })}
                   className="h-full w-full object-contain"
                   loading="lazy"
@@ -73,7 +74,7 @@ export function RunOutputViewer({ imagePaths, onClose }: Props) {
           </button>
 
           <img
-            src={`/api/files/${imagePaths[lightbox]}`}
+            src={fileUrl(`${imagePaths[lightbox]}`)}
             alt={t('runstatus.output.page', { n: lightbox + 1 })}
             className="max-h-[90vh] max-w-[85vw] rounded object-contain shadow-2xl"
             onClick={e => e.stopPropagation()}
@@ -91,7 +92,7 @@ export function RunOutputViewer({ imagePaths, onClose }: Props) {
           </div>
 
           <a
-            href={`/api/files/${imagePaths[lightbox]}`}
+            href={fileUrl(`${imagePaths[lightbox]}`)}
             download
             onClick={e => e.stopPropagation()}
             className="absolute top-4 right-4 rounded border border-[var(--c-border-3)] bg-[var(--c-surface)] p-2 text-[var(--c-text-4)] hover:text-[var(--c-text-2)] transition-colors"

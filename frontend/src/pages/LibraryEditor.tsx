@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { fileUrl } from '../lib/fileUrl'
 import { useParams, Link } from 'react-router-dom'
 import { ChevronRight, Save, Loader2, Upload, Trash2, BookOpen } from 'lucide-react'
 import { useDocumentType, useUpdateDocumentType, useUploadSample, useDeleteSample } from '../api/library'
@@ -163,7 +164,7 @@ export function LibraryEditor() {
               {dt?.samples.map(sample => (
                 <div key={sample.id} className="group relative overflow-hidden rounded-lg border border-[var(--c-border)]">
                   <img
-                    src={`/api/files/library/${docTypeId}/${sample.filename}`}
+                    src={fileUrl(`library/${docTypeId}/${sample.filename}`)}
                     alt={sample.original_filename}
                     className="w-full object-cover"
                   />

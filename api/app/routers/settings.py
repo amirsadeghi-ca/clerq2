@@ -7,23 +7,22 @@ import httpx
 from app.config import settings as env_settings
 from app.database import get_db
 from app.models.setting import AppSetting
+from app.security import get_current_tenant_id
 
 router = APIRouter()
 
-SETTING_KEYS = ["openrouter_api_key", "openrouter_default_model"]
 
-
-def _get(db: Session, key: str, fallback: str = "") -> str:
-    row = db.get(AppSetting, key)
+def _get(db: Session, tenant_id: int, key: str, fallback: str = "") -> str:
+    row = db.get(AppSetting, (tenant_id, key))
     return row.value if row else fallback
 
 
-def _set(db: Session, key: str, value: str) -> None:
-    row = db.get(AppSetting, key)
+def _set(db: Session, tenant_id: int, key: str, value: str) -> None:
+    row = db.get(AppSetting, (tenant_id, key))
     if row:
         row.value = value
     else:
-        db.add(AppSetting(key=key, value=value))
+        db.add(AppSetting(tenant_id=tenant_id, key=key, value=value))
     db.commit()
 
 
@@ -50,9 +49,9 @@ class TestResult(BaseModel):
 
 
 @router.get("/", response_model=SettingsOut)
-def get_settings(db: Session = Depends(get_db)):
-    key = _get(db, "openrouter_api_key", env_settings.openrouter_api_key)
-    model = _get(db, "openrouter_default_model", env_settings.openrouter_default_model)
+def get_settings(db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    key = _get(db, tenant_id, "openrouter_api_key", env_settings.openrouter_api_key)
+    model = _get(db, tenant_id, "openrouter_default_model", env_settings.openrouter_default_model)
     return SettingsOut(
         openrouter_api_key=key,
         openrouter_default_model=model,
@@ -61,17 +60,21 @@ def get_settings(db: Session = Depends(get_db)):
 
 
 @router.put("/", response_model=SettingsOut)
-def update_settings(body: SettingsUpdate, db: Session = Depends(get_db)):
+def update_settings(
+    body: SettingsUpdate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
     if body.openrouter_api_key is not None:
-        _set(db, "openrouter_api_key", body.openrouter_api_key)
+        _set(db, tenant_id, "openrouter_api_key", body.openrouter_api_key)
     if body.openrouter_default_model is not None:
-        _set(db, "openrouter_default_model", body.openrouter_default_model)
-    return get_settings(db)
+        _set(db, tenant_id, "openrouter_default_model", body.openrouter_default_model)
+    return get_settings(db, tenant_id)
 
 
 @router.get("/models", response_model=list[ModelInfo])
-def list_models(db: Session = Depends(get_db)):
-    key = _get(db, "openrouter_api_key", env_settings.openrouter_api_key)
+def list_models(db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    key = _get(db, tenant_id, "openrouter_api_key", env_settings.openrouter_api_key)
     if not key:
         raise HTTPException(status_code=400, detail="OpenRouter API key not configured")
     try:
@@ -92,8 +95,8 @@ def list_models(db: Session = Depends(get_db)):
 
 
 @router.post("/test", response_model=TestResult)
-def test_connection(db: Session = Depends(get_db)):
-    key = _get(db, "openrouter_api_key", env_settings.openrouter_api_key)
+def test_connection(db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    key = _get(db, tenant_id, "openrouter_api_key", env_settings.openrouter_api_key)
     if not key:
         return TestResult(ok=False, error="API key not configured")
     try:

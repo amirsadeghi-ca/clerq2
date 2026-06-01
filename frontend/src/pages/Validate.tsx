@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { fileUrl } from '../lib/fileUrl'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   ShieldCheck, Upload, X, CheckCircle2, XCircle, AlertCircle,
@@ -111,7 +112,7 @@ function ImageLightbox({ paths, index, onClose }: {
         <ChevronLeft size={14} />
       </button>
       <img
-        src={`/api/files/${paths[i]}`}
+        src={fileUrl(`${paths[i]}`)}
         alt={t('validate.page', { n: i + 1 })}
         className="max-h-[90vh] max-w-[80vw] rounded object-contain shadow-2xl"
         onClick={e => e.stopPropagation()}
@@ -144,7 +145,8 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
   // SSE for active runs
   useEffect(() => {
     if (liveStatus === 'pending' || liveStatus === 'running') {
-      const es = new EventSource(`/api/runs/${run.id}/stream`)
+      const tok = localStorage.getItem('auth.access_token') || ''
+      const es = new EventSource(`/api/runs/${run.id}/stream?access_token=${encodeURIComponent(tok)}`)
       esRef.current = es
       es.addEventListener('update', e => {
         const update = JSON.parse(e.data) as SSERunUpdate
@@ -508,7 +510,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                             className="group relative h-[96px] w-[70px] shrink-0 overflow-hidden rounded-md border border-[var(--c-border)] bg-[var(--c-surface-3)] transition-[border-color,box-shadow] hover:border-[var(--c-border-3)] hover:shadow-[0_0_0_1px_rgba(99,102,241,0.2)]"
                           >
                             <img
-                              src={`/api/files/${rel}`}
+                              src={fileUrl(`${rel}`)}
                               alt={t('validate.page', { n: idx + 1 })}
                               className="h-full w-full object-contain"
                               loading="lazy"

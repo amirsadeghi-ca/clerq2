@@ -10,6 +10,7 @@ from app.models.workflow import Workflow
 from app.models.workflow_version import WorkflowVersion
 from app.schemas.mail import MailboxOut, MailInboundRequest, MailMessageOut
 from app.schemas.run import RunOut
+from app.security import get_current_tenant_id
 from app.tasks.executor import trigger_run
 
 router = APIRouter()
@@ -32,53 +33,72 @@ def _canonical_definition(policy_id: int) -> dict:
 
 
 @router.get("/mailboxes", response_model=list[MailboxOut])
-def list_mailboxes(db: Session = Depends(get_db)):
+def list_mailboxes(db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
     mailboxes: list[MailboxOut] = []
 
-    policies = db.query(Policy).filter(Policy.email_inbox_enabled == True).all()  # noqa: E712
+    policies = (
+        db.query(Policy)
+        .filter(Policy.tenant_id == tenant_id, Policy.email_inbox_enabled == True)  # noqa: E712
+        .all()
+    )
     for p in policies:
         if p.email_address:
             mailboxes.append(MailboxOut(
-                type="policy",
-                id=p.id,
-                name=p.name,
-                email_address=p.email_address,
-                rule_count=len(p.rules),
+                type="policy", id=p.id, name=p.name,
+                email_address=p.email_address, rule_count=len(p.rules),
             ))
 
-    workflows = db.query(Workflow).filter(
-        Workflow.email_inbox_enabled == True,  # noqa: E712
-        Workflow.is_archived == False,  # noqa: E712
-    ).all()
+    workflows = (
+        db.query(Workflow)
+        .filter(
+            Workflow.tenant_id == tenant_id,
+            Workflow.email_inbox_enabled == True,  # noqa: E712
+            Workflow.is_archived == False,  # noqa: E712
+        )
+        .all()
+    )
     for wf in workflows:
         if wf.email_address:
             mailboxes.append(MailboxOut(
-                type="workflow",
-                id=wf.id,
-                name=wf.name,
+                type="workflow", id=wf.id, name=wf.name,
                 email_address=wf.email_address,
             ))
-
     return mailboxes
 
 
 @router.post("/inbound", response_model=RunOut, status_code=201)
-def inbound_mail(body: MailInboundRequest, db: Session = Depends(get_db)):
+def inbound_mail(
+    body: MailInboundRequest,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    """Inbound mail is currently a UI-driven test fixture, so we scope it to the
+    caller's tenant. Real SMTP intake (when added) would not have a logged-in
+    user — that path will resolve the tenant via the mailbox's owner instead."""
     to_addr = body.to.strip().lower()
 
-    # resolve recipient to a policy or workflow mailbox
-    policy = db.query(Policy).filter(
-        Policy.email_inbox_enabled == True,  # noqa: E712
-        Policy.email_address == to_addr,
-    ).first()
+    policy = (
+        db.query(Policy)
+        .filter(
+            Policy.tenant_id == tenant_id,
+            Policy.email_inbox_enabled == True,  # noqa: E712
+            Policy.email_address == to_addr,
+        )
+        .first()
+    )
 
     workflow = None
     if not policy:
-        workflow = db.query(Workflow).filter(
-            Workflow.email_inbox_enabled == True,  # noqa: E712
-            Workflow.email_address == to_addr,
-            Workflow.is_archived == False,  # noqa: E712
-        ).first()
+        workflow = (
+            db.query(Workflow)
+            .filter(
+                Workflow.tenant_id == tenant_id,
+                Workflow.email_inbox_enabled == True,  # noqa: E712
+                Workflow.email_address == to_addr,
+                Workflow.is_archived == False,  # noqa: E712
+            )
+            .first()
+        )
 
     if not policy and not workflow:
         raise HTTPException(404, f"No active mailbox found for address: {to_addr}")
@@ -86,13 +106,14 @@ def inbound_mail(body: MailInboundRequest, db: Session = Depends(get_db)):
     doc = None
     if body.document_id:
         doc = db.get(Document, body.document_id)
-        if not doc:
+        if not doc or doc.tenant_id != tenant_id:
             raise HTTPException(404, "Document not found")
 
     if policy:
         run = WorkflowRun(
-            workflow_id=0,
-            document_id=doc.id if doc else 0,
+            tenant_id=tenant_id,
+            workflow_id=None,
+            document_id=doc.id if doc else None,
             name=doc.original_filename if doc else body.subject or "mail",
             source="mail",
             policy_id=policy.id,
@@ -107,8 +128,9 @@ def inbound_mail(body: MailInboundRequest, db: Session = Depends(get_db)):
             .first()
         )
         run = WorkflowRun(
+            tenant_id=tenant_id,
             workflow_id=workflow.id,
-            document_id=doc.id if doc else 0,
+            document_id=doc.id if doc else None,
             name=doc.original_filename if doc else body.subject or "mail",
             source="mail",
             sender_email=body.from_email,
@@ -121,8 +143,8 @@ def inbound_mail(body: MailInboundRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(run)
 
-    # store inbound message record
     db.add(MailMessage(
+        tenant_id=tenant_id,
         run_id=run.id,
         document_id=doc.id if doc else None,
         direction="inbound",
@@ -140,8 +162,6 @@ def inbound_mail(body: MailInboundRequest, db: Session = Depends(get_db)):
             definition = latest_version.definition if latest_version else workflow.definition
             trigger_run(run.id, definition, [doc])
     else:
-        # No attachment: the document pipeline has nothing to process. Fail the
-        # run cleanly so it doesn't linger in "pending" forever.
         from datetime import datetime, UTC
         run.status = "failed"
         run.error = "No document attached — a validation needs at least one document."
@@ -153,9 +173,10 @@ def inbound_mail(body: MailInboundRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/messages", response_model=list[MailMessageOut])
-def list_messages(db: Session = Depends(get_db)):
+def list_messages(db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
     return (
         db.query(MailMessage)
+        .filter(MailMessage.tenant_id == tenant_id)
         .order_by(MailMessage.created_at.desc())
         .all()
     )

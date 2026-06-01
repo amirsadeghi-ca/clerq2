@@ -416,10 +416,13 @@ def validate_documents_task(self, input_data: dict, run_id: int, step_id: int, n
 
         db = SessionLocal()
         try:
-            api_key_row = db.get(AppSetting, "openrouter_api_key")
-            model_row = db.get(AppSetting, "openrouter_default_model")
+            from app.models.run import WorkflowRun
+            run = db.get(WorkflowRun, run_id)
+            tid = run.tenant_id if run else None
+            api_key_row = db.get(AppSetting, (tid, "openrouter_api_key")) if tid else None
+            model_row = db.get(AppSetting, (tid, "openrouter_default_model")) if tid else None
             policy = db.get(Policy, int(policy_id))
-            if not policy:
+            if not policy or (tid is not None and policy.tenant_id != tid):
                 raise ValueError(f"Policy {policy_id} not found")
             _ = [(r.name, r.document_type.samples if r.document_type else []) for r in policy.rules]
             policy_version_num = policy.current_version_num

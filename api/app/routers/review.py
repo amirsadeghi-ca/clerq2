@@ -13,6 +13,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.database import get_db
 from app.models.run import WorkflowRun
 from app.schemas.run import FindingAnnotationIn, RunOut
+from app.security import get_current_tenant_id
 
 router = APIRouter()
 
@@ -103,9 +104,9 @@ def _append_history(review: dict, action: str, rule_name: str | None, details: d
     })
 
 
-def _load_run_or_404(db: Session, run_id: int) -> WorkflowRun:
+def _load_run_or_404(db: Session, run_id: int, tenant_id: int) -> WorkflowRun:
     run = db.get(WorkflowRun, run_id)
-    if not run:
+    if not run or run.tenant_id != tenant_id:
         raise HTTPException(404, "Run not found")
     return run
 
@@ -118,6 +119,7 @@ def annotate_finding(
     rule_name: str,
     body: FindingAnnotationIn,
     db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
 ):
     """Set or clear a note and/or override on a single finding.
 
@@ -125,7 +127,7 @@ def annotate_finding(
     override status differs from the AI's verdict, a non-empty `override_reason`
     is required so the change is accountable.
     """
-    run = _load_run_or_404(db, run_id)
+    run = _load_run_or_404(db, run_id, tenant_id)
 
     ai_results = _ai_results_index(run)
     if rule_name not in ai_results:
@@ -199,8 +201,12 @@ def annotate_finding(
 
 
 @router.post("/{run_id}/review/finalize", response_model=RunOut)
-def finalize_review(run_id: int, db: Session = Depends(get_db)):
-    run = _load_run_or_404(db, run_id)
+def finalize_review(
+    run_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    run = _load_run_or_404(db, run_id, tenant_id)
     review = _ensure_review(run)
     if review.get("state") == "finalized":
         return run  # idempotent
@@ -217,8 +223,12 @@ def finalize_review(run_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{run_id}/review/reopen", response_model=RunOut)
-def reopen_review(run_id: int, db: Session = Depends(get_db)):
-    run = _load_run_or_404(db, run_id)
+def reopen_review(
+    run_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    run = _load_run_or_404(db, run_id, tenant_id)
     review = _ensure_review(run)
     if review.get("state") != "finalized":
         return run  # idempotent

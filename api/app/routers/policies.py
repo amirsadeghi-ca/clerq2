@@ -8,6 +8,7 @@ from app.schemas.policy import (
     PolicyCreate, PolicyOut, PolicyRuleCreate, PolicyRuleOut, PolicyRuleUpdate,
     PolicyUpdate, PolicyVersionOut,
 )
+from app.security import get_current_tenant_id
 
 router = APIRouter()
 
@@ -58,14 +59,30 @@ def _version_out(v: PolicyVersion) -> PolicyVersionOut:
     )
 
 
+def _get_owned(db: Session, policy_id: int, tenant_id: int) -> Policy:
+    p = db.get(Policy, policy_id)
+    if not p or p.tenant_id != tenant_id:
+        raise HTTPException(404, "Policy not found")
+    return p
+
+
 @router.get("/", response_model=list[PolicyOut])
-def list_policies(db: Session = Depends(get_db)):
-    return db.query(Policy).order_by(Policy.created_at.desc()).all()
+def list_policies(db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    return (
+        db.query(Policy)
+        .filter(Policy.tenant_id == tenant_id)
+        .order_by(Policy.created_at.desc())
+        .all()
+    )
 
 
 @router.post("/", response_model=PolicyOut, status_code=201)
-def create_policy(body: PolicyCreate, db: Session = Depends(get_db)):
-    policy = Policy(**body.model_dump())
+def create_policy(
+    body: PolicyCreate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    policy = Policy(tenant_id=tenant_id, **body.model_dump())
     db.add(policy)
     db.commit()
     db.refresh(policy)
@@ -73,18 +90,18 @@ def create_policy(body: PolicyCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{policy_id}", response_model=PolicyOut)
-def get_policy(policy_id: int, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
-    return policy
+def get_policy(policy_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    return _get_owned(db, policy_id, tenant_id)
 
 
 @router.put("/{policy_id}", response_model=PolicyOut)
-def update_policy(policy_id: int, body: PolicyUpdate, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
+def update_policy(
+    policy_id: int,
+    body: PolicyUpdate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    policy = _get_owned(db, policy_id, tenant_id)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(policy, field, value)
     _make_version(db, policy)
@@ -94,19 +111,15 @@ def update_policy(policy_id: int, body: PolicyUpdate, db: Session = Depends(get_
 
 
 @router.delete("/{policy_id}", status_code=204)
-def delete_policy(policy_id: int, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
+def delete_policy(policy_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    policy = _get_owned(db, policy_id, tenant_id)
     db.delete(policy)
     db.commit()
 
 
 @router.get("/{policy_id}/versions", response_model=list[PolicyVersionOut])
-def list_policy_versions(policy_id: int, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
+def list_policy_versions(policy_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    _get_owned(db, policy_id, tenant_id)
     versions = (
         db.query(PolicyVersion)
         .filter(PolicyVersion.policy_id == policy_id)
@@ -117,10 +130,13 @@ def list_policy_versions(policy_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{policy_id}/versions/{version_id}/restore", response_model=PolicyOut)
-def restore_policy_version(policy_id: int, version_id: int, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
+def restore_policy_version(
+    policy_id: int,
+    version_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    policy = _get_owned(db, policy_id, tenant_id)
     version = db.get(PolicyVersion, version_id)
     if not version or version.policy_id != policy_id:
         raise HTTPException(404, "Version not found")
@@ -160,10 +176,13 @@ def restore_policy_version(policy_id: int, version_id: int, db: Session = Depend
 
 
 @router.post("/{policy_id}/rules", response_model=PolicyRuleOut, status_code=201)
-def create_rule(policy_id: int, body: PolicyRuleCreate, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
+def create_rule(
+    policy_id: int,
+    body: PolicyRuleCreate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    policy = _get_owned(db, policy_id, tenant_id)
     max_pos = max((r.position for r in policy.rules), default=-1)
     rule = PolicyRule(policy_id=policy_id, position=max_pos + 1, **body.model_dump())
     db.add(rule)
@@ -175,7 +194,14 @@ def create_rule(policy_id: int, body: PolicyRuleCreate, db: Session = Depends(ge
 
 
 @router.put("/{policy_id}/rules/{rule_id}", response_model=PolicyRuleOut)
-def update_rule(policy_id: int, rule_id: int, body: PolicyRuleUpdate, db: Session = Depends(get_db)):
+def update_rule(
+    policy_id: int,
+    rule_id: int,
+    body: PolicyRuleUpdate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    _get_owned(db, policy_id, tenant_id)
     rule = db.get(PolicyRule, rule_id)
     if not rule or rule.policy_id != policy_id:
         raise HTTPException(404, "Rule not found")
@@ -187,23 +213,25 @@ def update_rule(policy_id: int, rule_id: int, body: PolicyRuleUpdate, db: Sessio
 
 
 @router.delete("/{policy_id}/rules/{rule_id}", status_code=204)
-def delete_rule(policy_id: int, rule_id: int, db: Session = Depends(get_db)):
+def delete_rule(
+    policy_id: int,
+    rule_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    policy = _get_owned(db, policy_id, tenant_id)
     rule = db.get(PolicyRule, rule_id)
     if not rule or rule.policy_id != policy_id:
         raise HTTPException(404, "Rule not found")
     db.delete(rule)
-    policy = db.get(Policy, policy_id)
-    if policy:
-        db.flush()
-        _make_version(db, policy)
+    db.flush()
+    _make_version(db, policy)
     db.commit()
 
 
 @router.post("/{policy_id}/enable-inbox", response_model=PolicyOut)
-def enable_policy_inbox(policy_id: int, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
+def enable_policy_inbox(policy_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    policy = _get_owned(db, policy_id, tenant_id)
     policy.email_inbox_enabled = True
     policy.email_address = f"policy-{policy_id}@clerq.local"
     db.commit()
@@ -212,10 +240,8 @@ def enable_policy_inbox(policy_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{policy_id}/disable-inbox", response_model=PolicyOut)
-def disable_policy_inbox(policy_id: int, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
+def disable_policy_inbox(policy_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    policy = _get_owned(db, policy_id, tenant_id)
     policy.email_inbox_enabled = False
     policy.email_address = None
     db.commit()
@@ -224,10 +250,13 @@ def disable_policy_inbox(policy_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{policy_id}/rules/reorder", response_model=PolicyOut)
-def reorder_rules(policy_id: int, body: dict, db: Session = Depends(get_db)):
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise HTTPException(404, "Policy not found")
+def reorder_rules(
+    policy_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    policy = _get_owned(db, policy_id, tenant_id)
     rule_ids: list[int] = body.get("rule_ids", [])
     rule_map = {r.id: r for r in policy.rules}
     for pos, rid in enumerate(rule_ids):

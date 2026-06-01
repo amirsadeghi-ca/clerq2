@@ -7,6 +7,7 @@ from app.models.document import Document
 from app.models.policy import Policy
 from app.models.run import WorkflowRun
 from app.schemas.run import RunOut
+from app.security import get_current_tenant_id
 from app.tasks.executor import trigger_run
 
 router = APIRouter()
@@ -14,7 +15,6 @@ router = APIRouter()
 
 class ValidateRunCreate(BaseModel):
     policy_id: int
-    # Accept either a single document_id (backward compat) or a list
     document_id: int | None = None
     document_ids: list[int] | None = None
 
@@ -44,28 +44,28 @@ def _canonical_definition(policy_id: int) -> dict:
 
 
 @router.post("/run", response_model=RunOut, status_code=201)
-def create_validate_run(body: ValidateRunCreate, db: Session = Depends(get_db)):
+def create_validate_run(
+    body: ValidateRunCreate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
     policy = db.get(Policy, body.policy_id)
-    if not policy:
+    if not policy or policy.tenant_id != tenant_id:
         raise HTTPException(404, "Policy not found")
 
     docs: list[Document] = []
     for doc_id in body.document_ids:  # type: ignore[union-attr]
         doc = db.get(Document, doc_id)
-        if not doc:
+        if not doc or doc.tenant_id != tenant_id:
             raise HTTPException(404, f"Document {doc_id} not found")
         docs.append(doc)
 
     primary_doc = docs[0]
-
-    # Run name: single doc → its filename; multiple docs → "N documents"
-    if len(docs) == 1:
-        run_name = primary_doc.original_filename
-    else:
-        run_name = f"{len(docs)} documents"
+    run_name = primary_doc.original_filename if len(docs) == 1 else f"{len(docs)} documents"
 
     run = WorkflowRun(
-        workflow_id=0,
+        tenant_id=tenant_id,
+        workflow_id=None,
         document_id=primary_doc.id,
         name=run_name,
         source="validate",
@@ -82,15 +82,20 @@ def create_validate_run(body: ValidateRunCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/runs", response_model=list[RunOut])
-def list_validate_runs(policy_id: int | None = None, db: Session = Depends(get_db)):
+def list_validate_runs(
+    policy_id: int | None = None,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
     from sqlalchemy import or_
     q = (
         db.query(WorkflowRun)
         .filter(
+            WorkflowRun.tenant_id == tenant_id,
             or_(
                 WorkflowRun.source == "validate",
                 (WorkflowRun.source == "mail") & (WorkflowRun.policy_id.isnot(None)),
-            )
+            ),
         )
         .order_by(WorkflowRun.created_at.desc())
     )

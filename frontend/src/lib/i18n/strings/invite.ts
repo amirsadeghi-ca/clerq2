@@ -1,0 +1,33 @@
+export const en = {
+  'invite.loading': 'Checking your invitation…',
+  'invite.invalid.title': 'Invitation unavailable',
+  'invite.invalid.back': 'Go to sign in',
+  'invite.welcome': 'Welcome to {tenant}',
+  'invite.subtitle.email': 'Set a password for {email} to finish creating your account.',
+  'invite.displayName': 'Your name',
+  'invite.password': 'Password',
+  'invite.confirm': 'Confirm password',
+  'invite.submit': 'Create account',
+  'invite.submitting': 'Creating account…',
+  'invite.role.note': 'You will join with the role: {role}.',
+  'invite.error.passwordShort': 'Password must be at least 8 characters.',
+  'invite.error.passwordMismatch': "Passwords don't match.",
+  'invite.error.generic': "Couldn't create your account. Please try again.",
+}
+
+export const fr = {
+  'invite.loading': 'Vérification de l’invitation…',
+  'invite.invalid.title': 'Invitation indisponible',
+  'invite.invalid.back': 'Aller à la connexion',
+  'invite.welcome': 'Bienvenue chez {tenant}',
+  'invite.subtitle.email': 'Définissez un mot de passe pour {email} pour terminer la création de votre compte.',
+  'invite.displayName': 'Votre nom',
+  'invite.password': 'Mot de passe',
+  'invite.confirm': 'Confirmer le mot de passe',
+  'invite.submit': 'Créer le compte',
+  'invite.submitting': 'Création du compte…',
+  'invite.role.note': 'Vous rejoignez avec le rôle : {role}.',
+  'invite.error.passwordShort': 'Le mot de passe doit comporter au moins 8 caractères.',
+  'invite.error.passwordMismatch': 'Les mots de passe ne correspondent pas.',
+  'invite.error.generic': 'Impossible de créer le compte. Veuillez réessayer.',
+}

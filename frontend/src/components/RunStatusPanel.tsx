@@ -73,7 +73,8 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
   useEffect(() => {
     setSseState(null)
     setShowImages(false)
-    const es = new EventSource(`/api/runs/${runId}/stream`)
+    const tok = localStorage.getItem('auth.access_token') || ''
+    const es = new EventSource(`/api/runs/${runId}/stream?access_token=${encodeURIComponent(tok)}`)
     esRef.current = es
     es.addEventListener('update', (e) => setSseState(JSON.parse(e.data)))
     es.addEventListener('done', () => es.close())

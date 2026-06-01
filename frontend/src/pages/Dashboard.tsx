@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { fileUrl } from '../lib/fileUrl'
 import { useNavigate } from 'react-router-dom'
 import {
   Star, ArrowRight, Upload, X, CheckCircle2, XCircle, Loader2,
@@ -94,7 +95,7 @@ function ImageResultPanel({ steps }: { steps: RunStep[] }) {
             className="group relative aspect-[3/4] overflow-hidden rounded border border-[var(--c-border)] bg-[var(--c-surface-2)] transition-[border-color] hover:border-[var(--c-border-3)]"
           >
             <img
-              src={`/api/files/${rel}`}
+              src={fileUrl(`${rel}`)}
               alt={`Page ${i + 1}`}
               className="h-full w-full object-contain"
               loading="lazy"
@@ -118,7 +119,7 @@ function ImageResultPanel({ steps }: { steps: RunStep[] }) {
             <ChevronLeft size={14} />
           </button>
           <img
-            src={`/api/files/${imagePaths[lightbox]}`}
+            src={fileUrl(`${imagePaths[lightbox]}`)}
             alt={`Page ${lightbox + 1}`}
             className="max-h-[90vh] max-w-[80vw] rounded object-contain shadow-2xl"
             onClick={e => e.stopPropagation()}
@@ -339,7 +340,8 @@ function WorkflowWidget({
 
   const connectSSE = useCallback((runId: number) => {
     if (esRef.current) esRef.current.close()
-    const es = new EventSource(`/api/runs/${runId}/stream`)
+    const tok = localStorage.getItem('auth.access_token') || ''
+    const es = new EventSource(`/api/runs/${runId}/stream?access_token=${encodeURIComponent(tok)}`)
     esRef.current = es
 
     es.addEventListener('update', (e) => {

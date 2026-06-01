@@ -8,18 +8,35 @@ from app.config import settings
 from app.database import get_db
 from app.models.document_type import DocumentType, DocumentTypeSample
 from app.schemas.library import DocumentTypeCreate, DocumentTypeOut, DocumentTypeSampleOut, DocumentTypeUpdate
+from app.security import get_current_tenant_id
 
 router = APIRouter()
 
 
+def _get_owned(db: Session, doc_type_id: int, tenant_id: int) -> DocumentType:
+    dt = db.get(DocumentType, doc_type_id)
+    if not dt or dt.tenant_id != tenant_id:
+        raise HTTPException(404, "Document type not found")
+    return dt
+
+
 @router.get("/", response_model=list[DocumentTypeOut])
-def list_document_types(db: Session = Depends(get_db)):
-    return db.query(DocumentType).order_by(DocumentType.created_at.desc()).all()
+def list_document_types(db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    return (
+        db.query(DocumentType)
+        .filter(DocumentType.tenant_id == tenant_id)
+        .order_by(DocumentType.created_at.desc())
+        .all()
+    )
 
 
 @router.post("/", response_model=DocumentTypeOut, status_code=201)
-def create_document_type(body: DocumentTypeCreate, db: Session = Depends(get_db)):
-    dt = DocumentType(**body.model_dump())
+def create_document_type(
+    body: DocumentTypeCreate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    dt = DocumentType(tenant_id=tenant_id, **body.model_dump())
     db.add(dt)
     db.commit()
     db.refresh(dt)
@@ -27,18 +44,22 @@ def create_document_type(body: DocumentTypeCreate, db: Session = Depends(get_db)
 
 
 @router.get("/{doc_type_id}", response_model=DocumentTypeOut)
-def get_document_type(doc_type_id: int, db: Session = Depends(get_db)):
-    dt = db.get(DocumentType, doc_type_id)
-    if not dt:
-        raise HTTPException(404, "Document type not found")
-    return dt
+def get_document_type(
+    doc_type_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    return _get_owned(db, doc_type_id, tenant_id)
 
 
 @router.put("/{doc_type_id}", response_model=DocumentTypeOut)
-def update_document_type(doc_type_id: int, body: DocumentTypeUpdate, db: Session = Depends(get_db)):
-    dt = db.get(DocumentType, doc_type_id)
-    if not dt:
-        raise HTTPException(404, "Document type not found")
+def update_document_type(
+    doc_type_id: int,
+    body: DocumentTypeUpdate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    dt = _get_owned(db, doc_type_id, tenant_id)
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(dt, field, value)
     db.commit()
@@ -47,19 +68,24 @@ def update_document_type(doc_type_id: int, body: DocumentTypeUpdate, db: Session
 
 
 @router.delete("/{doc_type_id}", status_code=204)
-def delete_document_type(doc_type_id: int, db: Session = Depends(get_db)):
-    dt = db.get(DocumentType, doc_type_id)
-    if not dt:
-        raise HTTPException(404, "Document type not found")
+def delete_document_type(
+    doc_type_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    dt = _get_owned(db, doc_type_id, tenant_id)
     db.delete(dt)
     db.commit()
 
 
 @router.post("/{doc_type_id}/samples", response_model=DocumentTypeSampleOut, status_code=201)
-async def upload_sample(doc_type_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    dt = db.get(DocumentType, doc_type_id)
-    if not dt:
-        raise HTTPException(404, "Document type not found")
+async def upload_sample(
+    doc_type_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    _get_owned(db, doc_type_id, tenant_id)
 
     sample_dir = os.path.join(settings.storage_path, "library", str(doc_type_id))
     os.makedirs(sample_dir, exist_ok=True)
@@ -85,7 +111,13 @@ async def upload_sample(doc_type_id: int, file: UploadFile = File(...), db: Sess
 
 
 @router.delete("/{doc_type_id}/samples/{sample_id}", status_code=204)
-def delete_sample(doc_type_id: int, sample_id: int, db: Session = Depends(get_db)):
+def delete_sample(
+    doc_type_id: int,
+    sample_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    _get_owned(db, doc_type_id, tenant_id)
     sample = db.get(DocumentTypeSample, sample_id)
     if not sample or sample.document_type_id != doc_type_id:
         raise HTTPException(404, "Sample not found")

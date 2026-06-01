@@ -27,6 +27,16 @@ export const en = {
   'settings.saved': 'Saved',
   'settings.connected': 'Connected — model replied: "{response}"',
   'settings.saveFailed': 'Failed to save: {error}',
+
+  // Section nav
+  'settings.section.account': 'Account',
+  'settings.section.appearance': 'Appearance',
+  'settings.section.language': 'Language',
+  'settings.section.ai': 'AI',
+  'settings.section.account.desc': 'Profile and password',
+  'settings.section.appearance.desc': 'Theme',
+  'settings.section.language.desc': 'Interface language',
+  'settings.section.ai.desc': 'OpenRouter API key & model',
 }
 
 export const fr = {
@@ -58,4 +68,14 @@ export const fr = {
   'settings.saved': 'Enregistré',
   'settings.connected': 'Connecté — le modèle a répondu : « {response} »',
   'settings.saveFailed': 'Échec de l’enregistrement : {error}',
+
+  // Section nav
+  'settings.section.account': 'Compte',
+  'settings.section.appearance': 'Apparence',
+  'settings.section.language': 'Langue',
+  'settings.section.ai': 'IA',
+  'settings.section.account.desc': 'Profil et mot de passe',
+  'settings.section.appearance.desc': 'Thème',
+  'settings.section.language.desc': 'Langue de l’interface',
+  'settings.section.ai.desc': 'Clé API et modèle OpenRouter',
 }

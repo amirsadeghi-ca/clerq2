@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.workflow import Workflow
 from app.models.workflow_version import WorkflowVersion
 from app.schemas.workflow import WorkflowCreate, WorkflowOut, WorkflowUpdate, WorkflowVersionOut
+from app.security import get_current_tenant_id
 
 router = APIRouter()
 
@@ -30,19 +31,34 @@ def _make_version(db: Session, workflow_id: int, definition: dict) -> WorkflowVe
     return v
 
 
+def _get_owned(db: Session, workflow_id: int, tenant_id: int) -> Workflow:
+    wf = db.get(Workflow, workflow_id)
+    if not wf or wf.tenant_id != tenant_id:
+        raise HTTPException(404, "Workflow not found")
+    return wf
+
+
 @router.get("/", response_model=list[WorkflowOut])
-def list_workflows(include_archived: bool = False, db: Session = Depends(get_db)):
-    q = db.query(Workflow).order_by(Workflow.created_at.desc())
+def list_workflows(
+    include_archived: bool = False,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    q = db.query(Workflow).filter(Workflow.tenant_id == tenant_id).order_by(Workflow.created_at.desc())
     if not include_archived:
         q = q.filter(Workflow.is_archived == False)  # noqa: E712
     return q.all()
 
 
 @router.post("/", response_model=WorkflowOut, status_code=201)
-def create_workflow(body: WorkflowCreate, db: Session = Depends(get_db)):
-    wf = Workflow(name=body.name, description=body.description)
+def create_workflow(
+    body: WorkflowCreate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    wf = Workflow(tenant_id=tenant_id, name=body.name, description=body.description)
     db.add(wf)
-    db.flush()  # get wf.id before creating version
+    db.flush()
 
     definition = body.definition.model_dump()
     v = _make_version(db, wf.id, definition)
@@ -56,18 +72,18 @@ def create_workflow(body: WorkflowCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{workflow_id}", response_model=WorkflowOut)
-def get_workflow(workflow_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
-    return wf
+def get_workflow(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    return _get_owned(db, workflow_id, tenant_id)
 
 
 @router.put("/{workflow_id}", response_model=WorkflowOut)
-def update_workflow(workflow_id: int, body: WorkflowUpdate, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def update_workflow(
+    workflow_id: int,
+    body: WorkflowUpdate,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    wf = _get_owned(db, workflow_id, tenant_id)
     if wf.is_archived:
         raise HTTPException(400, "Cannot edit an archived workflow")
 
@@ -88,10 +104,8 @@ def update_workflow(workflow_id: int, body: WorkflowUpdate, db: Session = Depend
 
 
 @router.post("/{workflow_id}/archive", response_model=WorkflowOut)
-def archive_workflow(workflow_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def archive_workflow(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    wf = _get_owned(db, workflow_id, tenant_id)
     wf.is_archived = True
     db.commit()
     db.refresh(wf)
@@ -99,10 +113,8 @@ def archive_workflow(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/unarchive", response_model=WorkflowOut)
-def unarchive_workflow(workflow_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def unarchive_workflow(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    wf = _get_owned(db, workflow_id, tenant_id)
     wf.is_archived = False
     db.commit()
     db.refresh(wf)
@@ -110,10 +122,8 @@ def unarchive_workflow(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/favorite", response_model=WorkflowOut)
-def favorite_workflow(workflow_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def favorite_workflow(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    wf = _get_owned(db, workflow_id, tenant_id)
     wf.is_favorite = True
     db.commit()
     db.refresh(wf)
@@ -121,10 +131,8 @@ def favorite_workflow(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/unfavorite", response_model=WorkflowOut)
-def unfavorite_workflow(workflow_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def unfavorite_workflow(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    wf = _get_owned(db, workflow_id, tenant_id)
     wf.is_favorite = False
     db.commit()
     db.refresh(wf)
@@ -132,10 +140,8 @@ def unfavorite_workflow(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/enable-inbox", response_model=WorkflowOut)
-def enable_workflow_inbox(workflow_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def enable_workflow_inbox(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    wf = _get_owned(db, workflow_id, tenant_id)
     wf.email_inbox_enabled = True
     wf.email_address = f"workflow-{workflow_id}@clerq.local"
     db.commit()
@@ -144,10 +150,8 @@ def enable_workflow_inbox(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/disable-inbox", response_model=WorkflowOut)
-def disable_workflow_inbox(workflow_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def disable_workflow_inbox(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    wf = _get_owned(db, workflow_id, tenant_id)
     wf.email_inbox_enabled = False
     wf.email_address = None
     db.commit()
@@ -156,10 +160,8 @@ def disable_workflow_inbox(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{workflow_id}/versions", response_model=list[WorkflowVersionOut])
-def list_versions(workflow_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def list_versions(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
+    _get_owned(db, workflow_id, tenant_id)
     versions = (
         db.query(WorkflowVersion)
         .filter(WorkflowVersion.workflow_id == workflow_id)
@@ -170,10 +172,13 @@ def list_versions(workflow_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{workflow_id}/versions/{version_id}/restore", response_model=WorkflowOut)
-def restore_version(workflow_id: int, version_id: int, db: Session = Depends(get_db)):
-    wf = db.get(Workflow, workflow_id)
-    if not wf:
-        raise HTTPException(404, "Workflow not found")
+def restore_version(
+    workflow_id: int,
+    version_id: int,
+    db: Session = Depends(get_db),
+    tenant_id: int = Depends(get_current_tenant_id),
+):
+    wf = _get_owned(db, workflow_id, tenant_id)
     if wf.is_archived:
         raise HTTPException(400, "Cannot restore versions on an archived workflow")
 

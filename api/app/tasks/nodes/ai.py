@@ -54,8 +54,12 @@ def ai_task(self, input_data: dict, run_id: int, step_id: int, node_config: dict
             raise ValueError("AI node requires a system_prompt in node config")
 
         with SessionLocal() as db:
-            api_key_row = db.get(AppSetting, "openrouter_api_key")
-            model_row = db.get(AppSetting, "openrouter_default_model")
+            # Look up tenant from the run, then fetch tenant-scoped settings.
+            from app.models.run import WorkflowRun
+            run = db.get(WorkflowRun, run_id)
+            tid = run.tenant_id if run else None
+            api_key_row = db.get(AppSetting, (tid, "openrouter_api_key")) if tid else None
+            model_row = db.get(AppSetting, (tid, "openrouter_default_model")) if tid else None
 
         api_key = (api_key_row.value if api_key_row else None) or settings.openrouter_api_key
         if not api_key:
