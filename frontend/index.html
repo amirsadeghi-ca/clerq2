@@ -4,7 +4,16 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Clerq2</title>
+    <title>Interpret</title>
+    <script>
+      // Prefix the tab title on non-production hosts so the dev tab is easy to find.
+      (function () {
+        var h = location.hostname
+        if (h !== 'interpret.genitechs.ca' && h !== 'clerq2.genitechs.ca') {
+          document.title = '[dev] Interpret'
+        }
+      })()
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />

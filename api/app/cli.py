@@ -139,7 +139,7 @@ def cmd_deactivate_user(args, db: Session) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="python -m app.cli", description="Clerq2 admin CLI")
+    parser = argparse.ArgumentParser(prog="python -m app.cli", description="Interpret admin CLI")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("list-tenants").set_defaults(func=cmd_list_tenants)

@@ -1,3 +1,5 @@
+name: interpret
+
 services:
   redis:
     image: redis:7-alpine
@@ -16,7 +18,7 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      - DATABASE_URL=sqlite:////app/data/clerq.db
+      - DATABASE_URL=sqlite:////app/data/interpret.db
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_PATH=/app/data/storage
     volumes:
@@ -38,7 +40,7 @@ services:
     command: celery -A app.tasks.celery_app.celery_app worker --loglevel=info --concurrency=2
     env_file: .env
     environment:
-      - DATABASE_URL=sqlite:////app/data/clerq.db
+      - DATABASE_URL=sqlite:////app/data/interpret.db
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_PATH=/app/data/storage
     volumes:

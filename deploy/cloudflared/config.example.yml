@@ -1,8 +1,8 @@
 # Locally-managed Cloudflare Tunnel config (ingress-in-git variant).
 # Copy to config.yml and fill in your tunnel UUID after running:
 #   cloudflared tunnel login
-#   cloudflared tunnel create clerq2
-#   cloudflared tunnel route dns clerq2 app.YOURDOMAIN.com
+#   cloudflared tunnel create interpret
+#   cloudflared tunnel route dns interpret app.YOURDOMAIN.com
 #
 # Then move the generated ~/.cloudflared/<UUID>.json to
 # deploy/cloudflared/credentials.json (gitignored).
@@ -14,11 +14,19 @@ credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
   # Public hostname -> the nginx frontend container on the compose network.
-  - hostname: app.YOURDOMAIN.com
+  - hostname: interpret.genitechs.ca
     service: http://frontend:80
     originRequest:
       # Default 30s connect timeout is fine. Do NOT enable
       # disableChunkedEncoding — SSE relies on chunked streaming.
+      connectTimeout: 30s
+  # Alias: the pre-rebrand hostname keeps working off the same tunnel.
+  # Remove once the old name is fully retired. Each hostname also needs a
+  # DNS CNAME -> <UUID>.cfargotunnel.com (run `cloudflared tunnel route dns
+  # <tunnel> interpret.genitechs.ca`, or add the CNAME in the dashboard).
+  - hostname: clerq2.genitechs.ca
+    service: http://frontend:80
+    originRequest:
       connectTimeout: 30s
   # Required catch-all.
   - service: http_status:404

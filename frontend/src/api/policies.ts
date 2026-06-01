@@ -140,6 +140,19 @@ export function useDisablePolicyInbox() {
   })
 }
 
+export function useSetPolicyInboxAddress() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, localPart }: { id: number; localPart: string }) =>
+      client.put<Policy>(`/policies/${id}/inbox-address`, { local_part: localPart }).then(r => r.data),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['policies'] })
+      qc.invalidateQueries({ queryKey: ['policies', id] })
+      qc.invalidateQueries({ queryKey: ['mail', 'mailboxes'] })
+    },
+  })
+}
+
 export function useReorderRules() {
   const qc = useQueryClient()
   return useMutation({

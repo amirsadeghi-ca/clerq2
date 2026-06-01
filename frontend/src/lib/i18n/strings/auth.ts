@@ -1,6 +1,6 @@
 export const en = {
   'auth.signin.title': 'Sign in',
-  'auth.signin.subtitle': 'Sign in to continue to Clerq2.',
+  'auth.signin.subtitle': 'Sign in to continue to Interpret.',
   'auth.email': 'Email',
   'auth.password': 'Password',
   'auth.mfaCode': 'Authenticator code',
@@ -118,7 +118,7 @@ export const en = {
 
 export const fr = {
   'auth.signin.title': 'Se connecter',
-  'auth.signin.subtitle': 'Connectez-vous pour accéder à Clerq2.',
+  'auth.signin.subtitle': 'Connectez-vous pour accéder à Interpret.',
   'auth.email': 'Courriel',
   'auth.password': 'Mot de passe',
   'auth.mfaCode': 'Code de l’authentificateur',

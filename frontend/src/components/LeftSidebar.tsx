@@ -34,6 +34,11 @@ export function LeftSidebar() {
   const isMail = pathname === '/mail'
   const isInsights = pathname === '/insights'
 
+  // Flag non-production environments at a glance (local dev, staging, preview).
+  // Production is served from the public hostname; anything else shows a "dev" tag.
+  const host = typeof window !== 'undefined' ? window.location.hostname : ''
+  const isProd = host === 'interpret.genitechs.ca' || host === 'clerq2.genitechs.ca'
+
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-[var(--c-border)] bg-[var(--c-bg)]">
       {/* Brand */}
@@ -43,7 +48,12 @@ export function LeftSidebar() {
             <path d="M6 1L10.5 9H1.5L6 1Z" fill="white" />
           </svg>
         </div>
-        <span className="text-[13px] font-semibold tracking-tight text-[var(--c-text-1)]">Clerq2</span>
+        <span className="text-[13px] font-semibold tracking-tight text-[var(--c-text-1)]">Interpret</span>
+        {!isProd && (
+          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+            dev
+          </span>
+        )}
         <span className="ml-auto rounded border border-[var(--c-border-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--c-text-4)]">
           v{APP_VERSION}
         </span>

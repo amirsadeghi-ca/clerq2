@@ -21,7 +21,7 @@ import httpx
 
 from app.config import settings
 
-log = logging.getLogger("clerq2.mailer")
+log = logging.getLogger("interpret.mailer")
 
 
 @dataclass
@@ -32,19 +32,27 @@ class SendResult:
     error: str | None = None
 
 
-def send_email(*, to: str, subject: str, html: str, text: str | None = None) -> SendResult:
-    if settings.resend_api_key:
-        return _send_via_resend(to=to, subject=subject, html=html, text=text)
+def send_email(
+    *, to: str, subject: str, html: str, text: str | None = None, reply_to: str | None = None
+) -> SendResult:
+    # Resolve from system settings (admin Integrations UI) with env fallback.
+    from app import system_settings
+    api_key = system_settings.resend_api_key()
+    if api_key:
+        return _send_via_resend(to=to, subject=subject, html=html, text=text, reply_to=reply_to, api_key=api_key)
     # No provider configured — log so local dev still sees the link.
     log.warning(
-        "[mailer:stub] (no RESEND_API_KEY) to=%s subject=%r\n----- BODY -----\n%s\n----------------",
-        to, subject, text or html,
+        "[mailer:stub] (no RESEND_API_KEY) to=%s subject=%r reply_to=%s\n----- BODY -----\n%s\n----------------",
+        to, subject, reply_to, text or html,
     )
     return SendResult(ok=True, provider="stub")
 
 
-def _send_via_resend(*, to: str, subject: str, html: str, text: str | None) -> SendResult:
-    from_value = f"{settings.invite_from_name} <{settings.invite_from_address}>"
+def _send_via_resend(
+    *, to: str, subject: str, html: str, text: str | None, reply_to: str | None = None, api_key: str
+) -> SendResult:
+    from app import system_settings
+    from_value = f"{system_settings.invite_from_name()} <{system_settings.invite_from_address()}>"
     payload = {
         "from": from_value,
         "to": [to],
@@ -53,11 +61,13 @@ def _send_via_resend(*, to: str, subject: str, html: str, text: str | None) -> S
     }
     if text:
         payload["text"] = text
+    if reply_to:
+        payload["reply_to"] = reply_to
     try:
         resp = httpx.post(
             "https://api.resend.com/emails",
             headers={
-                "Authorization": f"Bearer {settings.resend_api_key}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
             json=payload,

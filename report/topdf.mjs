@@ -18,7 +18,7 @@ const { w, h } = await page.evaluate(() => ({
   h: document.documentElement.scrollHeight,
 }))
 await page.pdf({
-  path: '/Users/amirsadeghi/clerq2/report/Clerq2-Rapport-conformite-25320-S.pdf',
+  path: '/Users/amirsadeghi/clerq2/report/Interpret-Rapport-conformite-25320-S.pdf',
   printBackground: true,
   width: `${w}px`,
   height: `${h + 4}px`,

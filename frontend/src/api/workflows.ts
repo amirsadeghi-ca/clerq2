@@ -103,6 +103,18 @@ export function useDisableWorkflowInbox() {
   })
 }
 
+export function useSetWorkflowInboxAddress() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, localPart }: { id: number; localPart: string }) =>
+      client.put<Workflow>(`/workflows/${id}/inbox-address`, { local_part: localPart }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workflows'] })
+      qc.invalidateQueries({ queryKey: ['mail', 'mailboxes'] })
+    },
+  })
+}
+
 export function useRestoreVersion() {
   const qc = useQueryClient()
   return useMutation({

@@ -13,6 +13,7 @@ class MailMessage(Base):
     run_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("workflow_runs.id"), nullable=True)
     document_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("documents.id"), nullable=True)
     direction: Mapped[str] = mapped_column(Text, nullable=False)  # 'inbound' | 'outbound'
+    external_id: Mapped[str | None] = mapped_column(Text, index=True)  # provider msg id (Resend email_id) for idempotency
     from_addr: Mapped[str] = mapped_column(Text, nullable=False)
     to_addr: Mapped[str] = mapped_column(Text, nullable=False)
     subject: Mapped[str | None] = mapped_column(Text)

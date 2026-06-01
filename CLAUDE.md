@@ -1,20 +1,24 @@
-# Clerq2 — Project Reference
+# Interpret — Project Reference
 
 > **INSTRUCTION FOR CLAUDE:** After completing any task — no matter how small — update this file to reflect what changed. New files, deleted files, changed conventions, new endpoints, new node types, new environment variables, new gotchas, design decisions. Do this before marking the task done. This file is the single source of truth for the project; keeping it current is part of every task.
 
-> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Clerq2 wordmark. Current version: **1.4.0**.
+> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Interpret wordmark. Current version: **2.0.0**.
+
+> **REBRAND (Clerq2 → Interpret):** The product was renamed from **Clerq2** to **Interpret** in v2.0.0. Every user-facing string, the marketing site, the SQLite file (`clerq.db` → `interpret.db`, auto-migrated on startup by `api/entrypoint.sh`), the fake-email domain (`clerq.local` → `interpret.local`), Docker image/project names (`interpret-*`, via `name: interpret` in `docker-compose.yml`), and config/env defaults were updated. **Deliberately NOT renamed** (real infrastructure identities that would break things): the repo directory (`/Users/amirsadeghi/clerq2`, `/home/amix/clerq2`, `/srv/clerq2`), the GitHub remote (`amirsadeghi-ca/clerq2.git`), and the nas server-side files (`~/clerq2-autodeploy.sh`, `~/clerq2-deploy.log`, `~/clerq2-secrets-backup`, `/var/log/clerq2-deploy.log`). The production hostname references were switched to `interpret.genitechs.ca`; the old `clerq2.genitechs.ca` is still treated as production (sidebar/tab "dev" detection accepts both) so it keeps working as an alias until DNS is updated. A small **"dev" badge** now shows in the sidebar and a `[dev]` tab-title prefix appears on any non-production host.
 
 > **REBUILD AFTER EVERY CHANGE:** After making any code change, always rebuild and restart the affected Docker services so the user sees the result immediately. For frontend changes: `docker compose build frontend && docker compose up -d --no-deps --force-recreate frontend`. For backend/API changes: `docker compose build api worker && docker compose up -d --no-deps --force-recreate api worker`. Never finish a task without confirming the running app reflects the change.
 
 > **IMPLEMENTATION PLAN:** Active multi-phase work is tracked in [`docs/implementation-plan.md`](docs/implementation-plan.md). Read it before starting any new phase to understand what was approved, what's in scope, and the non-negotiable generalization principle.
 
-Clerq2 is a document management platform. The core feature is a visual workflow editor (like n8n) where users design multi-step document processing pipelines, upload files, and run them via a background queue. The MVP workflow is: **Input → PDF to Images → Validate Documents → Output**.
+Interpret is a document management platform. The core feature is a visual workflow editor (like n8n) where users design multi-step document processing pipelines, upload files, and run them via a background queue. The MVP workflow is: **Input → PDF to Images → Validate Documents → Output**.
 
 The validation system has three parts: a **Document Library** (reusable document type definitions with AI instructions and sample images), **Policies** (named validation rule sets with a natural-language brief + optional structured rule cards with accept/fail criteria), and a **`validate_documents` workflow node** that calls OpenRouter vision models to check documents against a policy. Policies are versioned — every save (PUT /policies/{id}), rule add, rule delete, or reorder creates a new `PolicyVersion` snapshot. The version used in each run is recorded in the step's `output_data`.
 
 The **Dashboard** is the end-user interface for running favorited workflows without entering the editor. Workflows can be starred (`is_favorite=true`) from the Workflows list page. Each favorited workflow appears as an interactive widget on the Dashboard — drop a PDF, click Run, and watch live step progress stream in. If the workflow has a `show_results` terminal node, a results sidebar slides in from the right when the run completes, rendering images, validation results, or raw JSON.
 
-The **Mail section** (`/mail`) provides a fake local email inbox for end-to-end flow testing. Each policy and workflow can have email receiving enabled (toggle in PolicyEditor / WorkflowList), which assigns a dedicated address like `policy-3@clerq.local` or `workflow-7@clerq.local`. The `/mail` page has a compose panel (From, To dropdown of active mailboxes, Subject, Body, file attachment) — clicking Send uploads the file and calls `POST /api/mail/inbound`, which triggers the appropriate run. When the run completes, a reply `MailMessage` is written automatically by `show_results.py` and appears in the inbox panel (polling every 5s). No real SMTP — everything stays inside the app.
+The **Mail section** (`/mail`) is both a real inbound/outbound email channel **and** an in-app test inbox. Each policy and workflow can have email receiving enabled (toggle in PolicyEditor / WorkflowList). Enabling assigns a dedicated address whose **local part defaults to a slug of the policy/workflow name** (e.g. `residential-mortgage@email.genitechs.ca`; a numbered suffix is appended on collision, falling back to `policy-{id}`/`workflow-{id}`). The **local part is fully editable** afterward — PolicyEditor has an inline address field, WorkflowList opens an inline editor from the mail icon — via `PUT …/inbox-address {local_part}`. The domain is fixed (`MAIL_INBOUND_DOMAIN`, default `email.genitechs.ca`) since it must be the Resend receiving domain. Helpers (slugify, validate, global uniqueness across policies+workflows) live in `api/app/mailboxes.py`; inbound resolution matches on the **stored** `email_address`, so any valid unique local part works. The `/mail` page's compose panel (From, To dropdown of active mailboxes, Subject, Body, file attachment) still exists for in-app testing — clicking Send uploads the file and calls `POST /api/mail/inbound` (tenant-scoped, UI fixture), which triggers the appropriate run.
+
+**Real email is wired via Resend Inbound** (see the "Real email (Resend Inbound + replies)" section below): a real message sent to a mailbox address is parsed by Resend, which POSTs an `email.received` event to `POST /api/mail/resend-inbound`; that webhook downloads attachments, creates `Document`s, and fires the run with no logged-in user. When a run completes, `show_results.py` both writes an in-app reply `MailMessage` (shown in the inbox panel, polling every 5s) **and** sends a real reply email through Resend (with `Reply-To` set to the mailbox so replies loop back). Replies to a sender whose address ends in `@interpret.local` are kept in-app only (so UI-compose tests don't fire real mail).
 
 The **Validate section** (`/validate`) is the policy-centric run launcher. It is the primary path for the common case — pick a policy, drop one or more documents, run, see results — without ever touching the workflow editor. Under the hood it fires the same canonical pipeline (input → pdf_to_images → validate_documents → show_results) and creates standard `WorkflowRun` records, but all of that is invisible to the user. The workflow editor remains available for advanced/custom pipelines. See the **Validate Section** design doc below.
 
@@ -26,10 +30,10 @@ The drop zone accepts multiple files. After dropping, the user sees a list of pe
 
 Static, deploy-anywhere HTML/CSS/JS (Tailwind CDN + AOS, no build step) for the public-facing site, kept separate from the app so it can be uploaded to cPanel as-is. Two pages:
 
-- **`website/index.html`** — the **Genitechs** company site. Genitechs is positioned as an *AI design, app & integration studio* serving public + private sector clients (services, products, four-step approach, why-us, sectors, FAQ, contact `info@genitechs.ca`). Features two products: **Clerq2** (document intelligence) and **Vision** (structured-form scanning/capture — reads any form layout, extracts fields → structured data, handwriting/checkboxes/tables; cream "form sheet" mockups with an emerald scan beam + field-ring highlights; "early access", no dedicated page yet).
-- **`website/clerq2/index.html`** — the **Clerq2** product landing page (copied from `landing/index.html`), re-branded "Clerq2 **by Genitechs**" with a back-link to `../index.html` and contact pointing to `info@genitechs.ca`.
+- **`website/index.html`** — the **Genitechs** company site. Genitechs is positioned as an *AI design, app & integration studio* serving public + private sector clients (services, products, four-step approach, why-us, sectors, FAQ, contact `info@genitechs.ca`). Features two products: **Interpret** (document intelligence) and **Vision** (structured-form scanning/capture — reads any form layout, extracts fields → structured data, handwriting/checkboxes/tables; cream "form sheet" mockups with an emerald scan beam + field-ring highlights; "early access", no dedicated page yet).
+- **`website/interpret/index.html`** — the **Interpret** product landing page (copied from `landing/index.html`), re-branded "Interpret **by Genitechs**" with a back-link to `../index.html` and contact pointing to `info@genitechs.ca`.
 
-**Brand colors (Genitechs page):** the org palette is **gold `#D4920A` / `#f0b429`** accent on **deep navy `#060e1a`** (cards `#0e1626`, borders `#1c2638`) — pulled from the live genitechs.ca CSS. Implemented by remapping Tailwind's `indigo-*` utility name to the gold ramp in `tailwind.config` (so all studio chrome turns gold with no per-element edits), plus `.btn-primary`/`.brand-grad`/`:root`/glows in the `<style>` block. Two product colors are kept distinct on top of gold: **Clerq2 = indigo** (its own `clerq-*` Tailwind color: logo, wordmark, pill, "Explore Clerq2" button, why-us bar) and **Vision = emerald**. The **Clerq2 landing** (`website/clerq2/`) keeps its original indigo `#6366f1` brand on dark `#0a0a0a`. Both pages share the same structure/animation system (Inter, grid-bg + glows, glassmorphic nav, light "paper" mockups, marquee, count-up stats, FAQ `<details>`). `landing/index.html` is the original standalone Clerq2 landing (kept; `website/clerq2/` is the deployable copy). Preview locally via `.claude/launch.json` config `website` (python http.server on :4599) or any static server rooted at `website/`. For cPanel: upload the **contents of `website/`** to `public_html` — Genitechs at `/`, Clerq2 at `/clerq2/`.
+**Brand colors (Genitechs page):** the org palette is **gold `#D4920A` / `#f0b429`** accent on **deep navy `#060e1a`** (cards `#0e1626`, borders `#1c2638`) — pulled from the live genitechs.ca CSS. Implemented by remapping Tailwind's `indigo-*` utility name to the gold ramp in `tailwind.config` (so all studio chrome turns gold with no per-element edits), plus `.btn-primary`/`.brand-grad`/`:root`/glows in the `<style>` block. Two product colors are kept distinct on top of gold: **Interpret = indigo** (its own `interpret-*` Tailwind color: logo, wordmark, pill, "Explore Interpret" button, why-us bar) and **Vision = emerald**. The **Interpret landing** (`website/interpret/`) keeps its original indigo `#6366f1` brand on dark `#0a0a0a`. Both pages share the same structure/animation system (Inter, grid-bg + glows, glassmorphic nav, light "paper" mockups, marquee, count-up stats, FAQ `<details>`). `landing/index.html` is the original standalone Interpret landing (kept; `website/interpret/` is the deployable copy). Preview locally via `.claude/launch.json` config `website` (python http.server on :4599) or any static server rooted at `website/`. For cPanel: upload the **contents of `website/`** to `public_html` — Genitechs at `/`, Interpret at `/interpret/`.
 
 ---
 
@@ -81,7 +85,7 @@ create-user --tenant acme --email amir@acme.co --password 'first' [--role owner|
 set-password --email amir@acme.co --password 'new'
 deactivate-user --email amir@acme.co
 ```
-`create-user` auto-creates the matching `auth_identities(provider="password")` row. The migration seeds **`admin@clerq.local`** in the **Default** tenant with NO usable password — set one before first login via `set-password`. Passwords use bcrypt directly (`app/security.py`); pre-truncated to 72 bytes for bcrypt 4.x compatibility (passlib has a known incompat with bcrypt ≥ 4 that we work around by not using passlib).
+`create-user` auto-creates the matching `auth_identities(provider="password")` row. The migration seeds **`admin@interpret.local`** in the **Default** tenant with NO usable password — set one before first login via `set-password`. Passwords use bcrypt directly (`app/security.py`); pre-truncated to 72 bytes for bcrypt 4.x compatibility (passlib has a known incompat with bcrypt ≥ 4 that we work around by not using passlib).
 
 **Frontend:**
 - `frontend/src/context/auth.tsx` — `AuthProvider` + `useAuth()` (user/tenant/loading + login/logout/refresh). Bootstraps from `localStorage` and calls `/auth/me` on first mount.
@@ -105,8 +109,13 @@ POST   /api/admin/tenants/{id}/users                   → AdminUser       {emai
 GET    /api/admin/users/{id}                           → AdminUser
 PUT    /api/admin/users/{id}                           → AdminUser       {display_name?, role?, is_active?, is_superadmin?, mfa_required?}
 POST   /api/admin/users/{id}/set-password              → AdminUser       {new_password}  (revokes all sessions)
+GET    /api/admin/integrations                         → Integrations    app-wide integration config (secrets returned as *_set booleans only)
+PUT    /api/admin/integrations                         → Integrations    {resend_api_key?, resend_inbound_webhook_secret?, mail_inbound_domain?, invite_from_address?, invite_from_name?, clear_*?} — a secret is updated only when a non-empty value is sent (blank save keeps it); clear_* wipes it
+POST   /api/admin/integrations/email/test              → {ok, error?}    sends a test email to the calling super-admin via Resend
 ```
-The frontend has a full **`/admin`** page (`frontend/src/pages/AdminPage.tsx`) — left column lists tenants with user counts; right column shows the selected tenant's users in a table with role/status/sign-in columns and per-row "Set password" + "Edit" actions; modals for creating tenants and users, editing tenants and users (active flag, role, MFA-required, super-admin flag), and setting passwords. The nav link "Administration" only appears in `LeftSidebar.tsx` for users where `user.is_superadmin === true` (visible via `/auth/me`). The page also renders a "super-admin only" empty state if a non-superadmin loads `/admin` directly. Strings live in `frontend/src/lib/i18n/strings/admin.ts` (en + fr-CA).
+The frontend has a full **`/admin`** page (`frontend/src/pages/AdminPage.tsx`) with a top-bar **view switcher: "Tenants & users" | "Integrations"**. The tenants view: left column lists tenants with user counts; right column shows the selected tenant's users in a table with role/status/sign-in columns and per-row "Set password" + "Edit" actions; modals for creating tenants and users, editing tenants and users (active flag, role, MFA-required, super-admin flag), and setting passwords. The **Integrations view** (`frontend/src/components/IntegrationsPanel.tsx`, hooks in `frontend/src/api/integrations.ts`, strings in `strings/integrations.ts`) is an Email (Resend) card: Resend API key, From address/name, inbound domain, and **inbound webhook secret** — plus read-only copy rows for the webhook URL (`{APP_BASE_URL}/api/mail/resend-inbound`) and the inbound MX record to add in DNS, and a "Send test email" button. The nav link "Administration" only appears in `LeftSidebar.tsx` for users where `user.is_superadmin === true` (visible via `/auth/me`). The page also renders a "super-admin only" empty state if a non-superadmin loads `/admin` directly. Strings live in `frontend/src/lib/i18n/strings/admin.ts` (en + fr-CA).
+
+**App-wide settings (`app/system_settings.py`).** The Resend/email integration config is stored in `app_settings` under the reserved **`tenant_id=0`** row (the model already documented this reservation). `system_settings.py` exposes `get_system`/`set_system` plus typed resolvers (`resend_api_key`, `resend_inbound_webhook_secret`, `mail_inbound_domain`, `invite_from_address`, `invite_from_name`) that read DB-first and **fall back to the env var** (`app.config.settings`) — so env-only deploys keep working until an admin overrides a value in the Integrations UI. `mailer.py` (send key + from), the `/api/mail/resend-inbound` webhook (verify secret + attachment-fetch key), and the policy/workflow `enable-inbox` endpoints (inbound domain) all read through these resolvers. Resolvers accept an optional `Session`; the mailer omits it and opens a short-lived one (it's often called without a request db). **`tenant_id=0` is a sentinel, not a real tenant — never expose these to non-super-admins.**
 
 **Permission system (RBAC, per-tenant, code-defined).** Permission keys are namespaced strings declared in `api/app/permissions.py` (`Permission.TENANT_USERS_INVITE`, `Permission.TENANT_USERS_REMOVE`, etc.). The `(role → set of permission keys)` mapping is stored **per tenant** in `tenant_role_permissions(tenant_id, role, permission_key)` so each tenant can later customize. Defaults from `DEFAULT_ROLE_PERMISSIONS` are seeded on tenant creation (see `seed_default_role_permissions()` called from the admin tenant-create endpoint and the alembic seed loop). Today: **owner** = everything, **admin** = invite/remove/update_role/set_password/read users, **member** = nothing. Super-admins (`User.is_superadmin`) bypass these checks. Authority rule beyond permission keys (in `can_act_on_target_role()`): a tenant `admin` cannot invite, remove, change role of, or reset password of another `admin`/`owner` — only `owner`s (and super-admins) can.
 
@@ -152,7 +161,7 @@ POST /api/invites/accept   {token, password, display_name?} → TokenPair (auto 
 ```
 Invites are single-use (`accepted_at` set on consumption) and admin-revocable. Resend rotates the token and clears `revoked_at`. Frontend public page is `frontend/src/pages/InviteAcceptPage.tsx` at `/invite/:token` — after accept, `setTokens(...)` + `window.location.replace('/')` (a full reload so `AuthProvider` re-bootstraps from the new tokens; an SPA `navigate('/')` keeps the old null-`user` state and ProtectedRoute kicks back to `/login`).
 
-**`APP_BASE_URL` per environment.** The invite email/link is built as `{APP_BASE_URL}/invite/{token}`. The root `docker-compose.yml` doesn't set it (the api falls back to `http://localhost` from `Settings`), and dev `.env` typically pins `APP_BASE_URL=http://localhost`. The **prod overlay** `deploy/docker-compose.prod.yml` overrides it on the api container to `https://clerq2.genitechs.ca` so production invites carry public URLs. Anywhere a new public hostname is introduced, update both the Cloudflare Tunnel ingress in `deploy/cloudflared/config.yml` and `APP_BASE_URL` in the overlay.
+**`APP_BASE_URL` per environment.** The invite email/link is built as `{APP_BASE_URL}/invite/{token}`. The root `docker-compose.yml` doesn't set it (the api falls back to `http://localhost` from `Settings`), and dev `.env` typically pins `APP_BASE_URL=http://localhost`. The **prod overlay** `deploy/docker-compose.prod.yml` overrides it on the api container to `https://interpret.genitechs.ca` so production invites carry public URLs. Anywhere a new public hostname is introduced, update both the Cloudflare Tunnel ingress in `deploy/cloudflared/config.yml` and `APP_BASE_URL` in the overlay.
 
 **Email delivery — Resend.** `app/mailer.py` exposes one function `send_email(to, subject, html, text?)` that always returns a `SendResult` (never raises). When `RESEND_API_KEY` is set it POSTs to `https://api.resend.com/emails` with `{from: "{INVITE_FROM_NAME} <{INVITE_FROM_ADDRESS}>", to, subject, html, text?}`. Without `RESEND_API_KEY` it logs the body to stdout. Sender domain `email.genitechs.ca` is verified in Resend; the default `INVITE_FROM_ADDRESS=noreply@email.genitechs.ca` works for any recipient. (Resend's free `onboarding@resend.dev` sender will only deliver to the Resend account owner's verified address — fine for stub-mode, not for real invites.)
 
@@ -230,21 +239,21 @@ The API source (`api/app/`) is mounted as a volume — uvicorn auto-reloads Pyth
 
 ---
 
-## Production Deployment (live: https://clerq2.genitechs.ca)
+## Production Deployment (live: https://interpret.genitechs.ca)
 
-The app is deployed on the home server **`nas`** (`192.168.2.63`, user `amix`, ssh alias `nas`; sudo password is kept in private deployment notes — **never commit it to this repo**) and exposed publicly through a **named Cloudflare Tunnel** at **`clerq2.genitechs.ca`**. The rest of the `genitechs.ca` zone (root site, MX/email) is intentionally untouched — only a single `clerq2` CNAME was added, and Cloudflare Email Routing is **not** enabled.
+The app is deployed on the home server **`nas`** (`192.168.2.63`, user `amix`, ssh alias `nas`; sudo password is kept in private deployment notes — **never commit it to this repo**) and exposed publicly through a **named Cloudflare Tunnel** at **`interpret.genitechs.ca`**. The rest of the `genitechs.ca` zone (root site, MX/email) is intentionally untouched — only a single `interpret` CNAME was added, and Cloudflare Email Routing is **not** enabled.
 
-**Topology:** `browser → https://clerq2.genitechs.ca → cloudflared (container) → frontend:80 → api:8000 → worker → OpenRouter`. No host ports are published in prod; the only ingress is the tunnel.
+**Topology:** `browser → https://interpret.genitechs.ca → cloudflared (container) → frontend:80 → api:8000 → worker → OpenRouter`. No host ports are published in prod; the only ingress is the tunnel.
 
 **What's on nas:**
 - Docker Engine + compose plugin, daemon enabled (survives reboot); `amix` in the `docker` group.
 - App source at `~/clerq2` (delivered by `rsync` from the dev Mac — the local repo has **no git remote**, so deploys are rsync-based, not git-pull).
 - `cloudflared` binary installed on the host (used only for `tunnel login`/`create`/`route dns`); the running tunnel is a **container**.
-- Tunnel **`clerq2`** = id `6beceb78-d6e6-4047-bb55-551933a3e21d` (locally-managed: ingress in git, credentials mounted).
+- Tunnel **`interpret`** = id `6beceb78-d6e6-4047-bb55-551933a3e21d` (locally-managed: ingress in git, credentials mounted).
 
 **Files (created on nas, not all in git):**
 - `~/clerq2/.env` — `SECRET_KEY` (generated), `OPENROUTER_API_KEY=` **empty** (set it in the app's Settings, or runs with a `validate_documents` node fail), `OPENROUTER_DEFAULT_MODEL`, DB/redis/storage paths.
-- `deploy/cloudflared/config.yml` — `tunnel:` UUID + ingress `clerq2.genitechs.ca → http://frontend:80` (connectTimeout 30s) + catch-all 404.
+- `deploy/cloudflared/config.yml` — `tunnel:` UUID + ingress `interpret.genitechs.ca → http://frontend:80` (connectTimeout 30s) + catch-all 404.
 - `deploy/cloudflared/credentials.json` — tunnel secret (gitignored).
 - `deploy/docker-compose.prod.yml` — overlay: strips host ports on `api`/`frontend`, adds the **locally-managed** `cloudflared` service (mounts `config.yml` + `credentials.json`).
 
@@ -258,7 +267,8 @@ docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --b
 **Deployment gotchas:**
 - **cloudflared can't read `credentials.json` → 530 / error 1033 + restart loop.** The `cloudflare/cloudflared` image runs as a **non-root** user; `cloudflared tunnel create` writes the credentials file mode `600` owned by `amix` (uid 1000), which the container user can't read. Fix: `chmod 644 deploy/cloudflared/credentials.json deploy/cloudflared/config.yml`, then recreate the cloudflared container. If you ever regenerate the tunnel credentials, re-apply the chmod.
 - **Broken third-party apt repo blocks `get.docker.com`.** nas had a dead `packagecloud.io/ookla/speedtest-cli` source that made `apt-get update` exit non-zero, aborting the Docker install script. Disable the offending list in `/etc/apt/sources.list.d/` before installing.
-- **Tunnel is locally-managed, not token-based.** The committed/template overlay also documents a token-based variant; the live deploy uses the locally-managed one (`config.yml` + `credentials.json`). Don't enable Email Routing on `genitechs.ca` (it would seize the zone MX and break `info@genitechs.ca`).
+- **Tunnel is locally-managed, not token-based.** The committed/template overlay also documents a token-based variant; the live deploy uses the locally-managed one (`config.yml` + `credentials.json`).
+- **Email: never touch the `genitechs.ca` apex MX.** `info@genitechs.ca` is hosted on `mx{1,2,3}-hosting.jellyfish.systems` (apex MX). Do NOT enable Cloudflare Email Routing on the **apex** — it would replace those MX records and break `info@`. Inbound mail for the app rides **Resend Inbound on the `email.genitechs.ca` subdomain only** (its root had no MX, so adding the Resend inbound MX there is safe). The `send.email.genitechs.ca` return-path MX + `resend._domainkey` DKIM (outbound) are untouched. (Cloudflare Email Routing *does* now support subdomains, but we use Resend for both directions to stay single-vendor.)
 
 ---
 
@@ -286,7 +296,7 @@ docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --b
                 └─────────────────┘
 
 Shared volume: ./data → /app/data
-  /app/data/clerq.db          SQLite database
+  /app/data/interpret.db          SQLite database
   /app/data/storage/          uploaded files + run output
 ```
 
@@ -295,9 +305,9 @@ Four Docker services, all defined in `docker-compose.yml`:
 | Service | Image | Port | Role |
 |---|---|---|---|
 | `redis` | redis:7-alpine | internal only | Celery broker + result backend |
-| `api` | clerq2-api | 8000 | FastAPI — REST + SSE |
-| `worker` | clerq2-api (same) | none | Celery worker, CMD overridden |
-| `frontend` | clerq2-frontend | 80 | nginx serving Vite build + proxy |
+| `api` | interpret-api | 8000 | FastAPI — REST + SSE |
+| `worker` | interpret-api (same) | none | Celery worker, CMD overridden |
+| `frontend` | interpret-frontend | 80 | nginx serving Vite build + proxy |
 
 **Critical:** Redis has no host port mapping intentionally — a local Redis on the host was conflicting with port 6379. Containers talk to each other via the `redis` hostname on the internal Docker network.
 
@@ -306,13 +316,13 @@ Four Docker services, all defined in `docker-compose.yml`:
 ## Directory Structure
 
 ```
-clerq2/
+interpret/
 ├── CLAUDE.md                 ← you are here
 ├── docker-compose.yml
 ├── .env                      ← actual secrets (not committed)
 ├── .env.example              ← template
 ├── data/
-│   ├── clerq.db              ← SQLite database (auto-created on startup)
+│   ├── interpret.db              ← SQLite database (auto-created on startup)
 │   └── storage/              ← uploaded PDFs + rendered PNGs
 │       └── run_{id}_doc_{id}_pages/
 │           └── page_NNNN.png
@@ -613,14 +623,19 @@ POST /api/policies/{id}/rules                            → PolicyRule       al
 PUT  /api/policies/{id}/rules/{rule_id}                  → PolicyRule       does NOT create a version (too frequent)
 DELETE /api/policies/{id}/rules/{rid}                    → 204              also creates a PolicyVersion snapshot
 PATCH /api/policies/{id}/rules/reorder                   → Policy           also creates a PolicyVersion snapshot
-POST /api/policies/{id}/enable-inbox                     → Policy           sets email_inbox_enabled=True, email_address=policy-{id}@clerq.local
+POST /api/policies/{id}/enable-inbox                     → Policy           email_inbox_enabled=True; email_address defaults to slug(name)@{MAIL_INBOUND_DOMAIN} (numbered suffix on collision)
+PUT  /api/policies/{id}/inbox-address                    → Policy           {local_part} — rename the mailbox; 400 invalid, 409 if taken (global). Inbox must be enabled.
 POST /api/policies/{id}/disable-inbox                    → Policy           sets email_inbox_enabled=False, email_address=None
-POST /api/workflows/{id}/enable-inbox                    → Workflow         sets email_inbox_enabled=True, email_address=workflow-{id}@clerq.local
+POST /api/workflows/{id}/enable-inbox                    → Workflow         email_inbox_enabled=True; email_address defaults to slug(name)@{MAIL_INBOUND_DOMAIN} (numbered suffix on collision)
+PUT  /api/workflows/{id}/inbox-address                   → Workflow         {local_part} — rename the mailbox; 400 invalid, 409 if taken (global). Inbox must be enabled.
 POST /api/workflows/{id}/disable-inbox                   → Workflow         sets email_inbox_enabled=False, email_address=None
 
 GET  /api/mail/mailboxes                                 → Mailbox[]        all enabled policy+workflow mailboxes
 POST /api/mail/inbound                                   → Run              body: {to, from_email, subject?, body?, document_id?}
-                                                           matches recipient to policy/workflow, triggers run, stores sender_email for reply
+                                                           UI test fixture (tenant-scoped); matches recipient to policy/workflow, triggers run, stores sender_email for reply
+POST /api/mail/resend-inbound                            → {ok, run_id?, …} REAL inbound webhook (NO auth; Svix-verified). Resend email.received →
+                                                           resolves mailbox→tenant globally, downloads attachments→Documents, fires run.
+                                                           Idempotent on Resend email_id (mail_messages.external_id). See "Real email" section.
 GET  /api/mail/messages                                  → MailMessage[]    all inbound+outbound messages, newest first
 
 GET  /api/metrics/insights?policy_id=&source=            → Insights         operational indicators (§2.2.1.4); source defaults to "validate"
@@ -770,7 +785,7 @@ Then rebuild: `docker compose build api worker frontend && docker compose up -d 
 ## Environment Variables
 
 ```
-DATABASE_URL=sqlite:////app/data/clerq.db
+DATABASE_URL=sqlite:////app/data/interpret.db
 REDIS_URL=redis://redis:6379/0
 STORAGE_PATH=/app/data/storage
 SECRET_KEY=change-me-in-production
@@ -783,12 +798,15 @@ APP_BASE_URL=http://localhost  ← used to build invite links (https://… in pr
 INVITE_EXPIRY_DAYS=7
 RESEND_API_KEY=                ← https://resend.com — empty → log-only stub mailer
 INVITE_FROM_ADDRESS=noreply@email.genitechs.ca  ← must be on a Resend-verified domain
-INVITE_FROM_NAME=Clerq2
+INVITE_FROM_NAME=Interpret
+MAIL_INBOUND_DOMAIN=email.genitechs.ca           ← domain for policy-N@…/workflow-N@… addresses (Resend Inbound)
+RESEND_INBOUND_WEBHOOK_SECRET=                    ← Svix signing secret "whsec_…" for /api/mail/resend-inbound; blank = skip verify (DEV ONLY)
+MAIL_MAX_ATTACHMENT_BYTES=26214400               ← reject inbound attachments larger than this (default 25 MiB)
 ```
 
 For local dev outside Docker (running `uvicorn` directly):
 ```
-DATABASE_URL=sqlite:///./data/clerq.db
+DATABASE_URL=sqlite:///./data/interpret.db
 REDIS_URL=redis://localhost:6379/0
 STORAGE_PATH=./data/storage
 ```
@@ -904,11 +922,12 @@ All SSE streaming and result access reuse existing endpoints (`/api/runs/{id}/st
 - `workflow_runs.name TEXT` — filename at creation; later: extracted field from policy
 - `workflow_runs.source TEXT` — `"validate"` for Validate-section runs; NULL for workflow editor runs
 - `workflow_runs.policy_id INTEGER` — policy used; enables filtering in `GET /api/validate/runs`
-- `workflow_runs.sender_email TEXT` — set for `source="mail"` runs; `show_results.py` sends reply `MailMessage` to this address on completion
+- `workflow_runs.sender_email TEXT` — set for `source="mail"` runs; `show_results.py` writes an in-app reply `MailMessage` AND (for real, non-`@interpret.local` senders) sends a real Resend reply to this address on completion
 - `policies.email_inbox_enabled BOOLEAN NOT NULL DEFAULT 0` — whether this policy has a mailbox active
-- `policies.email_address TEXT` — assigned address, e.g. `policy-3@clerq.local`; null when disabled
+- `policies.email_address TEXT` — assigned address, e.g. `policy-3@email.genitechs.ca` (`MAIL_INBOUND_DOMAIN`); null when disabled
 - `workflows.email_inbox_enabled BOOLEAN NOT NULL DEFAULT 0` — same for workflows
-- `workflows.email_address TEXT` — e.g. `workflow-7@clerq.local`
+- `workflows.email_address TEXT` — e.g. `workflow-7@email.genitechs.ca`
+- `mail_messages.external_id TEXT` — provider message id (Resend `email_id`) for inbound idempotency (migration `0007_mail_external_id`)
 
 ### Future: run name extraction
 
@@ -917,6 +936,41 @@ When implemented, the policy will carry an `extraction_field` (e.g. `"patient_na
 ### Future: policy chaining
 
 Policy chaining stays in the Validate section. The user picks an ordered list of policies. Under the hood, the canonical pipeline grows: `input → pdf_to_images → validate_documents(policy_A) → validate_documents(policy_B) → show_results`. Each validate step gets its own `WorkflowRunStep`. The results drawer will show a tabbed view, one tab per policy.
+
+---
+
+## Real email (Resend Inbound + replies)
+
+Policy/workflow mailboxes work with **real email**, end to end, via **Resend** for both directions. Single vendor; the `genitechs.ca` apex email (`info@`, on jellyfish.systems) is never touched.
+
+**Inbound flow:**
+```
+sender → policy-3@email.genitechs.ca
+       → Resend Inbound (MX on email.genitechs.ca) parses the message + attachments
+       → POST https://interpret.genitechs.ca/api/mail/resend-inbound   {type:"email.received", data:{email_id, from, to[], subject, attachments[]}}
+       → webhook (api/app/routers/mail.py):
+           1. verify Svix signature (RESEND_INBOUND_WEBHOOK_SECRET)
+           2. idempotency: skip if mail_messages.external_id == data.email_id already exists
+           3. resolve mailbox: parse policy-{id}/workflow-{id} from a recipient, GLOBAL lookup (no auth), tenant = owner row's tenant_id
+           4. GET /emails/receiving/{email_id}/attachments → download each (pre-signed download_url) → save as Document (skips inline parts + >MAIL_MAX_ATTACHMENT_BYTES)
+           5. create WorkflowRun(source="mail", policy_id/workflow_id, sender_email=from) + inbound MailMessage(external_id) → trigger_run(docs)
+           6. no usable attachment → run marked failed + a "please attach a document" reply is sent
+```
+The webhook is **unauthenticated by design** (no session behind a webhook); authenticity = the Svix signature, tenant = the matched mailbox's owner. Returns HTTP 200 even for unknown recipients (so Resend stops retrying mail we don't own).
+
+**Outbound replies** (`show_results.py::_send_reply`): on run completion it (a) always writes the in-app `MailMessage` for the `/mail` inbox, and (b) sends a **real Resend email** to `run.sender_email` via `app.mailer.send_email(..., reply_to=<mailbox address>)` so a recipient's reply loops back into the same policy/workflow. Reply gating still respects the policy's `email_reply_mode` (`always`/`on_pass`/`on_fail`/`never`) and `email_pass_message`/`email_fail_message` templates (`{{failed_rules}}` placeholder). Senders ending in `@interpret.local` (the UI compose fixture) get the in-app copy only — no real send.
+
+**One-time setup.** Receiving was enabled on the Resend domain `email.genitechs.ca` via API (`PATCH /domains/{id} {"receiving":true}` → `capabilities.receiving:"enabled"`; it added the inbound MX `inbound-smtp.us-east-1.amazonaws.com` priority 10). What remains is done **without touching the server `.env`** — config is now UI-managed (Admin → Integrations):
+1. **Cloudflare DNS** → on `email.genitechs.ca` add the inbound **MX** record `inbound-smtp.us-east-1.amazonaws.com` priority **10** (its root has no MX, so no conflict with the apex or with `send.email.genitechs.ca`). Wait for verify.
+2. App → **Admin → Integrations** → copy the **Webhook URL** shown there (it's `{APP_BASE_URL}/api/mail/resend-inbound`, so it's always correct for the current deployment).
+3. Resend → Webhooks → **add endpoint** = that URL, event **`email.received`** → copy the signing secret (`whsec_…`).
+4. Paste the secret into **Admin → Integrations → Inbound webhook secret** and Save. No `.env` edit or redeploy needed. (`RESEND_INBOUND_WEBHOOK_SECRET` env still works as a fallback.)
+
+**Gotchas:**
+- The webhook `email.received` payload carries attachment **metadata only** — bytes are fetched via the Attachments API's pre-signed `download_url`. Needs `RESEND_API_KEY` set (the same key used for sending).
+- Idempotency is keyed on Resend's `email_id` stored in `mail_messages.external_id` (migration `0007`). Resend retries on non-2xx, so always return 200 on terminal outcomes.
+- Inbound addresses are resolved **globally** (the embedded id is a global PK); the tenant comes from the matched row — never from a session.
+- Attachment size is capped by `MAIL_MAX_ATTACHMENT_BYTES` (default 25 MiB), checked against both the reported `size` and the downloaded bytes; oversize/inline parts are skipped.
 
 ---
 

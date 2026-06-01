@@ -8,4 +8,4 @@
  *
  * Displayed in the left sidebar. Referenced in CLAUDE.md.
  */
-export const APP_VERSION = '1.4.0'
+export const APP_VERSION = '2.0.0'

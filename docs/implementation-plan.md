@@ -1,4 +1,4 @@
-# Implement the MELCCFP "Recevabilité" RFP inside Clerq2 — phased & experience-led
+# Implement the MELCCFP "Recevabilité" RFP inside Interpret — phased & experience-led
 
 ## Context
 
@@ -7,15 +7,15 @@ Three PDFs were dropped in the project root. Two are byte-identical (`CCAG_TI_20
 1. **CCAG** (17 pp) — Quebec's *Cahier des clauses administratives générales*: fixed procurement boilerplate. **No app work** — it's contractual context only.
 2. **25320-S** (91 pp) — the **CCDE** of a live RFP from the *Ministère de l'Environnement* (MELCCFP). It asks a vendor to build an **AI assistant that judges the "recevabilité"** (completeness/admissibility) of ministerial authorization requests. For each request *dossier*, the tool runs documentary checks and emits a **Rapport de traçabilité (RT)** — a checklist with a verdict of **Recevable / Non recevable / Information manquante** — which a human reviews before the file moves to analysis.
 
-The RFP's target solution (Annexe 21) is, point for point, **what Clerq2 already does**: a Library of document types, a parametrable + versioned Policy of rules, an AI check (`validate_documents`), and a results report (`show_results`). Clerq2's verdict `pass / fail / needs_review` already maps onto **Recevable / Non recevable / Information manquante**.
+The RFP's target solution (Annexe 21) is, point for point, **what Interpret already does**: a Library of document types, a parametrable + versioned Policy of rules, an AI check (`validate_documents`), and a results report (`show_results`). Interpret's verdict `pass / fail / needs_review` already maps onto **Recevable / Non recevable / Information manquante**.
 
 ## Guiding principle (non-negotiable)
 
-**Everything we build is a generic Clerq2 capability.** The MELCCFP request is one *use case*; it must live entirely as **configuration and data** (document types, a policy, sample files) on top of generic features. No phase adds logic that only makes sense for this one RFP. If a piece of work only helps the MELCCFP case, it gets redesigned to be configuration-driven instead. This keeps Clerq2 a reusable product.
+**Everything we build is a generic Interpret capability.** The MELCCFP request is one *use case*; it must live entirely as **configuration and data** (document types, a policy, sample files) on top of generic features. No phase adds logic that only makes sense for this one RFP. If a piece of work only helps the MELCCFP case, it gets redesigned to be configuration-driven instead. This keeps Interpret a reusable product.
 
 ## What's missing today (verified against current code)
 
-Clerq2 today validates **exactly one document per run**. The RFP's unit of work is a **dossier of ~19 documents (≈22 pages each)** of mixed formats, judged together. Three generic gaps follow:
+Interpret today validates **exactly one document per run**. The RFP's unit of work is a **dossier of ~19 documents (≈22 pages each)** of mixed formats, judged together. Three generic gaps follow:
 
 1. A run can only cover one document — there's no notion of validating a **set** of documents together and reporting on them as a whole.
 2. Only **PDF and images** can be read — Word, Excel, and CSV (all required by the RFP) are not ingested.
@@ -52,7 +52,7 @@ Each phase is delivered and reviewed on its own. I stop after each one and wait 
 
 ## Phase 0 — Establish a safety net (version control) ✓
 
-**Why first:** Clerq2 is not yet under version control, so today there's no way back if a later change misbehaves.
+**Why first:** Interpret is not yet under version control, so today there's no way back if a later change misbehaves.
 
 **What happens:** the current, working app is committed as a clean baseline, with build artifacts, the local database, uploaded files, and secrets excluded from tracking.
 
@@ -140,7 +140,7 @@ The single largest change, split into three reviewable sub-phases. The end state
 
 ## Phase 4 — The MELCCFP recevability use case (configuration & data only) ✓
 
-**What changes for the user:** Clerq2 ships with a ready-to-use *example* of the RFP, built entirely from the generic features above — proving the whole story end to end. It is data, not code: it can be deleted without affecting the app.
+**What changes for the user:** Interpret ships with a ready-to-use *example* of the RFP, built entirely from the generic features above — proving the whole story end to end. It is data, not code: it can be deleted without affecting the app.
 
 **What happens / what's created:**
 - A handful of **document types** in the Library representing the dossier's pieces (e.g. the authorization request form, technical annexes, an inventory, and a "Déclaration d'antécédents" used to demonstrate *exclusion* — a document the checks deliberately ignore).

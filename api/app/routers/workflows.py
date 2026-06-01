@@ -2,6 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
+from pydantic import BaseModel
+
+from app import mailboxes, system_settings
+from app.config import settings
 from app.database import get_db
 from app.models.workflow import Workflow
 from app.models.workflow_version import WorkflowVersion
@@ -143,7 +147,36 @@ def unfavorite_workflow(workflow_id: int, db: Session = Depends(get_db), tenant_
 def enable_workflow_inbox(workflow_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
     wf = _get_owned(db, workflow_id, tenant_id)
     wf.email_inbox_enabled = True
-    wf.email_address = f"workflow-{workflow_id}@clerq.local"
+    domain = system_settings.mail_inbound_domain(db)
+    base = mailboxes.slugify_local_part(wf.name, f"workflow-{workflow_id}")
+    local = mailboxes.unique_local_part(db, base, domain, exclude_workflow_id=workflow_id)
+    wf.email_address = f"{local}@{domain}"
+    db.commit()
+    db.refresh(wf)
+    return wf
+
+
+class InboxAddressIn(BaseModel):
+    local_part: str
+
+
+@router.put("/{workflow_id}/inbox-address", response_model=WorkflowOut)
+def set_workflow_inbox_address(
+    workflow_id: int, body: InboxAddressIn,
+    db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id),
+):
+    wf = _get_owned(db, workflow_id, tenant_id)
+    if not wf.email_inbox_enabled:
+        raise HTTPException(400, "Enable the inbox before setting its address.")
+    local = mailboxes.normalize_local_part(body.local_part)
+    err = mailboxes.validate_local_part(local)
+    if err:
+        raise HTTPException(400, err)
+    domain = system_settings.mail_inbound_domain(db)
+    address = f"{local}@{domain}"
+    if mailboxes.address_in_use(db, address, exclude_workflow_id=workflow_id):
+        raise HTTPException(409, "That address is already in use by another mailbox.")
+    wf.email_address = address
     db.commit()
     db.refresh(wf)
     return wf

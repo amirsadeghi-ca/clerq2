@@ -5,7 +5,7 @@ Strategy for live data preservation:
      mfa_credentials).
   2. Insert a "Default" tenant + a single bootstrap "admin" user with NO usable
      password — the operator MUST run `python -m app.cli set-password` (or use
-     the CLERQ_BOOTSTRAP_PASSWORD env var, see app/migrations.py docs) before
+     the INTERPRET_BOOTSTRAP_PASSWORD env var, see app/migrations.py docs) before
      anyone can log in. We refuse to invent a default password and bake it into
      a migration.
   3. Add `tenant_id` (nullable) to every resource table, set every existing row
@@ -124,7 +124,7 @@ def upgrade() -> None:
     bind.execute(
         sa.text(
             "INSERT INTO users (tenant_id, email, display_name, role, is_active, mfa_required) "
-            "VALUES (:tid, 'admin@clerq.local', 'Administrator', 'owner', 1, 0)"
+            "VALUES (:tid, 'admin@interpret.local', 'Administrator', 'owner', 1, 0)"
         ),
         {"tid": default_tenant_id},
     )

@@ -9,6 +9,7 @@ import {
   type AdminTenant, type AdminUser,
 } from '../api/admin'
 import { useInvites, useCreateInvite, useRevokeInvite, useResendInvite, type Invite } from '../api/tenant'
+import { IntegrationsPanel } from '../components/IntegrationsPanel'
 
 const ROLES = ['owner', 'admin', 'member'] as const
 
@@ -448,6 +449,7 @@ export function AdminPage() {
   const [passwordModal, setPasswordModal] = useState<AdminUser | null>(null)
   const [deleteModal, setDeleteModal] = useState<AdminUser | null>(null)
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [view, setView] = useState<'tenants' | 'integrations'>('tenants')
 
   const selectedTenant = useMemo(
     () => tenants?.find((t) => t.id === selectedTenantId) ?? null,
@@ -484,8 +486,29 @@ export function AdminPage() {
             <div className="text-[15px] font-medium text-[var(--c-text-1)]">{t('admin.title')}</div>
             <div className="text-[11px] text-[var(--c-text-4)]">{t('admin.subtitle')}</div>
           </div>
+          <div className="flex items-center gap-1 rounded-md border border-[var(--c-border-2)] p-0.5">
+            {(['tenants', 'integrations'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={[
+                  'rounded px-3 py-1 text-[12px] transition-colors',
+                  view === v
+                    ? 'bg-[var(--c-active)] text-[var(--c-text-1)]'
+                    : 'text-[var(--c-text-4)] hover:text-[var(--c-text-2)]',
+                ].join(' ')}
+              >
+                {v === 'tenants' ? t('integrations.tab.tenants') : t('integrations.tab')}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {view === 'integrations' ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <IntegrationsPanel />
+          </div>
+        ) : (
         <div className="flex min-h-0 flex-1">
           {/* Tenant list */}
           <div className="flex w-[280px] shrink-0 flex-col border-r border-[var(--c-border)]">
@@ -646,6 +669,7 @@ export function AdminPage() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {showTenantModal && (

@@ -294,13 +294,13 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
 </div>
 """
     text = (
-        f"Reset your Clerq2 password\n\n"
+        f"Reset your Interpret password\n\n"
         f"Click the link below to choose a new password for {user.email}:\n"
         f"{reset_url}\n\n"
         f"This link expires in {expiry_label}.\n"
         f"If you did not request this, you can ignore this email."
     )
-    send_email(to=user.email, subject="Reset your Clerq2 password", html=html, text=text)
+    send_email(to=user.email, subject="Reset your Interpret password", html=html, text=text)
     return {"detail": "If that email is registered you will receive a reset link."}
 
 

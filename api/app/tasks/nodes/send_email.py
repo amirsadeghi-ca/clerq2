@@ -26,7 +26,7 @@ def send_email_task(self, input_data: dict, run_id: int, step_id: int, node_conf
             msg = MailMessage(
                 run_id=run_id,
                 direction="outbound",
-                from_addr="noreply@clerq.local",
+                from_addr="noreply@interpret.local",
                 to_addr=to,
                 subject=subject or "(no subject)",
                 body=body,

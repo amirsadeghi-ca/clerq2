@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
+from app import mailboxes, system_settings
+from app.config import settings
 from app.database import get_db
 from app.models.policy import Policy, PolicyRule, PolicyVersion
 from app.schemas.policy import (
@@ -233,7 +236,38 @@ def delete_rule(
 def enable_policy_inbox(policy_id: int, db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id)):
     policy = _get_owned(db, policy_id, tenant_id)
     policy.email_inbox_enabled = True
-    policy.email_address = f"policy-{policy_id}@clerq.local"
+    # Derive a readable default from the policy name; keep a numbered suffix on
+    # collision. The address is editable afterward via set-inbox-address.
+    domain = system_settings.mail_inbound_domain(db)
+    base = mailboxes.slugify_local_part(policy.name, f"policy-{policy_id}")
+    local = mailboxes.unique_local_part(db, base, domain, exclude_policy_id=policy_id)
+    policy.email_address = f"{local}@{domain}"
+    db.commit()
+    db.refresh(policy)
+    return policy
+
+
+class InboxAddressIn(BaseModel):
+    local_part: str
+
+
+@router.put("/{policy_id}/inbox-address", response_model=PolicyOut)
+def set_policy_inbox_address(
+    policy_id: int, body: InboxAddressIn,
+    db: Session = Depends(get_db), tenant_id: int = Depends(get_current_tenant_id),
+):
+    policy = _get_owned(db, policy_id, tenant_id)
+    if not policy.email_inbox_enabled:
+        raise HTTPException(400, "Enable the inbox before setting its address.")
+    local = mailboxes.normalize_local_part(body.local_part)
+    err = mailboxes.validate_local_part(local)
+    if err:
+        raise HTTPException(400, err)
+    domain = system_settings.mail_inbound_domain(db)
+    address = f"{local}@{domain}"
+    if mailboxes.address_in_use(db, address, exclude_policy_id=policy_id):
+        raise HTTPException(409, "That address is already in use by another mailbox.")
+    policy.email_address = address
     db.commit()
     db.refresh(policy)
     return policy

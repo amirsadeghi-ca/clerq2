@@ -15,7 +15,7 @@ services:
       # Public origin — used to build invite links / outgoing emails. The
       # default in the root compose is http://localhost for dev; in prod we
       # ride the Cloudflare Tunnel hostname.
-      - APP_BASE_URL=https://clerq2.genitechs.ca
+      - APP_BASE_URL=https://interpret.genitechs.ca
   frontend:
     ports: []
   cloudflared:

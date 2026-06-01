@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Seed the MELCCFP "Recevabilité" example into a running Clerq2 instance.
+# Seed the MELCCFP "Recevabilité" example into a running Interpret instance.
 # This is DATA/CONFIG only — it creates Library document types, an approved-
 # equipment reference list, and the "Recevabilité — Autorisation ministérielle
 # (LQE)" policy with its rules, all through the public API. Delete them from the

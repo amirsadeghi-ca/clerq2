@@ -7,7 +7,7 @@ import {
 import {
   usePolicy, useUpdatePolicy, useCreateRule, useUpdateRule, useDeleteRule,
   useReorderRules, usePolicyVersions, useRestorePolicyVersion,
-  useEnablePolicyInbox, useDisablePolicyInbox,
+  useEnablePolicyInbox, useDisablePolicyInbox, useSetPolicyInboxAddress,
 } from '../api/policies'
 import { useDocumentTypes } from '../api/library'
 import { useReferenceLists } from '../api/referenceLists'
@@ -389,8 +389,17 @@ export function PolicyEditor() {
   const reorderRules = useReorderRules()
   const enableInbox = useEnablePolicyInbox()
   const disableInbox = useDisablePolicyInbox()
+  const setInboxAddress = useSetPolicyInboxAddress()
   const [copied, setCopied] = useState(false)
   const [showEmailSettings, setShowEmailSettings] = useState(false)
+  const [addrLocal, setAddrLocal] = useState('')
+  const [addrError, setAddrError] = useState<string | null>(null)
+
+  // Keep the local-part field in sync with the server address (after enable / save).
+  useEffect(() => {
+    setAddrLocal(policy?.email_address?.split('@')[0] ?? '')
+    setAddrError(null)
+  }, [policy?.email_address])
 
   const [name, setName] = useState('')
   const [brief, setBrief] = useState('')
@@ -567,15 +576,62 @@ export function PolicyEditor() {
 
                   {policy?.email_inbox_enabled && policy.email_address && (
                     <>
-                      <div className="flex items-center gap-1.5 rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] px-3 py-2">
-                        <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-indigo-400">{policy.email_address}</code>
-                        <button
-                          onClick={() => { navigator.clipboard.writeText(policy.email_address!); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-                          className="shrink-0 rounded p-0.5 text-[var(--c-text-4)] transition-colors hover:text-[var(--c-text-2)]"
-                        >
-                          {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
-                        </button>
-                      </div>
+                      {(() => {
+                        const domain = policy.email_address!.split('@')[1] ?? ''
+                        const current = policy.email_address!.split('@')[0]
+                        const changed = addrLocal.trim() !== current
+                        return (
+                          <div className="flex flex-col gap-1.5">
+                            <label className="block text-[10px] font-medium text-[var(--c-text-5)]">{t('policy.email.address')}</label>
+                            <div className="flex items-stretch gap-1.5">
+                              <div className="flex min-w-0 flex-1 items-center rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/20">
+                                <input
+                                  value={addrLocal}
+                                  onChange={e => { setAddrLocal(e.target.value.toLowerCase()); setAddrError(null) }}
+                                  spellCheck={false}
+                                  className="min-w-0 flex-1 bg-transparent px-2.5 py-1.5 font-mono text-[11px] text-indigo-400 outline-none"
+                                />
+                                <span className="shrink-0 pr-2.5 font-mono text-[11px] text-[var(--c-text-5)]">@{domain}</span>
+                              </div>
+                              <button
+                                onClick={() => { navigator.clipboard.writeText(policy.email_address!); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+                                className="shrink-0 rounded-md border border-[var(--c-border-2)] px-2 text-[var(--c-text-4)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-2)]"
+                                title={t('policy.email.copyAddress')}
+                              >
+                                {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                              </button>
+                            </div>
+                            {changed && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await setInboxAddress.mutateAsync({ id: policyId, localPart: addrLocal.trim() })
+                                      setAddrError(null)
+                                    } catch (err) {
+                                      const e = err as { response?: { data?: { detail?: string } } }
+                                      setAddrError(e.response?.data?.detail ?? t('policy.email.addressFailed'))
+                                    }
+                                  }}
+                                  disabled={setInboxAddress.isPending || !addrLocal.trim()}
+                                  className="flex h-6 items-center gap-1 rounded bg-indigo-600 px-2.5 text-[10px] font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-40"
+                                >
+                                  {setInboxAddress.isPending && <Loader2 size={9} className="animate-spin" />}
+                                  {t('policy.email.saveAddress')}
+                                </button>
+                                <button
+                                  onClick={() => { setAddrLocal(current); setAddrError(null) }}
+                                  className="text-[10px] text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]"
+                                >
+                                  {t('btn.cancel')}
+                                </button>
+                              </div>
+                            )}
+                            {addrError && <p className="text-[10px] text-red-400">{addrError}</p>}
+                            <p className="text-[10px] text-[var(--c-text-5)]">{t('policy.email.addressHelp')}</p>
+                          </div>
+                        )
+                      })()}
 
                       <div>
                         <label className="mb-1.5 block text-[10px] font-medium text-[var(--c-text-5)]">{t('policy.email.replyWhen')}</label>

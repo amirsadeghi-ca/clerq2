@@ -14,7 +14,7 @@ import app.models.reference_list    # noqa: F401
 import app.models.auth              # noqa: F401
 
 celery_app = Celery(
-    "clerq2",
+    "interpret",
     broker=settings.redis_url,
     backend=settings.redis_url,
     include=[

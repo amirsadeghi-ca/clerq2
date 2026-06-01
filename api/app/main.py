@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import workflows, documents, runs, sse, files, library, policies, settings, validate, mail, review, reference_lists, metrics, auth, admin, tenant, invites, mfa
 
-app = FastAPI(title="Clerq2 API", version="0.1.0")
+app = FastAPI(title="Interpret API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

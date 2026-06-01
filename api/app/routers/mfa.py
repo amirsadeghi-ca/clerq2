@@ -174,7 +174,7 @@ def enroll_totp(
     secret = pyotp.random_base32()
     provisioning_uri = pyotp.totp.TOTP(secret).provisioning_uri(
         name=user.email,
-        issuer_name="Clerq2",
+        issuer_name="Interpret",
     )
 
     cred = MfaCredential(

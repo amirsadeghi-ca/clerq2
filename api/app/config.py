@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "sqlite:///./data/clerq.db"
+    database_url: str = "sqlite:///./data/interpret.db"
     redis_url: str = "redis://localhost:6379/0"
     storage_path: str = "./data/storage"
     secret_key: str = "change-me-in-production"
@@ -23,7 +23,12 @@ class Settings(BaseSettings):
     password_reset_expiry_hours: int = 1             # how long a reset link stays valid
     resend_api_key: str = ""                         # https://resend.com — leave blank to log-only
     invite_from_address: str = "onboarding@resend.dev"  # Resend's open sender for testing
-    invite_from_name: str = "Clerq2"
+    invite_from_name: str = "Interpret"
+
+    # Inbound mail (Resend Inbound → /api/mail/resend-inbound webhook)
+    mail_inbound_domain: str = "email.genitechs.ca"   # domain for policy-N@…/workflow-N@… addresses
+    resend_inbound_webhook_secret: str = ""           # Svix signing secret "whsec_…"; blank = skip verify (dev only)
+    mail_max_attachment_bytes: int = 25 * 1024 * 1024  # reject inbound attachments larger than this
 
     @property
     def effective_jwt_secret(self) -> str:

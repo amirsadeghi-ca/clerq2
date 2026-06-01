@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class LoginRequest(BaseModel):
-    # Plain str (not EmailStr): the bootstrap admin is `admin@clerq.local`, and
+    # Plain str (not EmailStr): the bootstrap admin is `admin@interpret.local`, and
     # `EmailStr` rejects reserved TLDs like `.local`. Uniqueness is enforced at
     # the DB layer and we look users up by exact email, so format validation
     # adds nothing operationally.

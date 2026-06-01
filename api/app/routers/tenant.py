@@ -54,7 +54,7 @@ from app.security import (
     revoke_all_user_refresh_tokens,
 )
 
-log = logging.getLogger("clerq2.tenant")
+log = logging.getLogger("interpret.tenant")
 router = APIRouter()
 
 
@@ -88,12 +88,12 @@ def _invite_out(inv: UserInvite, raw_token: str | None = None) -> InviteOut:
 
 
 def _send_invite_email(*, to: str, tenant_name: str, inviter_name: str, link: str) -> None:
-    subject = f"You're invited to join {tenant_name} on Clerq2"
+    subject = f"You're invited to join {tenant_name} on Interpret"
     html = f"""\
 <!doctype html>
 <html><body style="font-family: -apple-system, system-ui, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 560px; margin: 24px auto; padding: 0 16px;">
   <h2 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600;">You're invited to {tenant_name}</h2>
-  <p>{inviter_name} has invited you to join <b>{tenant_name}</b> on Clerq2.</p>
+  <p>{inviter_name} has invited you to join <b>{tenant_name}</b> on Interpret.</p>
   <p>Click the button below to set your password and sign in. The link expires in {settings.invite_expiry_days} days and can only be used once.</p>
   <p style="margin: 24px 0;">
     <a href="{link}" style="display: inline-block; background: #4f46e5; color: white; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 500;">Accept invitation</a>
@@ -101,7 +101,7 @@ def _send_invite_email(*, to: str, tenant_name: str, inviter_name: str, link: st
   <p style="font-size: 12px; color: #666;">If the button doesn't work, paste this link into your browser:<br><span style="word-break: break-all;">{link}</span></p>
 </body></html>"""
     text = (
-        f"{inviter_name} has invited you to join {tenant_name} on Clerq2.\n\n"
+        f"{inviter_name} has invited you to join {tenant_name} on Interpret.\n\n"
         f"Open this link to set your password and sign in:\n{link}\n\n"
         f"The link expires in {settings.invite_expiry_days} days and can only be used once."
     )
@@ -382,7 +382,7 @@ def create_invite(
     link = f"{base}/invite/{raw_token}"
     _send_invite_email(
         to=email,
-        tenant_name=tenant.name if tenant else "Clerq2",
+        tenant_name=tenant.name if tenant else "Interpret",
         inviter_name=actor.display_name or actor.email,
         link=link,
     )
@@ -444,7 +444,7 @@ def resend_invite(
     link = f"{base}/invite/{raw_token}"
     _send_invite_email(
         to=inv.email,
-        tenant_name=tenant.name if tenant else "Clerq2",
+        tenant_name=tenant.name if tenant else "Interpret",
         inviter_name=actor.display_name or actor.email,
         link=link,
     )

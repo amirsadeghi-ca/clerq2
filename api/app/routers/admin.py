@@ -262,3 +262,106 @@ def _hard_delete_user(db: Session, u: User) -> None:
     db.query(RefreshToken).filter(RefreshToken.user_id == u.id).delete()
     db.query(PasswordResetToken).filter(PasswordResetToken.user_id == u.id).delete()
     db.delete(u)  # cascades: identities, mfa_credentials
+
+
+# ── Integrations (app-wide; stored under app_settings tenant_id=0) ──────────
+#
+# These are global integration secrets (Resend email send + inbound), managed
+# by super-admins. Secrets are never echoed back — GET returns only "set"
+# booleans plus the non-secret values, and PUT updates a secret only when a
+# non-empty value is supplied (so saving the form doesn't wipe it).
+
+from pydantic import BaseModel  # noqa: E402
+
+from app import system_settings  # noqa: E402
+from app.config import settings as env_settings  # noqa: E402
+from app.mailer import send_email  # noqa: E402
+
+# Resend inbound MX target for the us-east-1 region (shown to the admin so they
+# can add it to DNS). Resend displays the authoritative value per domain.
+RESEND_INBOUND_MX = "inbound-smtp.us-east-1.amazonaws.com"
+
+
+class IntegrationsOut(BaseModel):
+    resend_api_key_set: bool
+    resend_inbound_webhook_secret_set: bool
+    mail_inbound_domain: str
+    invite_from_address: str
+    invite_from_name: str
+    # Read-only helpers for the UI:
+    webhook_url: str
+    inbound_mx_value: str
+    inbound_mx_priority: int
+
+
+class IntegrationsUpdate(BaseModel):
+    resend_api_key: str | None = None
+    resend_inbound_webhook_secret: str | None = None
+    mail_inbound_domain: str | None = None
+    invite_from_address: str | None = None
+    invite_from_name: str | None = None
+    clear_resend_api_key: bool = False
+    clear_resend_inbound_webhook_secret: bool = False
+
+
+def _integrations_out(db: Session) -> IntegrationsOut:
+    base = env_settings.app_base_url.rstrip("/")
+    return IntegrationsOut(
+        resend_api_key_set=bool(system_settings.resend_api_key(db)),
+        resend_inbound_webhook_secret_set=bool(system_settings.resend_inbound_webhook_secret(db)),
+        mail_inbound_domain=system_settings.mail_inbound_domain(db),
+        invite_from_address=system_settings.invite_from_address(db),
+        invite_from_name=system_settings.invite_from_name(db),
+        webhook_url=f"{base}/api/mail/resend-inbound",
+        inbound_mx_value=RESEND_INBOUND_MX,
+        inbound_mx_priority=10,
+    )
+
+
+@router.get("/integrations", response_model=IntegrationsOut)
+def get_integrations(db: Session = Depends(get_db)):
+    return _integrations_out(db)
+
+
+@router.put("/integrations", response_model=IntegrationsOut)
+def update_integrations(body: IntegrationsUpdate, db: Session = Depends(get_db)):
+    if body.clear_resend_api_key:
+        system_settings.set_system(db, system_settings.RESEND_API_KEY, "")
+    elif body.resend_api_key:
+        system_settings.set_system(db, system_settings.RESEND_API_KEY, body.resend_api_key.strip())
+
+    if body.clear_resend_inbound_webhook_secret:
+        system_settings.set_system(db, system_settings.RESEND_INBOUND_WEBHOOK_SECRET, "")
+    elif body.resend_inbound_webhook_secret:
+        system_settings.set_system(db, system_settings.RESEND_INBOUND_WEBHOOK_SECRET, body.resend_inbound_webhook_secret.strip())
+
+    if body.mail_inbound_domain is not None:
+        system_settings.set_system(db, system_settings.MAIL_INBOUND_DOMAIN, body.mail_inbound_domain.strip().lower())
+    if body.invite_from_address is not None:
+        system_settings.set_system(db, system_settings.INVITE_FROM_ADDRESS, body.invite_from_address.strip())
+    if body.invite_from_name is not None:
+        system_settings.set_system(db, system_settings.INVITE_FROM_NAME, body.invite_from_name.strip())
+
+    return _integrations_out(db)
+
+
+class IntegrationTestResult(BaseModel):
+    ok: bool
+    error: str | None = None
+    detail: str | None = None
+
+
+@router.post("/integrations/email/test", response_model=IntegrationTestResult)
+def test_email_integration(actor: User = Depends(require_superadmin), db: Session = Depends(get_db)):
+    """Send a test email to the calling super-admin to confirm Resend sending works."""
+    if not system_settings.resend_api_key(db):
+        return IntegrationTestResult(ok=False, error="Resend API key not configured")
+    result = send_email(
+        to=actor.email,
+        subject="Interpret — email integration test",
+        html="<p>This is a test email from your Interpret email integration. If you received it, sending works.</p>",
+        text="This is a test email from your Interpret email integration. If you received it, sending works.",
+    )
+    if result.ok:
+        return IntegrationTestResult(ok=True, detail=f"Sent to {actor.email} via {result.provider}")
+    return IntegrationTestResult(ok=False, error=result.error or "send failed")

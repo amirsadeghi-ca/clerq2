@@ -1,10 +1,10 @@
-# Clerq2 — Production Deployment Plan (nas + Cloudflare + real email)
+# Interpret — Production Deployment Plan (nas + Cloudflare + real email)
 
 > Status: **awaiting go-ahead on Phase 1**. Single source of truth for the deploy work. Update as phases complete.
 
 ## Goal
 
-Deploy Clerq2 to the home server `nas`, exposed publicly via a **named Cloudflare Tunnel**, with **real email** working end-to-end (receive an email with a PDF → run a validation → email the report back), and **auto-deploy on push to `main`**. Remove the fake mail test scaffolding.
+Deploy Interpret to the home server `nas`, exposed publicly via a **named Cloudflare Tunnel**, with **real email** working end-to-end (receive an email with a PDF → run a validation → email the report back), and **auto-deploy on push to `main`**. Remove the fake mail test scaffolding.
 
 ## Decisions (locked with the user)
 
@@ -60,7 +60,7 @@ Dev ─push main─► GitHub (private, @amirhetc) ─► self-hosted runner on 
 ### Phase 2 — Real email backend (generalized, not arbab-specific)
 **Objective:** the app can receive multipart email and send real replies; domain configurable.
 - `/api/mail/inbound`: accept **multipart/form-data** (`to`, `from_email`, `subject`, `body`, `file`/`files`) in addition to (or replacing) the JSON shape; upload the attachment to a Document internally; verify a shared **`MAIL_WEBHOOK_SECRET`** header.
-- Add config to `api/app/config.py`: `mail_domain` (default `clerq.local`), `mail_webhook_secret`, `resend_api_key`, `mail_from_address` (e.g. `reports@send.arbab-soft.com`), `public_base_url`. Replace the 4 hardcoded `clerq.local` usages with `settings.mail_domain`.
+- Add config to `api/app/config.py`: `mail_domain` (default `interpret.local`), `mail_webhook_secret`, `resend_api_key`, `mail_from_address` (e.g. `reports@send.arbab-soft.com`), `public_base_url`. Replace the 4 hardcoded `interpret.local` usages with `settings.mail_domain`.
 - Implement **real sending** via Resend in `show_results.py` (`_send_reply`) and `send_email.py` — keep writing the MailMessage row *and* send; respect existing `email_reply_mode`/pass/fail messages; attach the report PDF if feasible.
 - Remove frontend test scaffolding: the compose panel + `useSendMail` in `MailInbox.tsx`/`mail.ts`; keep the inbox list, polling, mailboxes. Update i18n strings.
 - Add `resend` to `api/pyproject.toml`.

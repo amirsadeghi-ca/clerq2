@@ -17,9 +17,14 @@ def _build_failed_rules_text(results: list[dict]) -> str:
 
 
 def _send_reply(run_id: int, input_data: dict) -> None:
+    import html as _html
+
+    from app.config import settings
     from app.database import SessionLocal
+    from app.mailer import send_email
     from app.models.run import WorkflowRun
     from app.models.policy import Policy
+    from app.models.workflow import Workflow
     from app.models.mail import MailMessage
 
     with SessionLocal() as db:
@@ -32,10 +37,13 @@ def _send_reply(run_id: int, input_data: dict) -> None:
         is_pass = overall == "pass"
         is_fail = overall in ("fail", "needs_review")
 
-        # Load policy reply settings if this is a policy-backed run
+        # Load policy reply settings if this is a policy-backed run.
+        # reply_to = the mailbox the message arrived at, so a recipient replying
+        # continues the loop back into this policy/workflow.
         reply_mode = "always"
         pass_template: str | None = None
         fail_template: str | None = None
+        reply_to: str | None = None
 
         if run.policy_id:
             policy = db.get(Policy, run.policy_id)
@@ -43,6 +51,11 @@ def _send_reply(run_id: int, input_data: dict) -> None:
                 reply_mode = policy.email_reply_mode or "always"
                 pass_template = policy.email_pass_message
                 fail_template = policy.email_fail_message
+                reply_to = policy.email_address
+        elif run.workflow_id:
+            wf = db.get(Workflow, run.workflow_id)
+            if wf:
+                reply_to = wf.email_address
 
         # Apply reply mode gate
         if reply_mode == "never":
@@ -71,16 +84,28 @@ def _send_reply(run_id: int, input_data: dict) -> None:
         else:
             body = "Workflow completed successfully."
 
+        subject = f"Re: {run.name or 'Interpret run'}"
+        from_addr = settings.invite_from_address
+
+        # Always record the in-app copy (the /mail inbox view).
         db.add(MailMessage(
+            tenant_id=run.tenant_id,
             run_id=run_id,
             document_id=run.document_id,
             direction="outbound",
-            from_addr="noreply@clerq.local",
+            from_addr=from_addr,
             to_addr=run.sender_email,
-            subject=f"Re: {run.name or 'Clerq2 run'}",
+            subject=subject,
             body=body,
         ))
         db.commit()
+
+    # Send the real email outside the DB session. Skip the local test-fixture
+    # domain so UI-driven /mail compose tests don't fire real mail.
+    to_addr = (run.sender_email or "").strip()
+    if "@" in to_addr and not to_addr.lower().endswith("@interpret.local"):
+        html_body = f'<pre style="font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;font-size:13px">{_html.escape(body)}</pre>'
+        send_email(to=to_addr, subject=subject, html=html_body, text=body, reply_to=reply_to)
 
 
 @celery_app.task(name="nodes.show_results", bind=True)

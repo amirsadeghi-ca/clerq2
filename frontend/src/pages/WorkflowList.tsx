@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, GitBranch, Archive, Loader2, ChevronRight, Clock, ArchiveRestore, Star, Mail } from 'lucide-react'
-import { useWorkflows, useCreateWorkflow, useArchiveWorkflow, useUnarchiveWorkflow, useFavoriteWorkflow, useUnfavoriteWorkflow, useEnableWorkflowInbox, useDisableWorkflowInbox } from '../api/workflows'
+import { Plus, GitBranch, Archive, Loader2, ChevronRight, Clock, ArchiveRestore, Star, Mail, Check, X } from 'lucide-react'
+import { useWorkflows, useCreateWorkflow, useArchiveWorkflow, useUnarchiveWorkflow, useFavoriteWorkflow, useUnfavoriteWorkflow, useEnableWorkflowInbox, useDisableWorkflowInbox, useSetWorkflowInboxAddress } from '../api/workflows'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useI18n } from '../context/i18n'
 
@@ -17,8 +17,22 @@ export function WorkflowList() {
   const unfavoriteWf = useUnfavoriteWorkflow()
   const enableInbox = useEnableWorkflowInbox()
   const disableInbox = useDisableWorkflowInbox()
+  const setInboxAddress = useSetWorkflowInboxAddress()
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
+  const [editingInbox, setEditingInbox] = useState<number | null>(null)
+  const [inboxDraft, setInboxDraft] = useState('')
+  const [inboxErr, setInboxErr] = useState<string | null>(null)
+
+  async function saveInboxAddress(id: number) {
+    try {
+      await setInboxAddress.mutateAsync({ id, localPart: inboxDraft.trim() })
+      setEditingInbox(null); setInboxErr(null)
+    } catch (err) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      setInboxErr(e.response?.data?.detail ?? t('workflows.inbox.addressFailed'))
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -131,7 +145,7 @@ export function WorkflowList() {
                     'group flex cursor-pointer items-center px-8 py-3 transition-colors hover:bg-[var(--c-hover-1)]',
                     wf.is_archived ? 'opacity-50' : '',
                   ].join(' ')}
-                  onClick={() => !wf.is_archived && navigate(`/workflows/${wf.id}`)}
+                  onClick={() => { if (editingInbox === wf.id) return; if (!wf.is_archived) navigate(`/workflows/${wf.id}`) }}
                 >
                   {/* Star toggle */}
                   <button
@@ -151,9 +165,14 @@ export function WorkflowList() {
                   {/* Mail inbox toggle — always visible when enabled, hover-only when not */}
                   {wf.email_inbox_enabled ? (
                     <button
-                      onClick={e => { e.stopPropagation(); disableInbox.mutate(wf.id) }}
+                      onClick={e => {
+                        e.stopPropagation()
+                        setEditingInbox(wf.id)
+                        setInboxDraft(wf.email_address?.split('@')[0] ?? '')
+                        setInboxErr(null)
+                      }}
                       className="mr-2 shrink-0 rounded p-0.5 transition-colors"
-                      title={t('workflows.inbox.disable', { address: wf.email_address ?? '' })}
+                      title={t('workflows.inbox.edit', { address: wf.email_address ?? '' })}
                     >
                       <Mail size={13} className="text-indigo-400" />
                     </button>
@@ -167,6 +186,43 @@ export function WorkflowList() {
                     </button>
                   )}
 
+                  {editingInbox === wf.id ? (
+                    <div className="flex flex-1 items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <div className="flex min-w-0 max-w-[360px] flex-1 items-center rounded-md border border-[var(--c-border-2)] bg-[var(--c-surface-2)] focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/20">
+                        <input
+                          autoFocus
+                          value={inboxDraft}
+                          onChange={e => { setInboxDraft(e.target.value.toLowerCase()); setInboxErr(null) }}
+                          onKeyDown={e => { if (e.key === 'Enter') saveInboxAddress(wf.id); if (e.key === 'Escape') setEditingInbox(null) }}
+                          spellCheck={false}
+                          className="min-w-0 flex-1 bg-transparent px-2.5 py-1 font-mono text-[11px] text-indigo-400 outline-none"
+                        />
+                        <span className="shrink-0 pr-2.5 font-mono text-[11px] text-[var(--c-text-5)]">@{wf.email_address?.split('@')[1] ?? ''}</span>
+                      </div>
+                      <button
+                        onClick={() => saveInboxAddress(wf.id)}
+                        disabled={setInboxAddress.isPending || !inboxDraft.trim()}
+                        className="shrink-0 rounded bg-indigo-600 p-1 text-white hover:bg-indigo-500 disabled:opacity-40"
+                        title={t('workflows.inbox.saveAddress')}
+                      >
+                        {setInboxAddress.isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                      </button>
+                      <button
+                        onClick={() => { setEditingInbox(null); setInboxErr(null) }}
+                        className="shrink-0 rounded border border-[var(--c-border-2)] p-1 text-[var(--c-text-4)] hover:text-[var(--c-text-2)]"
+                        title={t('btn.cancel')}
+                      >
+                        <X size={12} />
+                      </button>
+                      <button
+                        onClick={() => { disableInbox.mutate(wf.id); setEditingInbox(null) }}
+                        className="shrink-0 rounded px-1.5 py-1 text-[10px] text-[var(--c-text-5)] hover:text-red-400"
+                      >
+                        {t('workflows.inbox.disableShort')}
+                      </button>
+                      {inboxErr && <span className="truncate text-[10px] text-red-400">{inboxErr}</span>}
+                    </div>
+                  ) : (
                   <div className="flex flex-1 items-center gap-3">
                     <GitBranch size={14} className="shrink-0 text-[var(--c-text-5)] group-hover:text-[var(--c-text-4)] transition-colors" />
                     <span className={[
@@ -181,6 +237,7 @@ export function WorkflowList() {
                       </span>
                     )}
                   </div>
+                  )}
 
                   <span className="w-14 text-right font-mono text-[11px] text-[var(--c-text-5)]">
                     {wf.current_version_num > 0 ? `v${wf.current_version_num}` : '—'}

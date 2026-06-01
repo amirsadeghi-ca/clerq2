@@ -12,7 +12,7 @@ const RunContext = createContext<RunContextValue>({
   dismissRun: () => {},
 })
 
-const LS_KEY = 'clerq_active_run'
+const LS_KEY = 'interpret_active_run'
 
 export function RunProvider({ children }: { children: ReactNode }) {
   const [activeRunId, setActiveRunIdState] = useState<number | null>(() => {

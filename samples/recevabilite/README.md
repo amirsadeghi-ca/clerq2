@@ -4,7 +4,7 @@ A ready-made, end-to-end example of the MELCCFP RFP use case — judging the
 **recevabilité** (admissibility/completeness) of a ministerial authorization
 request *dossier* under Quebec's *Loi sur la qualité de l'environnement* (LQE).
 
-It is **data and configuration only** — built entirely from generic Clerq2
+It is **data and configuration only** — built entirely from generic Interpret
 features (Phases 1–3, 5–7). Nothing here is MELCCFP-specific application code;
 deleting it leaves the generic app unchanged.
 

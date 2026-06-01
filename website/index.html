@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Genitechs — AI design, app & integration studio</title>
-<meta name="description" content="Genitechs is an AI studio that designs, builds and integrates production-grade AI for public and private sector teams. Two products — Clerq2 for document intelligence and Vision for structured-form scanning &amp; capture — plus bespoke delivery, end to end." />
+<meta name="description" content="Genitechs is an AI studio that designs, builds and integrates production-grade AI for public and private sector teams. Two products — Interpret for document intelligence and Vision for structured-form scanning &amp; capture — plus bespoke delivery, end to end." />
 <meta property="og:title" content="Genitechs — AI design, app & integration studio" />
 <meta property="og:description" content="We design, build and integrate AI you can put into production — and defend. Trusted by public and private sector teams across Canada." />
 <meta property="og:type" content="website" />
@@ -22,8 +22,8 @@
           ink: '#060e1a', surface: '#0e1626', line: '#1c2638',
           /* Brand gold, mapped onto Tailwind's "indigo" name so all studio chrome turns gold */
           indigo: { 300:'#f0b429', 400:'#f0b429', 500:'#D4920A', 600:'#D4920A', 700:'#a8740a' },
-          /* Clerq2 keeps its own indigo identity */
-          clerq: { 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5' },
+          /* Interpret keeps its own indigo identity */
+          interpret: { 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5' },
         },
         animation: {
           floaty: 'floaty 6s ease-in-out infinite',
@@ -167,11 +167,11 @@
     <div class="relative mx-auto mt-16 max-w-5xl" data-aos="zoom-in" data-aos-delay="120">
       <div class="grid gap-5 lg:grid-cols-2">
 
-        <!-- Clerq2 doc window -->
+        <!-- Interpret doc window -->
         <div class="winshadow overflow-hidden rounded-2xl bg-[#0e0e10]">
           <div class="flex items-center gap-2 border-b border-white/5 bg-[#141417] px-4 py-3">
             <span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span>
-            <span class="ml-3 rounded-md bg-black/40 px-3 py-1 text-[11px] text-zinc-500">Clerq2 · document intelligence</span>
+            <span class="ml-3 rounded-md bg-black/40 px-3 py-1 text-[11px] text-zinc-500">Interpret · document intelligence</span>
           </div>
           <div class="paper p-5">
             <div class="text-[9px] font-semibold uppercase tracking-[.14em] text-zinc-500">Validation report</div>
@@ -339,16 +339,16 @@
 
     <div class="mt-16 grid gap-6 lg:grid-cols-2">
 
-      <!-- CLERQ2 -->
+      <!-- INTERPRET -->
       <div class="card overflow-hidden p-0" data-aos="fade-up">
         <div class="flex items-start justify-between gap-4 p-7 pb-5">
           <div>
             <div class="flex items-center gap-2.5">
-              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-clerq-600"><svg width="15" height="15" viewBox="0 0 12 12"><path d="M6 1L10.5 9H1.5L6 1Z" fill="#fff"/></svg></span>
-              <span class="text-[20px] font-bold">Clerq<span class="text-clerq-400">2</span></span>
-              <span class="rounded-full border border-clerq-500/30 bg-clerq-500/10 px-2.5 py-0.5 text-[11px] font-medium text-clerq-300">Document intelligence</span>
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-interpret-600"><svg width="15" height="15" viewBox="0 0 12 12"><path d="M6 1L10.5 9H1.5L6 1Z" fill="#fff"/></svg></span>
+              <span class="text-[20px] font-bold">Interpret<span class="text-interpret-400">2</span></span>
+              <span class="rounded-full border border-interpret-500/30 bg-interpret-500/10 px-2.5 py-0.5 text-[11px] font-medium text-interpret-300">Document intelligence</span>
             </div>
-            <p class="mt-3 text-[14px] leading-relaxed text-zinc-400">Turn a messy dossier — PDF, Word, Excel, CSV — into a decision you can defend. Clerq2 reads the whole set, checks it against <span class="text-zinc-200">your own rules</span>, flags what's missing or inconsistent, and produces a traceable report a person reviews and signs off.</p>
+            <p class="mt-3 text-[14px] leading-relaxed text-zinc-400">Turn a messy dossier — PDF, Word, Excel, CSV — into a decision you can defend. Interpret reads the whole set, checks it against <span class="text-zinc-200">your own rules</span>, flags what's missing or inconsistent, and produces a traceable report a person reviews and signs off.</p>
           </div>
         </div>
         <div class="px-7">
@@ -366,7 +366,7 @@
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-3 p-7 pt-5">
-          <a href="clerq2/index.html" class="rounded-xl bg-clerq-600 px-5 py-2.5 text-[13.5px] font-semibold text-white transition hover:bg-clerq-500">Explore Clerq2 →</a>
+          <a href="interpret/index.html" class="rounded-xl bg-interpret-600 px-5 py-2.5 text-[13.5px] font-semibold text-white transition hover:bg-interpret-500">Explore Interpret →</a>
           <a href="#contact" class="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-[13.5px] font-medium text-zinc-200 transition hover:bg-white/10">Book a demo</a>
         </div>
       </div>
@@ -503,8 +503,8 @@
               <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/5"><div class="bar h-full rounded-full bg-indigo-500" data-w="95" style="width:0"></div></div>
             </div>
             <div>
-              <div class="flex items-center justify-between text-[13px]"><span class="text-zinc-300">Document intelligence (Clerq2)</span><span class="font-semibold text-white">93%</span></div>
-              <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/5"><div class="bar h-full rounded-full bg-clerq-500" data-w="93" style="width:0"></div></div>
+              <div class="flex items-center justify-between text-[13px]"><span class="text-zinc-300">Document intelligence (Interpret)</span><span class="font-semibold text-white">93%</span></div>
+              <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/5"><div class="bar h-full rounded-full bg-interpret-500" data-w="93" style="width:0"></div></div>
             </div>
             <div>
               <div class="flex items-center justify-between text-[13px]"><span class="text-zinc-300">Structured-form AI (Vision)</span><span class="font-semibold text-white">90%</span></div>
@@ -563,7 +563,7 @@
       <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Questions, answered</h2>
     </div>
     <div class="mt-10 space-y-3">
-      <details class="card p-5" data-aos="fade-up" open><summary class="flex items-center justify-between text-[15px] font-medium">Do you only build with your own products?<span class="faq-chevron text-zinc-500 transition">⌄</span></summary><p class="mt-3 text-[13.5px] leading-relaxed text-zinc-400">No. Clerq2 and Vision are great starting points when they fit, but a large part of our work is bespoke — custom apps, integrations and automation built around your process. We recommend the cheapest path to the outcome, even when that isn't one of our products.</p></details>
+      <details class="card p-5" data-aos="fade-up" open><summary class="flex items-center justify-between text-[15px] font-medium">Do you only build with your own products?<span class="faq-chevron text-zinc-500 transition">⌄</span></summary><p class="mt-3 text-[13.5px] leading-relaxed text-zinc-400">No. Interpret and Vision are great starting points when they fit, but a large part of our work is bespoke — custom apps, integrations and automation built around your process. We recommend the cheapest path to the outcome, even when that isn't one of our products.</p></details>
       <details class="card p-5" data-aos="fade-up"><summary class="flex items-center justify-between text-[15px] font-medium">Can you work with public sector procurement?<span class="faq-chevron text-zinc-500 transition">⌄</span></summary><p class="mt-3 text-[13.5px] leading-relaxed text-zinc-400">Yes. We're a Canadian studio used to working within procurement, security and compliance constraints, and we deliver in both English and French. We can engage as a prime or as a specialist subcontractor on AI components.</p></details>
       <details class="card p-5" data-aos="fade-up"><summary class="flex items-center justify-between text-[15px] font-medium">How do you keep AI decisions defensible?<span class="faq-chevron text-zinc-500 transition">⌄</span></summary><p class="mt-3 text-[13.5px] leading-relaxed text-zinc-400">Every result carries its evidence and its source, a human reviews and can override with a reason, and the whole thing is auditable and exportable. The AI's original answer is preserved alongside the human decision — so you can always explain a verdict later.</p></details>
       <details class="card p-5" data-aos="fade-up"><summary class="flex items-center justify-between text-[15px] font-medium">Where does our data live, and which models do you use?<span class="faq-chevron text-zinc-500 transition">⌄</span></summary><p class="mt-3 text-[13.5px] leading-relaxed text-zinc-400">It depends on your requirements. We're model-agnostic and can deploy to your cloud, a managed environment, or on-prem where needed. We'll design the data-residency and model choices around your security and compliance posture, not the other way around.</p></details>
@@ -581,7 +581,7 @@
       <p class="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-zinc-400">Bring us one workflow — the documents or images, the rules, the exceptions. We'll show you what production-grade AI looks like for it, end to end. We reply within one business day.</p>
       <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <a href="mailto:info@genitechs.ca" class="btn-primary w-full rounded-xl px-7 py-3 text-[14px] font-semibold transition sm:w-auto">Book a consult</a>
-        <a href="clerq2/index.html" class="w-full rounded-xl border border-white/10 bg-white/5 px-7 py-3 text-[14px] font-medium text-zinc-200 transition hover:bg-white/10 sm:w-auto">Explore Clerq2</a>
+        <a href="interpret/index.html" class="w-full rounded-xl border border-white/10 bg-white/5 px-7 py-3 text-[14px] font-medium text-zinc-200 transition hover:bg-white/10 sm:w-auto">Explore Interpret</a>
       </div>
       <p class="mt-6 text-[13px] text-zinc-500"><a href="mailto:info@genitechs.ca" class="text-zinc-300 transition hover:text-white">info@genitechs.ca</a> · Canada · EN / FR</p>
     </div>
@@ -612,7 +612,7 @@
     <div>
       <p class="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">Products</p>
       <ul class="mt-3 space-y-2 text-[13px] text-zinc-500">
-        <li><a href="clerq2/index.html" class="transition hover:text-zinc-300">Clerq2 — Documents</a></li>
+        <li><a href="interpret/index.html" class="transition hover:text-zinc-300">Interpret — Documents</a></li>
         <li><a href="#products" class="transition hover:text-zinc-300">Vision — Forms</a></li>
         <li><a href="#faq" class="transition hover:text-zinc-300">FAQ</a></li>
       </ul>
