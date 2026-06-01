@@ -6,7 +6,7 @@ import {
   type Connection, type Edge, type Node, type ReactFlowInstance,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ChevronRight, Save, Play, Loader2, X, Clock, History, GitCommit } from 'lucide-react'
+import { ChevronRight, Save, Play, Loader2, X, Clock, History, GitCommit, Mail } from 'lucide-react'
 
 import { LeftSidebar } from '../components/LeftSidebar'
 import { NodePalette } from '../components/NodePalette'
@@ -147,6 +147,18 @@ export function WorkflowEditor() {
               <GitCommit size={9} />
               v{versionNum}
             </span>
+          )}
+
+          {/* Email inbox address */}
+          {workflow?.email_inbox_enabled && workflow.email_address && (
+            <button
+              onClick={() => { navigator.clipboard.writeText(workflow.email_address!) }}
+              title={t('workflows.inbox.copyAddress')}
+              className="flex items-center gap-1 rounded bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[10px] text-indigo-400 ring-1 ring-indigo-500/20 transition-colors hover:bg-indigo-500/20"
+            >
+              <Mail size={10} />
+              <span className="max-w-[220px] truncate">{workflow.email_address}</span>
+            </button>
           )}
 
           {/* Unsaved indicator */}

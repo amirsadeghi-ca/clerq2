@@ -478,6 +478,18 @@ export function PolicyEditor() {
           </span>
           {dirty && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />}
 
+          {/* Email inbox address */}
+          {policy?.email_inbox_enabled && policy.email_address && (
+            <button
+              onClick={() => { navigator.clipboard.writeText(policy.email_address!); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+              title={t('policy.email.copyAddress')}
+              className="flex items-center gap-1 rounded bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[10px] text-indigo-400 ring-1 ring-indigo-500/20 transition-colors hover:bg-indigo-500/20"
+            >
+              <Mail size={10} />
+              <span className="max-w-[220px] truncate">{policy.email_address}</span>
+            </button>
+          )}
+
           <div className="ml-auto flex items-center gap-2">
             {policy && policy.current_version_num > 0 && (
               <span className="flex items-center gap-1 font-mono text-[11px] text-[var(--c-text-5)]">
