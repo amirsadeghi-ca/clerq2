@@ -12,6 +12,7 @@ from app.models.run import WorkflowRun
 from app.schemas.run import RunCreate, RunOut
 from app.security import get_current_tenant_id
 from app.tasks.executor import trigger_run
+from app import cases as cases_svc
 
 router = APIRouter()
 
@@ -49,6 +50,16 @@ def create_run(
     db.add(run)
     db.commit()
     db.refresh(run)
+
+    case = cases_svc.resolve_or_create_case(
+        db, tenant_id,
+        target_kind="workflow",
+        workflow_id=wf.id,
+        name=run.name or wf.name,
+    )
+    cases_svc.attach_run_to_case(db, case, run)
+    cases_svc.attach_document_to_case(db, case, doc, source="upload")
+    db.commit()
 
     definition = latest_version.definition if latest_version else wf.definition
     trigger_run(run.id, definition, [doc])

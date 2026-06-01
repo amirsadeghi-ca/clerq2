@@ -12,6 +12,7 @@ import app.models.setting           # noqa: F401
 import app.models.mail              # noqa: F401
 import app.models.reference_list    # noqa: F401
 import app.models.auth              # noqa: F401
+import app.models.case              # noqa: F401
 
 celery_app = Celery(
     "interpret",

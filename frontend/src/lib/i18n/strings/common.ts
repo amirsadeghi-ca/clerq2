@@ -4,6 +4,8 @@
 
 export const en = {
   'nav.workspace': 'Workspace',
+  'nav.cases': 'Cases',
+  'nav.configure': 'Configure',
   'nav.dashboard': 'Dashboard',
   'nav.checks': 'Checks',
   'nav.workflows': 'Workflows',
@@ -11,6 +13,7 @@ export const en = {
   'nav.mail': 'Mail',
   'nav.settings': 'Settings',
   'nav.help': 'Help',
+  'nav.insights': 'Insights',
   'brand.beta': 'beta',
 
   'btn.save': 'Save',
@@ -60,6 +63,8 @@ export const en = {
 
 export const fr = {
   'nav.workspace': 'Espace de travail',
+  'nav.cases': 'Dossiers',
+  'nav.configure': 'Configurer',
   'nav.dashboard': 'Tableau de bord',
   'nav.checks': 'Vérifications',
   'nav.workflows': 'Flux de travail',
@@ -67,6 +72,7 @@ export const fr = {
   'nav.mail': 'Courriel',
   'nav.settings': 'Paramètres',
   'nav.help': 'Aide',
+  'nav.insights': 'Indicateurs',
   'brand.beta': 'bêta',
 
   'btn.save': 'Enregistrer',

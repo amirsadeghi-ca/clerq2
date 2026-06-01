@@ -9,6 +9,7 @@ from app.models.run import WorkflowRun
 from app.schemas.run import RunOut
 from app.security import get_current_tenant_id
 from app.tasks.executor import trigger_run
+from app import cases as cases_svc
 
 router = APIRouter()
 
@@ -73,6 +74,18 @@ def create_validate_run(
         status="pending",
     )
     db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    case = cases_svc.resolve_or_create_case(
+        db, tenant_id,
+        target_kind="policy",
+        policy_id=policy.id,
+        name=run_name,
+    )
+    cases_svc.attach_run_to_case(db, case, run)
+    for doc in docs:
+        cases_svc.attach_document_to_case(db, case, doc, source="validate")
     db.commit()
     db.refresh(run)
 

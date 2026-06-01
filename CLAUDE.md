@@ -2,7 +2,7 @@
 
 > **INSTRUCTION FOR CLAUDE:** After completing any task — no matter how small — update this file to reflect what changed. New files, deleted files, changed conventions, new endpoints, new node types, new environment variables, new gotchas, design decisions. Do this before marking the task done. This file is the single source of truth for the project; keeping it current is part of every task.
 
-> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Interpret wordmark. Current version: **2.0.3**.
+> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Interpret wordmark. Current version: **2.1.0**.
 
 > **REBRAND (Clerq2 → Interpret):** The product was renamed from **Clerq2** to **Interpret** in v2.0.0. Every user-facing string, the marketing site, the SQLite file (`clerq.db` → `interpret.db`, auto-migrated on startup by `api/entrypoint.sh`), the fake-email domain (`clerq.local` → `interpret.local`), Docker image/project names (`interpret-*`, via `name: interpret` in `docker-compose.yml`), and config/env defaults were updated. **Deliberately NOT renamed** (real infrastructure identities that would break things): the repo directory (`/Users/amirsadeghi/clerq2`, `/home/amix/clerq2`, `/srv/clerq2`), the GitHub remote (`amirsadeghi-ca/clerq2.git`), and the nas server-side files (`~/clerq2-autodeploy.sh`, `~/clerq2-deploy.log`, `~/clerq2-secrets-backup`, `/var/log/clerq2-deploy.log`). The production hostname references were switched to `interpret.genitechs.ca`; the old `clerq2.genitechs.ca` is still treated as production (sidebar/tab "dev" detection accepts both) so it keeps working as an alias until DNS is updated. A small **"dev" badge** now shows in the sidebar and a `[dev]` tab-title prefix appears on any non-production host.
 
@@ -438,6 +438,48 @@ interpret/
 
 ---
 
+## Cases (Dossiers) — v2.1.0
+
+The **Case** is the central operator-facing unit. A case is a durable container that owns the email thread, accumulating documents, a policy-derived requirements checklist, and all runs fired over those documents. Every `WorkflowRun` now has a `case_id` (set at creation time). Cases are **implicit** — each run creates one automatically; they become visible in the Cases list when they have email activity, multiple runs, or are not trivially closed.
+
+**New tables** (migration `0009_cases`):
+- `cases` — the dossier: `tenant_id, name, status, target_kind, policy_id, workflow_id, contact_email, contact_name, external_ref, last_activity_at, closed_at`
+- `case_aliases` — routing table: `(tenant_id, alias_type, alias_value)` unique. `alias_type="email_token"` for email threading. Future: `"api_ref"`, `"sharepoint_folder"`.
+- `case_documents` — accumulating doc set with supersession: `case_id, document_id, source, superseded_by_id, position`. Active set = rows where `superseded_by_id IS NULL`.
+
+**New columns**: `workflow_runs.case_id`, `mail_messages.case_id` (both nullable FK to `cases.id`).
+
+**Case service** (`api/app/cases.py`): pure functions (`resolve_or_create_case`, `attach_run_to_case`, `attach_document_to_case`, `current_document_ids`, `compute_checklist`, `new_email_token`, etc.). All channels call `resolve_or_create_case` — it finds an existing case via `email_token` (case-insensitive) or `external_ref`, or creates a new one.
+
+**Email threading**: outbound replies have `Reply-To: <mailbox-local>+<token>@<domain>`. Inbound resolution strips the `+token` via `_parse_email_token()` before the mailbox lookup, then resolves the case from the token. Tokens are lowercase (case-insensitive lookup via `func.lower()`). See `api/app/routers/mail.py::_parse_email_token`.
+
+**Checklist derivation**: from `PolicyRule.document_type_id` (existing FK) + latest completed run's `validate_documents` `per_document` n/a markers. No new policy fields needed. Workflow-target cases have an empty checklist.
+
+**New API router** (`/api/cases`, `api/app/routers/cases.py`):
+```
+GET  /api/cases/                          → CaseListItem[]  (view=, status=, target=, q=)
+POST /api/cases/                          → CaseDetail       manual create
+GET  /api/cases/{id}                      → CaseDetail       (timeline + checklist + documents)
+PATCH /api/cases/{id}                     → CaseDetail       status/contact/external_ref
+POST /api/cases/{id}/documents            → CaseDetail       attach uploaded docs
+POST /api/cases/{id}/run                  → Run              fire run over current doc set
+POST /api/cases/{id}/reply                → {id, sent_to, subject}   real + in-app reply
+POST /api/cases/{id}/notes                → {id}             internal note (direction="note")
+```
+
+**Default "interesting" list filter**: has MailMessage OR status not in (closed_accepted, closed_rejected). Trivial one-shot runs that never received a reply stay invisible until something correlates to them.
+
+**Frontend**: `frontend/src/pages/CasesPage.tsx`, `CaseDetailPage.tsx`, `frontend/src/api/cases.ts`, `frontend/src/lib/i18n/strings/cases.ts`.
+
+**Gotchas:**
+- `case_aliases.alias_value` is stored lowercase since v2.1.0 (old aliases may be mixed-case — lookup uses `func.lower()` for safety).
+- `RunOut.document_id` is `int | None` (was `int`) — some mail runs have no primary doc.
+- The `Case` ORM class name conflicts with SQLAlchemy's internal `sqlalchemy.sql.elements.Case` when running ad-hoc scripts that don't import all models. In the API context (all models loaded through routers), this is not an issue.
+- Celery worker must import `app.models.case` (already added to `celery_app.py`).
+- `resend_inbound` webhook text-only mail (no attachment) now lands on the case timeline without firing a run and sets case status to `under_review`. The UI fixture (`/api/mail/inbound`) still creates a failed run for text-only (original behavior for test consistency).
+
+---
+
 ## Database Schema
 
 Tables are created automatically on API startup via `create_tables()` then `run_migrations()` in `database.py`. New tables are created by `create_all()`; new columns on existing tables are added via safe `ALTER TABLE ADD COLUMN` with try/except (SQLite-compatible). Never drop data; use archive flags instead.
@@ -818,24 +860,29 @@ STORAGE_PATH=./data/storage
 | Path | Component | Notes |
 |---|---|---|
 | `/login` | `LoginPage` | Email + password (+ MFA when prompted). Public; everything else is wrapped in `ProtectedRoute`. |
-| `/` | `Dashboard` | Widget grid for favorited workflows |
-| `/validate` | `Validate` | Policy-centric run launcher (primary validation UI) |
+| `/` | `CasesPage` | Cases list (home — v2.1.0+ replaces Dashboard) |
+| `/cases` | `CasesPage` | Cases list — operator home; filters: Cases / Needs review / Awaiting applicant / Closed / All |
+| `/cases/:caseId` | `CaseDetailPage` | Case detail — 3-column: context + timeline + checklist/docs |
+| `/mail` | → `/cases` | Redirects; Mail page dissolved into case timelines |
+| `/validate` | `Validate` | Policy-centric run launcher / builder (now under Configure in nav) |
 | `/reports/:runId` | `ReportPage` | Full-page durable report (paper layout, exportable to PDF/JSON/CSV) — Phase 5 |
 | `/workflows` | `WorkflowList` | All workflows with star/archive controls |
 | `/workflows/:id` | `WorkflowEditor` | React Flow canvas |
 | `/workflows/:id/runs` | `RunHistory` | Run log |
 | `/library` | `LibraryList` | Library — tabbed: Document types + Reference lists (Phase 7) |
 | `/library/:id` | `LibraryEditor` | Document type detail |
-| `/policies` | `PoliciesList` | Policies list |
 | `/policies/:id` | `PolicyEditor` | Policy detail |
 | `/settings` | `SettingsLayout` (nested) | Sectioned settings; redirects to `/settings/account` |
 | `/settings/account` | `AccountSection` | Profile, change password, sign out everywhere |
 | `/settings/appearance` | `AppearanceSection` | Theme picker |
 | `/settings/language` | `LanguageSection` | Interface language |
 | `/settings/ai` | `AiSection` | OpenRouter API key + default model |
-| `/mail` | `MailInbox` | Fake email compose + inbox |
+| `/insights` | `Insights` | Operational indicators |
+| `/admin` | `AdminPage` | Super-admin: tenants, users, integrations |
 
-**Important:** WorkflowList used to be at `/`. It is now at `/workflows`. All breadcrumb links have been updated. If you add new links to WorkflowList, use `to="/workflows"`, not `to="/"`.
+**Sidebar IA (v2.1.0+):** Two sections: **WORKSPACE** (Cases, Insights) and **CONFIGURE** (Checks/Validate, Workflows, Library, Admin). The old standalone Mail nav item was removed — messages now live inside case timelines. Dashboard's favorited-workflow widgets are not in the nav either; the "New case" button replaces that entry point.
+
+**Important:** The home route `/` now renders `CasesPage` (not Dashboard). Dashboard still exists at its component level but has no dedicated route. WorkflowList is at `/workflows`.
 
 ---
 

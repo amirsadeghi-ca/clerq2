@@ -7,6 +7,8 @@ import { RunProvider, useRunContext } from './context/run'
 import { RunStatusPanel } from './components/RunStatusPanel'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Dashboard } from './pages/Dashboard'
+import { CasesPage } from './pages/CasesPage'
+import { CaseDetailPage } from './pages/CaseDetailPage'
 import { WorkflowList } from './pages/WorkflowList'
 import { WorkflowEditor } from './pages/WorkflowEditor'
 import { RunHistory } from './pages/RunHistory'
@@ -56,8 +58,11 @@ export default function App() {
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
                       <Route path="/invite/:token" element={<InviteAcceptPage />} />
-                      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                      <Route path="/" element={<ProtectedRoute><CasesPage /></ProtectedRoute>} />
+                      <Route path="/cases" element={<ProtectedRoute><CasesPage /></ProtectedRoute>} />
+                      <Route path="/cases/:caseId" element={<ProtectedRoute><CaseDetailPage /></ProtectedRoute>} />
                       <Route path="/validate" element={<ProtectedRoute><Validate /></ProtectedRoute>} />
+                      <Route path="/mail" element={<Navigate to="/cases" replace />} />
                       <Route path="/reports/:runId" element={<ProtectedRoute><ReportPage /></ProtectedRoute>} />
                       <Route path="/workflows" element={<ProtectedRoute><WorkflowList /></ProtectedRoute>} />
                       <Route path="/workflows/:id" element={<ProtectedRoute><WorkflowEditor /></ProtectedRoute>} />
@@ -72,7 +77,6 @@ export default function App() {
                         <Route path="language" element={<LanguageSection />} />
                         <Route path="ai" element={<AiSection />} />
                       </Route>
-                      <Route path="/mail" element={<ProtectedRoute><MailInbox /></ProtectedRoute>} />
                       <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
                       <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
                     </Routes>

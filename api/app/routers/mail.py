@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app import cases as cases_svc
 from app import system_settings
 from app.config import settings
 from app.database import get_db
@@ -93,12 +94,21 @@ def inbound_mail(
     user — that path will resolve the tenant via the mailbox's owner instead."""
     to_addr = body.to.strip().lower()
 
+    # Parse +token from local part for case threading
+    email_token = None
+    if "@" in to_addr:
+        local, domain = to_addr.rsplit("@", 1)
+        base_local, email_token = _parse_email_token(local)
+        lookup_addr = f"{base_local}@{domain}"
+    else:
+        lookup_addr = to_addr
+
     policy = (
         db.query(Policy)
         .filter(
             Policy.tenant_id == tenant_id,
             Policy.email_inbox_enabled == True,  # noqa: E712
-            Policy.email_address == to_addr,
+            Policy.email_address == lookup_addr,
         )
         .first()
     )
@@ -110,7 +120,7 @@ def inbound_mail(
             .filter(
                 Workflow.tenant_id == tenant_id,
                 Workflow.email_inbox_enabled == True,  # noqa: E712
-                Workflow.email_address == to_addr,
+                Workflow.email_address == lookup_addr,
                 Workflow.is_archived == False,  # noqa: E712
             )
             .first()
@@ -125,6 +135,17 @@ def inbound_mail(
         if not doc or doc.tenant_id != tenant_id:
             raise HTTPException(404, "Document not found")
 
+    # Resolve or create a case for this inbound mail
+    case = cases_svc.resolve_or_create_case(
+        db, tenant_id,
+        target_kind="policy" if policy else "workflow",
+        policy_id=policy.id if policy else None,
+        workflow_id=workflow.id if workflow else None,
+        contact_email=body.from_email,
+        email_token=email_token,
+        name=doc.original_filename if doc else body.subject or "mail",
+    )
+
     if policy:
         run = WorkflowRun(
             tenant_id=tenant_id,
@@ -134,6 +155,7 @@ def inbound_mail(
             source="mail",
             policy_id=policy.id,
             sender_email=body.from_email,
+            case_id=case.id,
             status="pending",
         )
     else:
@@ -150,6 +172,7 @@ def inbound_mail(
             name=doc.original_filename if doc else body.subject or "mail",
             source="mail",
             sender_email=body.from_email,
+            case_id=case.id,
             version_id=latest_version.id if latest_version else None,
             version_num=latest_version.version_num if latest_version else None,
             status="pending",
@@ -159,9 +182,13 @@ def inbound_mail(
     db.commit()
     db.refresh(run)
 
+    if doc:
+        cases_svc.attach_document_to_case(db, case, doc, source="email")
+
     db.add(MailMessage(
         tenant_id=tenant_id,
         run_id=run.id,
+        case_id=case.id,
         document_id=doc.id if doc else None,
         direction="inbound",
         from_addr=body.from_email,
@@ -169,6 +196,7 @@ def inbound_mail(
         subject=body.subject,
         body=body.body,
     ))
+    cases_svc.attach_run_to_case(db, case, run)
     db.commit()
 
     if doc:
@@ -242,15 +270,39 @@ def _verify_svix_signature(raw_body: bytes, headers, secret: str) -> bool:
     return False
 
 
+def _parse_email_token(local_part: str) -> tuple[str, str | None]:
+    """Strip a +token suffix from the local part of an email address.
+
+    Returns (base_local, token_or_None).
+    E.g. "intake+abc123" -> ("intake", "abc123")
+         "intake" -> ("intake", None)
+    """
+    if "+" in local_part:
+        base, token = local_part.rsplit("+", 1)
+        return base, token if token else None
+    return local_part, None
+
+
 def _resolve_mailbox(db: Session, to_addr: str):
-    """Find the policy or workflow that owns an inbound address. Global lookup
-    (no tenant filter) — addresses embed a globally-unique id."""
+    """Find the policy or workflow that owns an inbound address.
+
+    Handles +token suffixes (e.g. intake+abc123@domain.com) by stripping the
+    token before the mailbox lookup. Returns (policy_or_None, workflow_or_None).
+    Global lookup — addresses embed a globally-unique id.
+    """
     addr = (to_addr or "").strip().lower()
     if not addr:
         return None, None
+    # Strip +token from local part before lookup
+    if "@" in addr:
+        local, domain = addr.rsplit("@", 1)
+        base_local, _ = _parse_email_token(local)
+        lookup_addr = f"{base_local}@{domain}"
+    else:
+        lookup_addr = addr
     policy = (
         db.query(Policy)
-        .filter(Policy.email_inbox_enabled == True, func.lower(Policy.email_address) == addr)  # noqa: E712
+        .filter(Policy.email_inbox_enabled == True, func.lower(Policy.email_address) == lookup_addr)  # noqa: E712
         .first()
     )
     if policy:
@@ -260,7 +312,7 @@ def _resolve_mailbox(db: Session, to_addr: str):
         .filter(
             Workflow.email_inbox_enabled == True,  # noqa: E712
             Workflow.is_archived == False,  # noqa: E712
-            func.lower(Workflow.email_address) == addr,
+            func.lower(Workflow.email_address) == lookup_addr,
         )
         .first()
     )
@@ -380,12 +432,18 @@ async def resend_inbound(request: Request, db: Session = Depends(get_db)):
         return {"ok": True, "duplicate": True}
 
     # Resolve which mailbox this was sent to (first matching recipient wins).
+    # _resolve_mailbox strips +token automatically, so we also capture the token separately.
     policy = workflow = None
     matched_addr = None
+    email_token = None
     for addr in to_list:
         policy, workflow = _resolve_mailbox(db, addr)
         if policy or workflow:
             matched_addr = (addr or "").strip().lower()
+            # Extract token for case threading
+            if "@" in matched_addr:
+                local, _ = matched_addr.rsplit("@", 1)
+                _, email_token = _parse_email_token(local)
             break
 
     if not policy and not workflow:
@@ -403,14 +461,70 @@ async def resend_inbound(request: Request, db: Session = Depends(get_db)):
             if doc:
                 docs.append(doc)
 
-    # Build the run row.
-    latest_version = _latest_workflow_version(db, workflow) if workflow else None
+    # Build the run name
     if len(docs) > 1:
         run_name = f"{len(docs)} documents"
     elif docs:
         run_name = docs[0].original_filename
     else:
         run_name = subject or "mail"
+
+    # Resolve or create a case for this inbound mail
+    case = cases_svc.resolve_or_create_case(
+        db, tenant_id,
+        target_kind="policy" if policy else "workflow",
+        policy_id=policy.id if policy else None,
+        workflow_id=workflow.id if workflow else None,
+        contact_email=from_email,
+        email_token=email_token,
+        name=run_name,
+    )
+
+    # If this is a text-only message (no attachment), land it on the timeline without a run
+    if not docs:
+        db.add(MailMessage(
+            tenant_id=tenant_id,
+            case_id=case.id,
+            direction="inbound",
+            from_addr=from_email,
+            to_addr=matched_addr,
+            subject=subject,
+            body=data.get("text"),
+            external_id=email_id,
+        ))
+        case.status = "under_review"
+        from datetime import datetime, UTC
+        case.last_activity_at = datetime.now(UTC).replace(tzinfo=None)
+        db.commit()
+        log.info("[mail:inbound] text-only mail landed on case %s", case.id)
+        # Only send the "please attach" reply if the case has no prior documents
+        has_prior_docs = cases_svc.current_document_ids(db, case)
+        if not has_prior_docs and from_email and "@" in from_email and not from_email.lower().endswith("@interpret.local"):
+            msg = (
+                "We received your message but couldn't find a document to process.\n\n"
+                "Please reply with the document attached (PDF, image, Word, Excel, or CSV)."
+            )
+            send_email(
+                to=from_email,
+                subject=f"Re: {subject or 'your submission'}",
+                html=f"<p>{msg}</p>",
+                text=msg,
+                reply_to=matched_addr,
+            )
+            db.add(MailMessage(
+                tenant_id=tenant_id,
+                case_id=case.id,
+                direction="outbound",
+                from_addr=settings.invite_from_address,
+                to_addr=from_email,
+                subject=f"Re: {subject or 'your submission'}",
+                body=msg,
+            ))
+            db.commit()
+        return {"ok": True, "case_id": case.id, "documents": 0, "text_only": True}
+
+    # Build the run row.
+    latest_version = _latest_workflow_version(db, workflow) if workflow else None
 
     run = WorkflowRun(
         tenant_id=tenant_id,
@@ -420,6 +534,7 @@ async def resend_inbound(request: Request, db: Session = Depends(get_db)):
         source="mail",
         policy_id=policy.id if policy else None,
         sender_email=from_email,
+        case_id=case.id,
         version_id=latest_version.id if latest_version else None,
         version_num=latest_version.version_num if latest_version else None,
         status="pending",
@@ -428,9 +543,13 @@ async def resend_inbound(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(run)
 
+    for doc in docs:
+        cases_svc.attach_document_to_case(db, case, doc, source="email")
+
     db.add(MailMessage(
         tenant_id=tenant_id,
         run_id=run.id,
+        case_id=case.id,
         document_id=docs[0].id if docs else None,
         direction="inbound",
         from_addr=from_email,
@@ -439,44 +558,12 @@ async def resend_inbound(request: Request, db: Session = Depends(get_db)):
         body=data.get("text"),
         external_id=email_id,
     ))
+    cases_svc.attach_run_to_case(db, case, run)
     db.commit()
 
-    if docs:
-        if policy:
-            trigger_run(run.id, _canonical_definition(policy.id), docs)
-        else:
-            definition = latest_version.definition if latest_version else workflow.definition
-            trigger_run(run.id, definition, docs)
-        return {"ok": True, "run_id": run.id, "documents": len(docs)}
-
-    # No usable attachment — fail the run and reply with an explanation.
-    from datetime import datetime, UTC
-    run.status = "failed"
-    run.error = "No document attached — a validation needs at least one document."
-    run.completed_at = datetime.now(UTC)
-    db.commit()
-
-    if from_email and "@" in from_email and not from_email.lower().endswith("@interpret.local"):
-        msg = (
-            "We received your message but couldn't find a document to process.\n\n"
-            "Please reply with the document attached (PDF, image, Word, Excel, or CSV)."
-        )
-        send_email(
-            to=from_email,
-            subject=f"Re: {subject or 'your submission'}",
-            html=f"<p>{msg}</p>",
-            text=msg,
-            reply_to=matched_addr,
-        )
-        db.add(MailMessage(
-            tenant_id=tenant_id,
-            run_id=run.id,
-            direction="outbound",
-            from_addr=settings.invite_from_address,
-            to_addr=from_email,
-            subject=f"Re: {subject or 'your submission'}",
-            body=msg,
-        ))
-        db.commit()
-
-    return {"ok": True, "run_id": run.id, "documents": 0, "error": "no_document"}
+    if policy:
+        trigger_run(run.id, _canonical_definition(policy.id), docs)
+    else:
+        definition = latest_version.definition if latest_version else workflow.definition
+        trigger_run(run.id, definition, docs)
+    return {"ok": True, "run_id": run.id, "case_id": case.id, "documents": len(docs)}

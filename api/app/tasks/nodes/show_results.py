@@ -39,8 +39,6 @@ def _send_reply(run_id: int, input_data: dict) -> None:
         is_fail = overall in ("fail", "needs_review")
 
         # Load policy reply settings if this is a policy-backed run.
-        # reply_to = the mailbox the message arrived at, so a recipient replying
-        # continues the loop back into this policy/workflow.
         reply_mode = "always"
         pass_template: str | None = None
         fail_template: str | None = None
@@ -58,6 +56,18 @@ def _send_reply(run_id: int, input_data: dict) -> None:
             if wf:
                 reply_to = wf.email_address
 
+        # Build tokenized reply-to using the case's email_token (for threading)
+        if run.case_id and reply_to:
+            from app.cases import get_case_email_token
+            from app.models.case import Case
+            from app.system_settings import mail_inbound_domain
+            case = db.get(Case, run.case_id)
+            if case:
+                token = get_case_email_token(case)
+                if token and "@" in reply_to:
+                    local, domain = reply_to.rsplit("@", 1)
+                    reply_to = f"{local}+{token}@{domain}"
+
         # Apply reply mode gate
         if reply_mode == "never":
             return
@@ -74,7 +84,6 @@ def _send_reply(run_id: int, input_data: dict) -> None:
             elif is_fail and fail_template:
                 body = fail_template.replace("{{failed_rules}}", failed_rules_text)
             else:
-                # Default body
                 rule_lines = [
                     f"  - {r.get('rule_name', '?')}: {r.get('status', '?').upper()}"
                     for r in results
@@ -92,6 +101,7 @@ def _send_reply(run_id: int, input_data: dict) -> None:
         db.add(MailMessage(
             tenant_id=run.tenant_id,
             run_id=run_id,
+            case_id=run.case_id,
             document_id=run.document_id,
             direction="outbound",
             from_addr=from_addr,

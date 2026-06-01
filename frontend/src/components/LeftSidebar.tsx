@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, GitBranch, BookOpen, Settings, HelpCircle, Mail, ClipboardCheck, BarChart3, LogOut, ShieldCheck, type LucideIcon } from 'lucide-react'
+import { FolderOpen, GitBranch, BookOpen, Settings, HelpCircle, ClipboardCheck, BarChart3, LogOut, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { useI18n } from '../context/i18n'
 import { useAuth } from '../context/auth'
 import { APP_VERSION } from '../version'
@@ -27,11 +27,10 @@ export function LeftSidebar() {
   const { pathname } = useLocation()
   const { t } = useI18n()
   const { user } = useAuth()
-  const isDashboard = pathname === '/'
+  const isCases = pathname === '/' || pathname === '/cases' || pathname.startsWith('/cases/')
   const isPolicies = pathname === '/validate' || pathname.startsWith('/policies')
   const isWorkflows = pathname === '/workflows' || pathname.startsWith('/workflows/')
   const isLibrary = pathname.startsWith('/library')
-  const isMail = pathname === '/mail'
   const isInsights = pathname === '/insights'
 
   // Flag non-production environments at a glance (local dev, staging, preview).
@@ -63,15 +62,20 @@ export function LeftSidebar() {
 
       {/* Nav */}
       <div className="flex flex-1 flex-col gap-px p-2">
+        {/* Work section */}
         <p className="mb-1 px-2.5 pt-2 text-[11px] font-medium uppercase tracking-widest text-[var(--c-text-5)]">
           {t('nav.workspace')}
         </p>
-        <NavItem to="/" icon={LayoutDashboard} label={t('nav.dashboard')} active={isDashboard} />
+        <NavItem to="/cases" icon={FolderOpen} label={t('nav.cases')} active={isCases} />
+        <NavItem to="/insights" icon={BarChart3} label={t('nav.insights')} active={isInsights} />
+
+        {/* Configure section */}
+        <p className="mb-1 mt-3 px-2.5 text-[11px] font-medium uppercase tracking-widest text-[var(--c-text-5)]">
+          {t('nav.configure')}
+        </p>
         <NavItem to="/validate" icon={ClipboardCheck} label={t('nav.checks')} active={isPolicies} />
         <NavItem to="/workflows" icon={GitBranch} label={t('nav.workflows')} active={isWorkflows} />
         <NavItem to="/library" icon={BookOpen} label={t('nav.library')} active={isLibrary} />
-        <NavItem to="/mail" icon={Mail} label={t('nav.mail')} active={isMail} />
-        <NavItem to="/insights" icon={BarChart3} label={t('nav.insights')} active={isInsights} />
         {user?.is_superadmin && (
           <NavItem to="/admin" icon={ShieldCheck} label={t('admin.menu')} active={pathname.startsWith('/admin')} />
         )}

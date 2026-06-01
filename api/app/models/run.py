@@ -49,6 +49,7 @@ class WorkflowRun(Base):
     #     "effective_overall": "pass"|"fail"|"needs_review"  # recomputed from overrides
     #   }
     review: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    case_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("cases.id"), nullable=True, index=True)
 
     steps: Mapped[list["WorkflowRunStep"]] = relationship(
         "WorkflowRunStep", back_populates="run", order_by="WorkflowRunStep.id"
@@ -56,6 +57,7 @@ class WorkflowRun(Base):
     run_documents: Mapped[list["WorkflowRunDocument"]] = relationship(
         "WorkflowRunDocument", back_populates="run", order_by="WorkflowRunDocument.position"
     )
+    case: Mapped["Case | None"] = relationship("Case", back_populates="runs", foreign_keys="[WorkflowRun.case_id]")
 
     @property
     def document_ids(self) -> list[int]:
