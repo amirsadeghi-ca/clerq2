@@ -3,6 +3,8 @@ from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+# Registers RunStep in the mapper registry for the WorkflowRun.steps relationship.
+from app.models.run_step import RunStep  # noqa: F401
 
 
 class WorkflowRunDocument(Base):
@@ -51,8 +53,17 @@ class WorkflowRun(Base):
     review: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     case_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("cases.id"), nullable=True, index=True)
 
-    steps: Mapped[list["WorkflowRunStep"]] = relationship(
-        "WorkflowRunStep", back_populates="run", order_by="WorkflowRunStep.id"
+    # Execution-engine-v2 (additive). The scheduler runs against the snapshot,
+    # `result` is the canonical run output (verdict) cases.py reads, and
+    # `fail_policy` chooses run-fail behaviour (D5 default: fail_run).
+    definition_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    fail_policy: Mapped[str] = mapped_column(String(16), nullable=False, server_default="fail_run")
+
+    # Engine-v2: steps live in `run_steps`. viewonly — the scheduler manages
+    # their lifecycle directly, not through this relationship.
+    steps: Mapped[list["RunStep"]] = relationship(
+        "RunStep", order_by="RunStep.id", viewonly=True, foreign_keys="RunStep.run_id"
     )
     run_documents: Mapped[list["WorkflowRunDocument"]] = relationship(
         "WorkflowRunDocument", back_populates="run", order_by="WorkflowRunDocument.position"
@@ -61,7 +72,13 @@ class WorkflowRun(Base):
 
     @property
     def document_ids(self) -> list[int]:
-        return [rd.document_id for rd in (self.run_documents or [])]
+        # Derived from the run seed (run_steps.inputs._run.documents) — the old
+        # workflow_run_documents join is no longer populated by the engine.
+        for s in (self.steps or []):
+            seed = (s.inputs or {}).get("_run") if isinstance(s.inputs, dict) else None
+            if isinstance(seed, dict) and isinstance(seed.get("documents"), list):
+                return [d.get("id") for d in seed["documents"] if d.get("id") is not None]
+        return []
 
 
 class WorkflowRunStep(Base):
@@ -78,5 +95,5 @@ class WorkflowRunStep(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)
     logs: Mapped[list | None] = mapped_column(JSON)
-
-    run: Mapped["WorkflowRun"] = relationship("WorkflowRun", back_populates="steps")
+    # NOTE: legacy table, no longer written by the engine (kept for migration
+    # history). The WorkflowRun.steps relationship now points at RunStep.

@@ -12,7 +12,8 @@ class RunStepOut(BaseModel):
     node_id: str
     node_type: str
     status: str
-    input_data: dict | None
+    attempt: int = 1
+    input_data: dict | None = None
     output_data: dict | None
     error: str | None
     started_at: datetime | None
@@ -31,7 +32,8 @@ class RunOut(BaseModel):
     id: int
     workflow_id: int | None  # 0 is stored as sentinel for validate runs; surfaced as None
     document_id: int | None = None
-    document_ids: list[int] = []  # full set (populated from workflow_run_documents join table)
+    document_ids: list[int] = []  # full set (derived from the run seed)
+    result: dict | None = None  # canonical run output (verdict) — engine-v2
     version_id: int | None
     version_num: int | None
     name: str | None

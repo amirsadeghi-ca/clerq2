@@ -116,13 +116,13 @@ def upgrade() -> None:
         result = bind.execute(sa.text(
             "INSERT INTO cases (tenant_id, name, status, target_kind, policy_id, workflow_id, "
             "contact_email, created_at, updated_at, last_activity_at) "
-            "VALUES (:tid, :name, 'open', :kind, :pid, :wid, :email, :now, :now, :last)"
+            "VALUES (:tid, :name, 'open', :kind, :pid, :wid, :email, :now, :now, :last) RETURNING id"
         ), {
             "tid": r_tenant_id, "name": r_name, "kind": target_kind,
             "pid": r_policy_id, "wid": r_workflow_id, "email": r_sender_email,
             "now": now, "last": r_last_activity or now,
         })
-        case_id = result.lastrowid
+        case_id = result.scalar()
         for run_row in group_runs:
             run_to_case[run_row[0]] = case_id
 
@@ -132,13 +132,13 @@ def upgrade() -> None:
         result = bind.execute(sa.text(
             "INSERT INTO cases (tenant_id, name, status, target_kind, policy_id, workflow_id, "
             "created_at, updated_at, last_activity_at) "
-            "VALUES (:tid, :name, 'open', :kind, :pid, :wid, :now, :now, :last)"
+            "VALUES (:tid, :name, 'open', :kind, :pid, :wid, :now, :now, :last) RETURNING id"
         ), {
             "tid": tenant_id, "name": name, "kind": target_kind,
             "pid": policy_id, "wid": workflow_id,
             "now": now, "last": created_at or now,
         })
-        case_id = result.lastrowid
+        case_id = result.scalar()
         run_to_case[run_id] = case_id
 
     # Update workflow_runs.case_id

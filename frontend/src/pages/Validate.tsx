@@ -4,10 +4,11 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   ShieldCheck, Upload, X, CheckCircle2, XCircle, AlertCircle,
   Loader2, Circle, Search, FileText, ChevronLeft, ChevronRight, Mail, Plus, Trash2, Pencil,
-  ExternalLink, Download, FileJson, FileSpreadsheet,
+  ExternalLink, Download, FileJson, FileSpreadsheet, Menu, ArrowLeft,
 } from 'lucide-react'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useI18n } from '../context/i18n'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 import { usePolicies, usePolicy, useCreatePolicy, useDeletePolicy } from '../api/policies'
 import { useValidateRuns, useTriggerValidateRun } from '../api/validate'
 import client from '../api/client'
@@ -64,7 +65,7 @@ function timeAgo(iso: string, t: (key: string, vars?: Record<string, string | nu
 
 function StepChip({ step }: { step: RunStep }) {
   const { t } = useI18n()
-  const icon = step.status === 'completed' ? <CheckCircle2 size={10} className="text-emerald-400 shrink-0" />
+  const icon = step.status === 'succeeded' ? <CheckCircle2 size={10} className="text-emerald-400 shrink-0" />
     : step.status === 'running'   ? <Loader2 size={10} className="text-indigo-400 animate-spin shrink-0" />
     : step.status === 'failed'    ? <XCircle size={10} className="text-red-400 shrink-0" />
     : <Circle size={10} className="text-[var(--c-text-5)] shrink-0" />
@@ -74,7 +75,7 @@ function StepChip({ step }: { step: RunStep }) {
       'flex items-center gap-1.5 rounded px-2 py-1 border text-[10px] transition-colors',
       step.status === 'running'
         ? 'border-indigo-500/30 bg-indigo-500/8 text-indigo-400'
-        : step.status === 'completed'
+        : step.status === 'succeeded'
         ? 'border-[var(--c-border)] bg-[var(--c-surface-2)] text-[var(--c-text-4)]'
         : step.status === 'failed'
         ? 'border-red-500/20 bg-red-500/5 text-red-400'
@@ -144,7 +145,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
 
   // SSE for active runs
   useEffect(() => {
-    if (liveStatus === 'pending' || liveStatus === 'running') {
+    if (liveStatus === 'pending' || liveStatus === 'running' || liveStatus === 'waiting') {
       const tok = localStorage.getItem('auth.access_token') || ''
       const es = new EventSource(`/api/runs/${run.id}/stream?access_token=${encodeURIComponent(tok)}`)
       esRef.current = es
@@ -181,7 +182,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
 
   const validateStep = liveSteps.find(s => s.node_type === 'validate_documents')
   const isValidating = validateStep?.status === 'running'
-  const validateDone = validateStep?.status === 'completed'
+  const validateDone = validateStep?.status === 'succeeded' || validateStep?.status === 'failed'
   const validationOutput = validateDone
     ? (validateStep?.output_data as unknown as ValidationOutput | null)
     : null
@@ -207,7 +208,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
         onClick={onClose}
       >
         <div
-          className="flex h-[80vh] w-[75vw] flex-col overflow-hidden rounded-xl border border-[var(--c-border-2)] bg-[var(--c-surface)] shadow-2xl"
+          className="flex h-[92vh] w-full flex-col overflow-hidden rounded-xl border border-[var(--c-border-2)] bg-[var(--c-surface)] shadow-2xl sm:h-[80vh] sm:w-[90vw] lg:w-[75vw]"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
@@ -226,7 +227,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                 {t(OVERALL_LABEL_KEYS[validationOutput.overall] ?? '')}
               </span>
             )}
-            <div className="flex flex-1 items-center gap-0 overflow-hidden pl-1">
+            <div className="hidden flex-1 items-center gap-0 overflow-hidden pl-1 sm:flex">
               {liveSteps.map((step, i) => (
                 <div key={step.id} className="flex shrink-0 items-center gap-0">
                   <StepChip step={step} />
@@ -246,26 +247,26 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
                   title={t('validate.exportCsvTitle')}
                   className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
                 >
-                  <FileSpreadsheet size={11} /> CSV
+                  <FileSpreadsheet size={11} /> <span className="hidden sm:inline">CSV</span>
                 </button>
                 <button
                   onClick={() => exportReportJSON(run, validationOutput)}
                   title={t('validate.exportJsonTitle')}
                   className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
                 >
-                  <FileJson size={11} /> JSON
+                  <FileJson size={11} /> <span className="hidden sm:inline">JSON</span>
                 </button>
                 <button
                   onClick={() => printReportPDF(run, policy ?? null, validationOutput, t, lang)}
                   title={t('validate.downloadPdfTitle')}
-                  className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-indigo-500"
+                  className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-2 sm:px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-indigo-500"
                 >
-                  <Download size={11} /> PDF
+                  <Download size={11} /> <span className="hidden sm:inline">PDF</span>
                 </button>
                 <Link
                   to={`/reports/${run.id}`}
                   title={t('validate.openFullReport')}
-                  className="flex h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)]"
+                  className="hidden h-7 items-center gap-1.5 rounded px-2 text-[11px] text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-1)] sm:flex"
                 >
                   <ExternalLink size={11} /> {t('btn.open')}
                 </Link>
@@ -283,7 +284,7 @@ function RunDetailModal({ run, onClose }: { run: Run; onClose: () => void }) {
           {/* Body */}
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {/* Left panel — rule list */}
-            <div className="flex w-[260px] shrink-0 flex-col overflow-hidden border-r border-[var(--c-border)]">
+            <div className="flex w-[220px] shrink-0 flex-col overflow-hidden border-r border-[var(--c-border)] sm:w-[260px]">
               <div className="flex shrink-0 items-center justify-between border-b border-[var(--c-border)] px-4 py-2.5">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--c-text-5)]">{t('validate.rules')}</span>
                 {isValidating && (
@@ -767,6 +768,9 @@ function LaunchBar({
 export function Validate() {
   const navigate = useNavigate()
   const { t } = useI18n()
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
+  // Mobile: 'picker' shows the policy list; 'runs' shows the run area
+  const [mobileView, setMobileView] = useState<'picker' | 'runs'>('picker')
   const { data: policies, isLoading: loadingPolicies } = usePolicies()
   const createPolicy = useCreatePolicy()
   const deletePolicy = useDeletePolicy()
@@ -822,13 +826,30 @@ export function Validate() {
 
   return (
     <div className="flex h-full min-w-0 flex-1 overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <LeftSidebar />
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
 
       <div className="flex min-w-0 flex-1 overflow-hidden">
         {/* Left panel — policy picker */}
-        <div className="flex w-[280px] shrink-0 flex-col border-r border-[var(--c-border)] bg-[var(--c-surface)]">
+        <div className={[
+          'shrink-0 flex-col border-r border-[var(--c-border)] bg-[var(--c-surface)]',
+          'w-full md:flex md:w-[280px]',
+          mobileView === 'picker' ? 'flex' : 'hidden md:flex',
+        ].join(' ')}>
           <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-4">
-            <h2 className="text-[13px] font-semibold text-[var(--c-text-1)]">{t('validate.checks')}</h2>
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+                onClick={openSidebar}
+              >
+                <Menu size={15} />
+              </button>
+              <h2 className="text-[13px] font-semibold text-[var(--c-text-1)]">{t('validate.checks')}</h2>
+            </div>
             <button
               onClick={() => { setCreating(true); setSearch('') }}
               className="flex h-6 w-6 items-center justify-center rounded text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-2)]"
@@ -897,6 +918,7 @@ export function Validate() {
                   setSelectedPolicyId(prev => prev === p.id ? null : p.id)
                   setFiles([])
                   setRunError(null)
+                  setMobileView('runs')
                 }}
                 onEdit={() => navigate(`/policies/${p.id}`)}
                 onDelete={() => {
@@ -909,9 +931,19 @@ export function Validate() {
         </div>
 
         {/* Right panel — launch bar + run list */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[var(--c-border)] px-6">
-            <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">
+        <div className={[
+          'min-w-0 flex-1 flex-col',
+          mobileView === 'runs' ? 'flex' : 'hidden md:flex',
+        ].join(' ')}>
+          <div className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[var(--c-border)] px-4 md:px-6">
+            {/* Mobile back button */}
+            <button
+              className="rounded p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+              onClick={() => setMobileView('picker')}
+            >
+              <ArrowLeft size={15} />
+            </button>
+            <h1 className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[var(--c-text-1)]">
               {selectedPolicy ? selectedPolicy.name : t('validate.title')}
             </h1>
             {runs && runs.length > 0 && (

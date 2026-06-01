@@ -47,7 +47,11 @@ const STATUS_RANK: Record<string, number> = { fail: 0, uncertain: 1, pass: 2, no
 
 export function getValidationOutput(run: Run | null | undefined): ValidationOutput | null {
   if (!run) return null
-  const step = run.steps?.find(s => s.node_type === 'validate_documents' && s.status === 'completed')
+  // Engine-v2: prefer the canonical run.result; fall back to the validate step's
+  // output (covers fail_on_missing where the run failed but output persisted).
+  const r = run.result as unknown as ValidationOutput | null
+  if (r && (Array.isArray(r.results) || r.overall)) return r
+  const step = run.steps?.find(s => s.node_type === 'validate_documents' && s.output_data)
   return (step?.output_data as unknown as ValidationOutput | null) ?? null
 }
 

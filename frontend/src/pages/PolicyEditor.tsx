@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ChevronRight, Save, Loader2, Plus, Trash2, ChevronUp, ChevronDown,
-  GitCommit, RotateCcw, X, History, Mail, Copy, Check,
+  GitCommit, RotateCcw, X, History, Mail, Copy, Check, Menu,
 } from 'lucide-react'
 import {
   usePolicy, useUpdatePolicy, useCreateRule, useUpdateRule, useDeleteRule,
@@ -12,6 +12,7 @@ import {
 import { useDocumentTypes } from '../api/library'
 import { useReferenceLists } from '../api/referenceLists'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 import { useI18n } from '../context/i18n'
 import type { PolicyRule, PolicyVersion } from '../types/workflow'
 
@@ -381,6 +382,7 @@ export function PolicyEditor() {
   const { id } = useParams<{ id: string }>()
   const policyId = Number(id)
   const { t } = useI18n()
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
 
   const { data: policy, isLoading } = usePolicy(policyId)
   const { data: docTypes } = useDocumentTypes()
@@ -463,12 +465,23 @@ export function PolicyEditor() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <LeftSidebar />
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* ── Header ── */}
-        <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] px-6">
+        <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] px-3 md:px-6">
+          <button
+            className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+            onClick={openSidebar}
+          >
+            <Menu size={16} />
+          </button>
           <Link to="/validate" className="text-[12px] text-[var(--c-text-5)] transition-colors hover:text-[var(--c-text-3)]">
             {t('nav.checks')}
           </Link>

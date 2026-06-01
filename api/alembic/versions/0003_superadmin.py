@@ -73,15 +73,15 @@ def upgrade() -> None:
             sa.text(
                 "INSERT INTO users (tenant_id, email, display_name, role, "
                 "is_active, is_superadmin, mfa_required) "
-                "VALUES (:tid, :email, :name, 'owner', 1, 1, 0)"
+                "VALUES (:tid, :email, :name, 'owner', true, true, false) RETURNING id"
             ),
             {"tid": default_tenant_id, "email": SUPERADMIN_EMAIL, "name": SUPERADMIN_DISPLAY},
-        ).lastrowid
+        ).scalar()
     else:
         user_id = existing_user_id
         bind.execute(
             sa.text(
-                "UPDATE users SET is_superadmin = 1, is_active = 1, "
+                "UPDATE users SET is_superadmin = true, is_active = true, "
                 "display_name = COALESCE(display_name, :name) "
                 "WHERE id = :uid"
             ),
@@ -97,7 +97,7 @@ def upgrade() -> None:
         bind.execute(
             sa.text(
                 "INSERT INTO auth_identities (user_id, provider, secret, is_verified) "
-                "VALUES (:uid, 'password', :secret, 1)"
+                "VALUES (:uid, 'password', :secret, true)"
             ),
             {"uid": user_id, "secret": password_hash},
         )

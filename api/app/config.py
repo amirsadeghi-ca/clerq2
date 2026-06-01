@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "sqlite:///./data/interpret.db"
+    database_url: str = "postgresql+psycopg://interpret:interpret@postgres:5432/interpret"
     redis_url: str = "redis://localhost:6379/0"
     storage_path: str = "./data/storage"
     secret_key: str = "change-me-in-production"

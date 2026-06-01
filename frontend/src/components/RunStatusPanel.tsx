@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CheckCircle2, Circle, Loader2, XCircle, X, ChevronDown, ChevronUp, Images, Terminal, Square } from 'lucide-react'
+import { CheckCircle2, Circle, Loader2, XCircle, X, ChevronDown, ChevronUp, Images, Terminal, Square, Clock, MinusCircle, Ban } from 'lucide-react'
 import type { RunStep, RunStatus, SSERunUpdate, ValidationOutput } from '../types/workflow'
 import { RunOutputViewer } from './RunOutputViewer'
 import { LogViewer } from './LogViewer'
@@ -12,17 +12,22 @@ interface Props {
 }
 
 function StepIcon({ status }: { status: string }) {
-  if (status === 'completed') return <CheckCircle2 size={12} className="shrink-0 text-emerald-400" />
+  if (status === 'succeeded') return <CheckCircle2 size={12} className="shrink-0 text-emerald-400" />
   if (status === 'running')   return <Loader2 size={12} className="shrink-0 animate-spin text-indigo-400" />
   if (status === 'failed')    return <XCircle size={12} className="shrink-0 text-red-400" />
-  return <Circle size={12} className="shrink-0 text-[var(--c-text-5)]" />
+  if (status === 'waiting')   return <Clock size={12} className="shrink-0 text-amber-400" />
+  if (status === 'skipped')   return <MinusCircle size={12} className="shrink-0 text-[var(--c-text-5)]" />
+  if (status === 'cancelled') return <Ban size={12} className="shrink-0 text-[var(--c-text-5)]" />
+  return <Circle size={12} className="shrink-0 text-[var(--c-text-5)]" />  // pending / ready
 }
 
 const STATUS_COLOR: Record<RunStatus, string> = {
   pending: 'text-[var(--c-text-4)]',
   running: 'text-indigo-400',
+  waiting: 'text-amber-400',
   completed: 'text-emerald-400',
   failed: 'text-red-400',
+  cancelled: 'text-[var(--c-text-4)]',
 }
 
 const NODE_TYPES = new Set([
@@ -161,12 +166,12 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
                           <span className="text-[12px] text-[var(--c-text-2)]">
                             {nodeLabel(t, step.node_type)}
                           </span>
-                          {step.status === 'completed' && step.output_data?.page_count != null && (
+                          {step.status === 'succeeded' && step.output_data?.page_count != null && (
                             <span className="text-[10px] text-[var(--c-text-5)] font-mono">
                               {t('runstatus.pages', { count: step.output_data.page_count as number })}
                             </span>
                           )}
-                          {step.status === 'completed' && step.node_type === 'validate_documents' && (() => {
+                          {step.status === 'succeeded' && step.node_type === 'validate_documents' && (() => {
                             const vOut = step.output_data as ValidationOutput | null
                             if (!vOut?.overall) return null
                             return (
@@ -194,7 +199,7 @@ export function RunStatusPanel({ runId, onDismiss }: Props) {
                             <span>{hasLogs ? t('runstatus.logsCount', { count: step.logs!.length }) : t('runstatus.logs')}</span>
                           </button>
                         </div>
-                        {step.status === 'completed' && step.node_type === 'validate_documents' && (() => {
+                        {step.status === 'succeeded' && step.node_type === 'validate_documents' && (() => {
                           const vOut = step.output_data as ValidationOutput | null
                           if (!vOut?.results?.length) return null
                           return (

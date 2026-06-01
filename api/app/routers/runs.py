@@ -11,7 +11,7 @@ from app.models.workflow_version import WorkflowVersion
 from app.models.run import WorkflowRun
 from app.schemas.run import RunCreate, RunOut
 from app.security import get_current_tenant_id
-from app.tasks.executor import trigger_run
+from app.engine import cancel_run as engine_cancel_run, start_run as engine_start_run
 from app import cases as cases_svc
 
 router = APIRouter()
@@ -62,7 +62,7 @@ def create_run(
     db.commit()
 
     definition = latest_version.definition if latest_version else wf.definition
-    trigger_run(run.id, definition, [doc])
+    engine_start_run(db, tenant_id=tenant_id, run_id=run.id, definition=definition, documents=[doc])
     db.refresh(run)
     return run
 
@@ -96,20 +96,9 @@ def cancel_run(run_id: int, db: Session = Depends(get_db), tenant_id: int = Depe
     run = db.get(WorkflowRun, run_id)
     if not run or run.tenant_id != tenant_id:
         raise HTTPException(404, "Run not found")
-    if run.status not in ("pending", "running"):
+    if run.status not in ("pending", "running", "waiting"):
         raise HTTPException(400, f"Run is already {run.status}")
 
-    now = datetime.now(UTC)
-    run.status = "failed"
-    run.error = "Cancelled by user"
-    run.completed_at = now
-
-    for step in run.steps:
-        if step.status in ("pending", "running"):
-            step.status = "failed"
-            step.error = "Cancelled by user"
-            step.completed_at = now
-
-    db.commit()
+    engine_cancel_run(db, run.id)  # → 'cancelled' (D4), cancels armed events
     db.refresh(run)
     return run

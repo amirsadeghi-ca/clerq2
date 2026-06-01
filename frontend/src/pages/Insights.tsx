@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import {
   BarChart3, FileCheck2, Files, AlertTriangle, Timer, UserCheck, PencilLine,
-  Download, Loader2, ChevronDown,
+  Download, Loader2, ChevronDown, Menu,
 } from 'lucide-react'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useI18n } from '../context/i18n'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 import { usePolicies } from '../api/policies'
 import { useInsights, type Insights as InsightsData } from '../api/metrics'
 
@@ -104,6 +105,7 @@ function MetricCard({ icon: Icon, label, value, hint, accent }: {
 
 export function Insights() {
   const { t } = useI18n()
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
   const [policyId, setPolicyId] = useState<number | null>(null)
   const { data: policies } = usePolicies()
   const { data, isLoading } = useInsights(policyId, 'validate')
@@ -115,16 +117,27 @@ export function Insights() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <LeftSidebar />
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-8">
+        <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-4 md:px-8">
           <div className="flex items-center gap-3">
+            <button
+              className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+              onClick={openSidebar}
+            >
+              <Menu size={16} />
+            </button>
             <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('insights.title')}</h1>
             <span className="hidden text-[12px] text-[var(--c-text-5)] sm:inline">{t('insights.subtitle')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <select
                 value={policyId ?? ''}
                 onChange={e => setPolicyId(e.target.value ? Number(e.target.value) : null)}
@@ -145,7 +158,7 @@ export function Insights() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-8 py-6">
+        <main className="flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-6">
           {isLoading ? (
             <div className="flex items-center gap-2 text-[13px] text-[var(--c-text-5)]"><Loader2 size={14} className="animate-spin" /> {t('insights.loading')}</div>
           ) : !data || data.per_run.length === 0 ? (

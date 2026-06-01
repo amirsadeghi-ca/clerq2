@@ -42,7 +42,7 @@ function emptyWidget(): WidgetState {
 // ── Helper: find show_results step output ─────────────────────────────────
 
 function findShowResultsOutput(steps: RunStep[]): Record<string, unknown> | null {
-  const step = steps.find(s => s.node_type === 'show_results' && s.status === 'completed' && s.output_data)
+  const step = steps.find(s => s.node_type === 'show_results' && s.status === 'succeeded' && s.output_data)
   return step?.output_data ?? null
 }
 
@@ -57,17 +57,20 @@ function collectImagePaths(steps: RunStep[]): string[] {
 // ── Status icon ───────────────────────────────────────────────────────────
 
 function StepIcon({ status }: { status: string }) {
-  if (status === 'completed') return <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
+  if (status === 'succeeded') return <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
   if (status === 'running') return <Loader2 size={11} className="shrink-0 animate-spin text-indigo-400" />
   if (status === 'failed') return <XCircle size={11} className="shrink-0 text-red-400" />
-  return <Circle size={11} className="shrink-0 text-[var(--c-text-5)]" />
+  if (status === 'waiting') return <Circle size={11} className="shrink-0 text-amber-400" />
+  return <Circle size={11} className="shrink-0 text-[var(--c-text-5)]" />  // pending / ready / skipped / cancelled
 }
 
 const STATUS_COLORS: Record<RunStatus, string> = {
   pending: 'text-[var(--c-text-5)]',
   running: 'text-indigo-400',
+  waiting: 'text-amber-400',
   completed: 'text-emerald-400',
   failed: 'text-red-400',
+  cancelled: 'text-[var(--c-text-5)]',
 }
 
 // ── Sidebar result renderers ──────────────────────────────────────────────
@@ -350,14 +353,16 @@ function WorkflowWidget({
         ...prev,
         runStatus: update.status,
         steps: update.steps,
-        phase: update.status === 'completed' || update.status === 'failed' ? 'done' : 'running',
+        // 'waiting' is NOT done — a parked run keeps streaming.
+        phase: ['completed', 'failed', 'cancelled'].includes(update.status) ? 'done' : 'running',
       }))
 
-      // If show_results node completed, open sidebar
+      // Open the results sidebar once the run itself is terminal (not merely when
+      // a show_results step finished — a waiting gate downstream isn't "done").
       const showResultsDone = update.steps.some(
-        s => s.node_type === 'show_results' && s.status === 'completed'
+        s => s.node_type === 'show_results' && s.status === 'succeeded'
       )
-      if (showResultsDone && (update.status === 'completed' || update.status === 'failed')) {
+      if (showResultsDone && ['completed', 'failed', 'cancelled'].includes(update.status)) {
         onSidebarOpen(workflowId, update.status, update.steps)
       }
     })

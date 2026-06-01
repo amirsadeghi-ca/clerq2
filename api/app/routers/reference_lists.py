@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.policy import PolicyRule
 from app.models.reference_list import ReferenceList
 from app.schemas.reference_list import ReferenceListCreate, ReferenceListOut, ReferenceListUpdate
 from app.security import get_current_tenant_id
@@ -94,5 +95,8 @@ def delete_reference_list(
     tenant_id: int = Depends(get_current_tenant_id),
 ):
     rl = _get_owned(db, list_id, tenant_id)
+    in_use = db.query(PolicyRule.id).filter(PolicyRule.reference_list_id == list_id).first()
+    if in_use:
+        raise HTTPException(409, "This reference list is used by one or more policy rules and cannot be deleted")
     db.delete(rl)
     db.commit()

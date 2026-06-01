@@ -95,6 +95,8 @@
 .react-flow__node-email_input,
 .react-flow__node-ai,
 .react-flow__node-send_email,
+.react-flow__node-condition,
+.react-flow__node-completeness_gate,
 .react-flow__node-default {
   padding: 0 !important;
   border: none !important;

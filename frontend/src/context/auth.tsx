@@ -58,7 +58,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   if (!refresh_token) return null
   try {
     // Use bare axios so we don't recurse into the interceptor.
-    const resp = await axios.post('/api/auth/refresh', { refresh_token })
+    const resp = await axios.post('/api/auth/refresh', { refresh_token }, { timeout: 10000 })
     const { access_token, refresh_token: new_refresh } = resp.data
     setTokens(access_token, new_refresh)
     return access_token
@@ -89,6 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setState((s) => ({ ...s, loading: false }))
     }
+    // Safety net: if loading is still true after 12 s (server unreachable,
+    // request hung despite axios timeout), force it to false so the app
+    // never stays on a blank loading screen indefinitely.
+    const safetyTimer = setTimeout(() => {
+      setState((s) => s.loading ? { user: null, tenant: null, loading: false } : s)
+    }, 12000)
+    return () => clearTimeout(safetyTimer)
   }, [loadMe])
 
   const login = useCallback(async (email: string, password: string, mfaCode?: string) => {

@@ -17,7 +17,8 @@ export function useRun(id: number | null) {
     enabled: id !== null,
     refetchInterval: (query) => {
       const status = query.state.data?.status
-      return status === 'pending' || status === 'running' ? 1000 : false
+      // keep polling while a run is active OR parked waiting (human-in-the-loop)
+      return status === 'pending' || status === 'running' || status === 'waiting' ? 1000 : false
     },
   })
 }

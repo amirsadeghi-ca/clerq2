@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, BookOpen, Trash2, Loader2, ChevronRight, Clock, ListChecks, X } from 'lucide-react'
+import { Plus, BookOpen, Trash2, Loader2, ChevronRight, Clock, ListChecks, X, Menu } from 'lucide-react'
 import { useDocumentTypes, useCreateDocumentType, useDeleteDocumentType } from '../api/library'
 import {
   useReferenceLists, useCreateReferenceList, useUpdateReferenceList, useDeleteReferenceList,
@@ -8,6 +8,7 @@ import {
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useI18n } from '../context/i18n'
 import type { ReferenceList } from '../types/workflow'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 
 type Tab = 'documents' | 'references'
 
@@ -103,6 +104,7 @@ function ReferenceListModal({ list, onClose }: { list: ReferenceList; onClose: (
 export function LibraryList() {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
   const [tab, setTab] = useState<Tab>('documents')
 
   const { data: docTypes, isLoading } = useDocumentTypes()
@@ -146,28 +148,46 @@ export function LibraryList() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <LeftSidebar />
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-8">
-          <div className="flex items-center gap-4">
+        {/* Header: desktop shows tabs inline, mobile shows them in a separate tab bar */}
+        <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-4 md:px-8">
+          <div className="flex items-center gap-3 md:gap-4">
+            <button
+              className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+              onClick={openSidebar}
+            >
+              <Menu size={16} />
+            </button>
             <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('library.title')}</h1>
-            <div className="flex items-center gap-1">
+            <div className="hidden items-center gap-1 md:flex">
               <TabButton value="documents" label={t('library.tab.documents')} />
               <TabButton value="references" label={t('library.tab.references')} />
             </div>
           </div>
           <button
             onClick={() => setCreating(true)}
-            className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500"
+            className="flex h-7 items-center gap-1.5 rounded bg-indigo-600 px-2 md:px-3 text-[12px] font-medium text-white transition-colors hover:bg-indigo-500"
           >
-            <Plus size={13} strokeWidth={2.5} /> {tab === 'documents' ? t('library.newDocumentType') : t('library.newReferenceList')}
+            <Plus size={13} strokeWidth={2.5} />
+            <span className="hidden sm:inline">{tab === 'documents' ? t('library.newDocumentType') : t('library.newReferenceList')}</span>
           </button>
         </header>
+        {/* Mobile tab bar */}
+        <div className="flex shrink-0 border-b border-[var(--c-border)] md:hidden">
+          <TabButton value="documents" label={t('library.tab.documents')} />
+          <TabButton value="references" label={t('library.tab.references')} />
+        </div>
 
         <main className="flex-1 overflow-y-auto">
           {creating && (
-            <form onSubmit={handleCreate} className="flex items-center gap-2 border-b border-[var(--c-border)] bg-[var(--c-surface-2)] px-8 py-3">
+            <form onSubmit={handleCreate} className="flex items-center gap-2 border-b border-[var(--c-border)] bg-[var(--c-surface-2)] px-4 py-3 md:px-8">
               <input
                 autoFocus
                 value={newName}
@@ -189,6 +209,7 @@ export function LibraryList() {
             </form>
           )}
 
+          <div className="overflow-x-auto min-w-0">
           {tab === 'documents' ? (
             isLoading ? (
               <div className="flex items-center gap-2 px-8 py-6 text-[13px] text-[var(--c-text-5)]"><Loader2 size={14} className="animate-spin" /> {t('common.loading')}</div>
@@ -199,7 +220,7 @@ export function LibraryList() {
                 <p className="mt-1 text-[12px] text-[var(--c-text-5)]">{t('library.noDocumentTypesHint')}</p>
               </div>
             ) : (
-              <div className="divide-y divide-[var(--c-divider)]">
+              <div className="divide-y divide-[var(--c-divider)] min-w-[560px]">
                 <div className="flex items-center px-8 py-2">
                   <span className="flex-1 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.name')}</span>
                   <span className="w-48 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.description')}</span>
@@ -238,7 +259,7 @@ export function LibraryList() {
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-[var(--c-divider)]">
+              <div className="divide-y divide-[var(--c-divider)] min-w-[560px]">
                 <div className="flex items-center px-8 py-2">
                   <span className="flex-1 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.name')}</span>
                   <span className="w-48 text-[11px] font-medium text-[var(--c-text-5)]">{t('library.col.description')}</span>
@@ -265,6 +286,7 @@ export function LibraryList() {
               </div>
             )
           )}
+          </div>
         </main>
       </div>
 

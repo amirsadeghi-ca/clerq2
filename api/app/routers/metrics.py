@@ -13,27 +13,16 @@ from datetime import datetime
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.cases import validation_output
 from app.database import get_db
-from app.models.run import WorkflowRun, WorkflowRunStep
+from app.models.run import WorkflowRun
+from app.models.run_step import RunStep
 from app.security import get_current_tenant_id
 
 router = APIRouter()
 
 # Statuses considered a detected non-conformity in a finding.
 _NONCONFORMING = {"fail", "uncertain"}
-
-
-def _validate_step(run: WorkflowRun, db: Session) -> WorkflowRunStep | None:
-    """The validate_documents step for a run (carries the results array)."""
-    return (
-        db.query(WorkflowRunStep)
-        .filter(
-            WorkflowRunStep.run_id == run.id,
-            WorkflowRunStep.node_type == "validate_documents",
-        )
-        .order_by(WorkflowRunStep.id.desc())
-        .first()
-    )
 
 
 def _effective_results(run: WorkflowRun, output: dict | None) -> list[dict]:
@@ -87,8 +76,7 @@ def insights(
         docs = len(run.document_ids) or 1
         documents_processed += docs
 
-        step = _validate_step(run, db)
-        output = step.output_data if step else None
+        output = validation_output(run)
         results = _effective_results(run, output)
 
         # A "processed" dossier is one that produced a validation result.
@@ -104,8 +92,8 @@ def insights(
         # validate pipelines, so step timing is the reliable source.
         secs = None
         all_steps = (
-            db.query(WorkflowRunStep)
-            .filter(WorkflowRunStep.run_id == run.id)
+            db.query(RunStep)
+            .filter(RunStep.run_id == run.id)
             .all()
         )
         starts = [s.started_at for s in all_steps if s.started_at]

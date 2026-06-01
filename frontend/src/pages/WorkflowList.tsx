@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, GitBranch, Archive, Loader2, ChevronRight, Clock, ArchiveRestore, Star, Mail, Check, X } from 'lucide-react'
+import { Plus, GitBranch, Archive, Loader2, ChevronRight, Clock, ArchiveRestore, Star, Mail, Check, X, Menu } from 'lucide-react'
 import { useWorkflows, useCreateWorkflow, useArchiveWorkflow, useUnarchiveWorkflow, useFavoriteWorkflow, useUnfavoriteWorkflow, useEnableWorkflowInbox, useDisableWorkflowInbox, useSetWorkflowInboxAddress } from '../api/workflows'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useI18n } from '../context/i18n'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 
 export function WorkflowList() {
   const navigate = useNavigate()
   const { t } = useI18n()
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
   const [showArchived, setShowArchived] = useState(false)
   const { data: workflows, isLoading } = useWorkflows(showArchived)
   const createWf = useCreateWorkflow()
@@ -43,12 +45,23 @@ export function WorkflowList() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <LeftSidebar />
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Page header */}
-        <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-8">
+        <header className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-4 md:px-8">
           <div className="flex items-center gap-3">
+            <button
+              className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+              onClick={openSidebar}
+            >
+              <Menu size={16} />
+            </button>
             <h1 className="text-[14px] font-semibold text-[var(--c-text-1)]">{t('workflows.title')}</h1>
             <button
               onClick={() => setShowArchived(v => !v)}
@@ -76,7 +89,7 @@ export function WorkflowList() {
           {creating && (
             <form
               onSubmit={handleCreate}
-              className="flex items-center gap-2 border-b border-[var(--c-border)] bg-[var(--c-surface-2)] px-8 py-3"
+              className="flex items-center gap-2 border-b border-[var(--c-border)] bg-[var(--c-surface-2)] px-4 py-3 md:px-8"
             >
               <input
                 autoFocus
@@ -128,9 +141,10 @@ export function WorkflowList() {
               )}
             </div>
           ) : (
-            <div className="divide-y divide-[var(--c-divider)]">
+            <div className="overflow-x-auto">
+            <div className="divide-y divide-[var(--c-divider)] min-w-[480px]">
               {/* Table header */}
-              <div className="flex items-center px-8 py-2">
+              <div className="flex items-center px-4 py-2 md:px-8">
                 <span className="w-6 shrink-0" />
                 <span className="text-[11px] font-medium text-[var(--c-text-5)] w-1/2">{t('workflows.col.name')}</span>
                 <span className="text-[11px] font-medium text-[var(--c-text-5)] w-14 text-right">{t('workflows.col.version')}</span>
@@ -142,7 +156,7 @@ export function WorkflowList() {
                 <div
                   key={wf.id}
                   className={[
-                    'group flex cursor-pointer items-center px-8 py-3 transition-colors hover:bg-[var(--c-hover-1)]',
+                    'group flex cursor-pointer items-center px-4 py-3 transition-colors hover:bg-[var(--c-hover-1)] md:px-8',
                     wf.is_archived ? 'opacity-50' : '',
                   ].join(' ')}
                   onClick={() => { if (editingInbox === wf.id) return; if (!wf.is_archived) navigate(`/workflows/${wf.id}`) }}
@@ -289,6 +303,7 @@ export function WorkflowList() {
                   </div>
                 </div>
               ))}
+            </div>
             </div>
           )}
         </main>

@@ -10,6 +10,21 @@ services:
       timeout: 3s
       retries: 5
 
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=interpret
+      - POSTGRES_PASSWORD=interpret
+      - POSTGRES_DB=interpret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U interpret -d interpret"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build:
       context: ./api
@@ -18,14 +33,18 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      - DATABASE_URL=sqlite:////app/data/interpret.db
+      - DATABASE_URL=postgresql+psycopg://interpret:interpret@postgres:5432/interpret
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_PATH=/app/data/storage
     volumes:
       - ./data:/app/data
       - ./api/app:/app/app
+      - ./api/tests:/app/tests
+      - ./api/alembic:/app/alembic
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
@@ -40,7 +59,32 @@ services:
     command: celery -A app.tasks.celery_app.celery_app worker --loglevel=info --concurrency=2
     env_file: .env
     environment:
-      - DATABASE_URL=sqlite:////app/data/interpret.db
+      - DATABASE_URL=postgresql+psycopg://interpret:interpret@postgres:5432/interpret
+      - REDIS_URL=redis://redis:6379/0
+      - STORAGE_PATH=/app/data/storage
+    volumes:
+      - ./data:/app/data
+      - ./api/app:/app/app
+      - ./api/alembic:/app/alembic
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  beat:
+    build:
+      context: ./api
+    restart: unless-stopped
+    # Bypass entrypoint.sh (no migrations on beat — the api runs them); beat only
+    # schedules the reconciler sweep onto the queue, which the worker executes.
+    entrypoint: ["celery", "-A", "app.tasks.celery_app.celery_app", "beat",
+                 "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+psycopg://interpret:interpret@postgres:5432/interpret
       - REDIS_URL=redis://redis:6379/0
       - STORAGE_PATH=/app/data/storage
     volumes:
@@ -60,3 +104,6 @@ services:
       - "80:80"
     depends_on:
       - api
+
+volumes:
+  pgdata:

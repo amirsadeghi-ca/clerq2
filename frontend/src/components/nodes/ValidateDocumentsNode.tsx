@@ -41,7 +41,7 @@ export function ValidateDocumentsNode({ id, selected, data }: NodeProps) {
 
   const step = run?.steps.find(s => s.node_id === id)
   const isRunning = step?.status === 'running'
-  const isDone = step?.status === 'completed' || step?.status === 'failed'
+  const isDone = step?.status === 'succeeded' || step?.status === 'failed'
   const validationOut = isDone ? (step?.output_data as unknown as ValidationOutput | null) : null
   const hasResults = (validationOut?.results?.length ?? 0) > 0
 

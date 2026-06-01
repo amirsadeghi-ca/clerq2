@@ -11,6 +11,7 @@ from app.cases import (
     current_document_ids,
     ensure_case_email_token,
     resolve_or_create_case,
+    validation_output,
 )
 from app.config import settings as app_settings
 from app.database import get_db
@@ -21,7 +22,7 @@ from app.models.mail import MailMessage
 from app.models.run import WorkflowRun
 from app.schemas.run import RunOut
 from app.security import get_current_tenant_id
-from app.tasks.executor import trigger_run
+from app.engine import start_run as engine_start_run
 
 router = APIRouter()
 
@@ -79,13 +80,13 @@ def _target_name(db: Session, case: Case) -> str | None:
 def _last_result(run: WorkflowRun | None) -> dict | None:
     if not run:
         return None
-    for step in (run.steps or []):
-        if step.node_type == "validate_documents" and step.status == "completed" and step.output_data:
-            return {
-                "kind": "verdict",
-                "overall": step.output_data.get("overall"),
-                "policy_name": step.output_data.get("policy_name"),
-            }
+    output = validation_output(run)
+    if output and "overall" in output:
+        return {
+            "kind": "verdict",
+            "overall": output.get("overall"),
+            "policy_name": output.get("policy_name"),
+        }
     return {"kind": "run", "status": run.status}
 
 
@@ -362,6 +363,9 @@ def attach_documents(
 
     db.commit()
     db.refresh(case)
+    # Wake any run parked on a completeness_gate waiting for this case's documents.
+    from app.engine.tasks import signal_event as _signal_event
+    _signal_event.delay("document_added", str(case_id))
     return _serialize_case_detail(db, case)
 
 
@@ -408,7 +412,8 @@ def run_case(
         db.add(run)
         db.commit()
         db.refresh(run)
-        trigger_run(run.id, _canonical_definition(policy_id), docs)
+        engine_start_run(db, tenant_id=tenant_id, run_id=run.id,
+                         definition=_canonical_definition(policy_id), documents=docs)
     elif workflow_id:
         from app.models.workflow import Workflow
         wf = db.get(Workflow, workflow_id)
@@ -430,7 +435,8 @@ def run_case(
         db.add(run)
         db.commit()
         db.refresh(run)
-        trigger_run(run.id, definition, docs)
+        engine_start_run(db, tenant_id=tenant_id, run_id=run.id,
+                         definition=definition, documents=docs)
     else:
         raise HTTPException(400, "Case has no policy or workflow target")
 

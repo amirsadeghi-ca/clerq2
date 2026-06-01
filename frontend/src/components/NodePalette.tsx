@@ -1,5 +1,5 @@
 import type { DragEvent } from 'react'
-import { ArrowDownToLine, ScanLine, Check, ShieldCheck, BarChart2, GripVertical, Mail, Sparkles, SendHorizontal } from 'lucide-react'
+import { ArrowDownToLine, ScanLine, Check, ShieldCheck, BarChart2, GripVertical, Mail, Sparkles, SendHorizontal, GitBranch, Clock } from 'lucide-react'
 import { useI18n } from '../context/i18n'
 
 const ITEMS = [
@@ -51,6 +51,18 @@ const ITEMS = [
     iconBg: 'bg-violet-500/15',
     iconColor: 'text-violet-400',
   },
+  {
+    type: 'condition',
+    icon: GitBranch,
+    iconBg: 'bg-sky-500/15',
+    iconColor: 'text-sky-400',
+  },
+  {
+    type: 'completeness_gate',
+    icon: Clock,
+    iconBg: 'bg-amber-500/15',
+    iconColor: 'text-amber-400',
+  },
 ] as const
 
 function onDragStart(e: DragEvent, type: string) {
@@ -67,7 +79,7 @@ export function NodePalette() {
         <p className="mt-0.5 text-[11px] text-[var(--c-text-5)]">{t('editor.palette.subtitle')}</p>
       </div>
 
-      <div className="flex flex-col gap-1.5 p-3">
+      <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-3">
         {ITEMS.map((item) => (
           <div
             key={item.type}

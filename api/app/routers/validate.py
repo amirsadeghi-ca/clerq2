@@ -8,7 +8,7 @@ from app.models.policy import Policy
 from app.models.run import WorkflowRun
 from app.schemas.run import RunOut
 from app.security import get_current_tenant_id
-from app.tasks.executor import trigger_run
+from app.engine import start_run as engine_start_run
 from app import cases as cases_svc
 
 router = APIRouter()
@@ -89,7 +89,8 @@ def create_validate_run(
     db.commit()
     db.refresh(run)
 
-    trigger_run(run.id, _canonical_definition(policy.id), docs)
+    engine_start_run(db, tenant_id=tenant_id, run_id=run.id,
+                     definition=_canonical_definition(policy.id), documents=docs)
     db.refresh(run)
     return run
 

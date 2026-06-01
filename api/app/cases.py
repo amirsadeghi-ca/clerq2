@@ -184,6 +184,20 @@ def current_document_ids(db: Session, case: Case) -> list[int]:
     return [r.document_id for r in rows]
 
 
+def validation_output(run) -> dict | None:
+    """The validation verdict output for a run: prefer run.result (engine-v2),
+    else the validate_documents step's output_data (covers fail_on_missing where
+    the run failed but the step persisted its output)."""
+    if run is None:
+        return None
+    if isinstance(run.result, dict) and ("overall" in run.result or "results" in run.result):
+        return run.result
+    for s in (run.steps or []):
+        if s.node_type == "validate_documents" and s.output_data:
+            return s.output_data
+    return None
+
+
 def compute_checklist(db: Session, case: Case) -> list[dict]:
     """Derive expected-document checklist from policy rules and latest run results.
 
@@ -216,48 +230,43 @@ def compute_checklist(db: Session, case: Case) -> list[dict]:
     if not expected:
         return []
 
-    # Get the latest completed validate_documents step for this case
-    from app.models.run import WorkflowRun, WorkflowRunStep
+    # Most recent run for this case that produced a validation verdict.
+    from app.models.run import WorkflowRun
     from sqlalchemy import desc
-    latest_run = (
+    recent_runs = (
         db.query(WorkflowRun)
-        .filter(
-            WorkflowRun.case_id == case.id,
-            WorkflowRun.status == "completed",
-        )
+        .filter(WorkflowRun.case_id == case.id)
         .order_by(desc(WorkflowRun.created_at))
-        .first()
+        .limit(20)
+        .all()
     )
+    output = next((vo for r in recent_runs if (vo := validation_output(r))), None)
 
-    # Map document_type.name → checklist status from per_document n/a markers
+    # Map document_type.id → checklist status from per_document n/a markers
     dt_status: dict[int, str] = {dt_id: "missing" for dt_id in expected}
 
-    if latest_run:
-        for step in latest_run.steps:
-            if step.node_type == "validate_documents" and step.status == "completed" and step.output_data:
-                results = step.output_data.get("results", [])
-                for result in results:
-                    rule_name = result.get("rule_name", "")
-                    # Find matching rule
-                    for rule in policy.rules:
-                        if rule.name == rule_name and rule.document_type_id in expected:
-                            dt_id = rule.document_type_id
-                            per_doc = result.get("per_document", [])
-                            applicable = [p for p in per_doc if p.get("status") != "not_applicable"]
-                            if not applicable:
-                                # all n/a — type is missing; don't override "satisfied"
-                                if dt_status.get(dt_id) != "satisfied":
-                                    dt_status[dt_id] = "missing"
-                            else:
-                                has_pass = any(p.get("status") == "pass" for p in applicable)
-                                has_fail = any(p.get("status") in ("fail", "uncertain") for p in applicable)
-                                if has_pass and not has_fail:
-                                    dt_status[dt_id] = "satisfied"
-                                elif has_pass:
-                                    dt_status[dt_id] = "partial"
-                                else:
-                                    if dt_status.get(dt_id) != "satisfied":
-                                        dt_status[dt_id] = "partial"
+    if output:
+        for result in output.get("results", []):
+            rule_name = result.get("rule_name", "")
+            for rule in policy.rules:
+                if rule.name == rule_name and rule.document_type_id in expected:
+                    dt_id = rule.document_type_id
+                    per_doc = result.get("per_document", [])
+                    applicable = [p for p in per_doc if p.get("status") != "not_applicable"]
+                    if not applicable:
+                        # all n/a — type is missing; don't override "satisfied"
+                        if dt_status.get(dt_id) != "satisfied":
+                            dt_status[dt_id] = "missing"
+                    else:
+                        has_pass = any(p.get("status") == "pass" for p in applicable)
+                        has_fail = any(p.get("status") in ("fail", "uncertain") for p in applicable)
+                        if has_pass and not has_fail:
+                            dt_status[dt_id] = "satisfied"
+                        elif has_pass:
+                            dt_status[dt_id] = "partial"
+                        else:
+                            if dt_status.get(dt_id) != "satisfied":
+                                dt_status[dt_id] = "partial"
 
     result_list = []
     for dt_id, info in expected.items():

@@ -83,7 +83,7 @@ export function LeftSidebar() {
 
       {/* Bottom */}
       <div className="flex flex-col gap-px border-t border-[var(--c-border)] p-2">
-        <NavItem to="/settings" icon={Settings} label={t('nav.settings')} active={pathname === '/settings'} />
+        <NavItem to="/settings" icon={Settings} label={t('nav.settings')} active={pathname.startsWith('/settings')} />
         <NavItem to="/help" icon={HelpCircle} label={t('nav.help')} active={pathname === '/help'} />
         <AccountBlock />
       </div>

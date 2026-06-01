@@ -13,8 +13,15 @@ from app.models.auth import User
 router = APIRouter()
 
 
+_TERMINAL = ("completed", "failed", "cancelled")
+
+
 async def run_event_generator(run_id: int, tenant_id: int):
-    for _ in range(300):  # max ~5 min at 1s interval
+    # No hard ~5-min cap: a parked `waiting` run (human-in-the-loop / gate) must
+    # keep streaming until it resumes and finishes. Bound generously (~4h at 2s)
+    # and stop on a terminal status or client disconnect. Emit only on change.
+    last_sig = None
+    for _ in range(7200):
         db: Session = SessionLocal()
         try:
             run = db.get(WorkflowRun, run_id)
@@ -28,6 +35,7 @@ async def run_event_generator(run_id: int, tenant_id: int):
                     "node_id": step.node_id,
                     "node_type": step.node_type,
                     "status": step.status,
+                    "attempt": getattr(step, "attempt", 1),
                     "error": step.error,
                     "started_at": step.started_at.isoformat() if step.started_at else None,
                     "completed_at": step.completed_at.isoformat() if step.completed_at else None,
@@ -39,17 +47,22 @@ async def run_event_generator(run_id: int, tenant_id: int):
                 "run_id": run.id,
                 "status": run.status,
                 "error": run.error,
+                "result": run.result,
                 "steps": steps_data,
             }
-            yield {"event": "update", "data": json.dumps(payload)}
-
-            if run.status in ("completed", "failed"):
-                yield {"event": "done", "data": json.dumps({"run_id": run.id, "status": run.status})}
-                break
+            terminal = run.status in _TERMINAL
         finally:
             db.close()
 
-        await asyncio.sleep(1)
+        sig = json.dumps(payload, sort_keys=True, default=str)
+        if sig != last_sig:
+            yield {"event": "update", "data": json.dumps(payload, default=str)}
+            last_sig = sig
+        if terminal:
+            yield {"event": "done", "data": json.dumps({"run_id": run_id, "status": payload["status"]})}
+            break
+
+        await asyncio.sleep(2)
 
 
 @router.get("/{run_id}/stream")

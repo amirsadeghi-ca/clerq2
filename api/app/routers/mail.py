@@ -26,7 +26,7 @@ from app.models.workflow_version import WorkflowVersion
 from app.schemas.mail import MailboxOut, MailInboundRequest, MailMessageOut
 from app.schemas.run import RunOut
 from app.security import get_current_tenant_id
-from app.tasks.executor import trigger_run
+from app.engine import start_run as engine_start_run
 
 log = logging.getLogger("interpret.mail")
 
@@ -201,10 +201,12 @@ def inbound_mail(
 
     if doc:
         if policy:
-            trigger_run(run.id, _canonical_definition(policy.id), [doc])
+            engine_start_run(db, tenant_id=run.tenant_id, run_id=run.id,
+                             definition=_canonical_definition(policy.id), documents=[doc])
         else:
             definition = latest_version.definition if latest_version else workflow.definition
-            trigger_run(run.id, definition, [doc])
+            engine_start_run(db, tenant_id=run.tenant_id, run_id=run.id,
+                             definition=definition, documents=[doc])
     else:
         from datetime import datetime, UTC
         run.status = "failed"
@@ -562,8 +564,10 @@ async def resend_inbound(request: Request, db: Session = Depends(get_db)):
     db.commit()
 
     if policy:
-        trigger_run(run.id, _canonical_definition(policy.id), docs)
+        engine_start_run(db, tenant_id=run.tenant_id, run_id=run.id,
+                         definition=_canonical_definition(policy.id), documents=docs)
     else:
         definition = latest_version.definition if latest_version else workflow.definition
-        trigger_run(run.id, definition, docs)
+        engine_start_run(db, tenant_id=run.tenant_id, run_id=run.id,
+                         definition=definition, documents=docs)
     return {"ok": True, "run_id": run.id, "case_id": case.id, "documents": len(docs)}

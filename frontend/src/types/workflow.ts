@@ -14,6 +14,8 @@ export interface FlowEdge {
   id: string
   source: string
   target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
 }
 
 export interface Workflow {
@@ -49,14 +51,19 @@ export interface Document {
   created_at: string
 }
 
-export type StepStatus = 'pending' | 'running' | 'completed' | 'failed'
-export type RunStatus = 'pending' | 'running' | 'completed' | 'failed'
+// Engine-v2 status vocabulary.
+export type StepStatus =
+  | 'pending' | 'ready' | 'running' | 'succeeded'
+  | 'failed' | 'skipped' | 'waiting' | 'cancelled'
+export type RunStatus =
+  | 'pending' | 'running' | 'waiting' | 'completed' | 'failed' | 'cancelled'
 
 export interface RunStep {
   id: number
   node_id: string
   node_type: string
   status: StepStatus
+  attempt?: number
   input_data: Record<string, unknown> | null
   output_data: Record<string, unknown> | null
   error: string | null
@@ -98,8 +105,9 @@ export interface ReportReview {
 export interface Run {
   id: number
   workflow_id: number | null
-  document_id: number
+  document_id: number | null
   document_ids: number[]
+  result?: Record<string, unknown> | null
   version_id: number | null
   version_num: number | null
   name: string | null
@@ -119,6 +127,7 @@ export interface SSERunUpdate {
   run_id: number
   status: RunStatus
   error: string | null
+  result?: Record<string, unknown> | null
   steps: RunStep[]
 }
 

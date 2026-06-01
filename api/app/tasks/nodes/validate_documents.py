@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import time
+from datetime import date
 
 import fitz  # pymupdf
 from openai import OpenAI
@@ -164,7 +165,11 @@ def _build_prompt(
             "what you saw without referencing what the rule demands.\n"
             "LANGUAGE: Write the evidence string in the SAME language as the rule it evaluates "
             "(e.g. if the rule is written in French, the evidence MUST be in French). The two examples "
-            "above are in English only to illustrate the format — match the rule's language, not the example's."
+            "above are in English only to illustrate the format — match the rule's language, not the example's.\n"
+            f"\nDATES: Today's date is {date.today().isoformat()}. For ANY date-based check "
+            "(expiry, recency, validity windows, 'within the last N days/years', 'not expired'), compare the "
+            "document's date to today: a date BEFORE today is in the past (expired / too old) and a date AFTER "
+            "today is in the future (still valid). Do not assume any other current date or rely on your training cut-off."
             + relevance_note
             + cross_set_note
         ),

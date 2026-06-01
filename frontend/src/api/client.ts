@@ -4,6 +4,7 @@ import { getAccessToken, refreshAccessToken, setTokens } from '../context/auth'
 const client = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
 })
 
 client.interceptors.request.use((cfg) => {
@@ -40,11 +41,11 @@ client.interceptors.response.use(
       } catch {
         inflightRefresh = null
       }
-      // Hard logout — refresh failed.
+      // Refresh failed — clear tokens. React's ProtectedRoute will handle the
+      // redirect to /login via auth state, so no hard navigation needed here.
+      // A hard window.location.assign races with React Router's <Navigate> and
+      // can cause a permanent stuck-loading screen on slow connections.
       setTokens(null, null)
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login')
-      }
     }
     return Promise.reject(error)
   },

@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
-import { X, CheckCircle2, XCircle, AlertCircle, ArrowUpRight } from 'lucide-react'
+import { X, CheckCircle2, XCircle, AlertCircle, ArrowUpRight, Check } from 'lucide-react'
 import type { Edge, Node } from '@xyflow/react'
 import { usePolicies, usePolicy } from '../api/policies'
 import { useRun } from '../api/runs'
+import { useDocumentTypes } from '../api/library'
 import { useRunContext } from '../context/run'
 import { useSettings, useOpenRouterModels } from '../api/settings'
 import { ValidationResultsModal } from './ValidationResultsModal'
-import type { ValidationOutput } from '../types/workflow'
+import type { DocumentType, ValidationOutput } from '../types/workflow'
 import { useI18n } from '../context/i18n'
 
 interface Props {
@@ -200,6 +201,10 @@ export function NodeConfigPanel({ node, nodes, edges, onUpdate, onClose }: Props
     onUpdate(node.id, { ...data, [key]: value })
   }
 
+  function update(patch: Record<string, unknown>) {
+    onUpdate(node.id, { ...data, ...patch })
+  }
+
   return (
     <aside className={`flex ${wide ? 'w-[320px]' : 'w-[220px]'} shrink-0 flex-col border-l border-[var(--c-border)] bg-[var(--c-bg)]`}>
       <div className="flex items-center justify-between border-b border-[var(--c-border)] px-4 py-3">
@@ -215,7 +220,7 @@ export function NodeConfigPanel({ node, nodes, edges, onUpdate, onClose }: Props
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
         {node.type === 'input' && <InputConfig />}
         {node.type === 'email_input' && (
           <EmailInputConfig
@@ -266,6 +271,8 @@ export function NodeConfigPanel({ node, nodes, edges, onUpdate, onClose }: Props
           />
         )}
         {node.type === 'show_results' && <ShowResultsConfig />}
+        {node.type === 'condition' && <ConditionConfig data={data} update={update} />}
+        {node.type === 'completeness_gate' && <CompletenessGateConfig data={data} update={update} />}
       </div>
     </aside>
   )
@@ -600,7 +607,7 @@ function ValidateDocumentsConfig({ nodeId, policyId, failOnMissing, onChangePoli
 
   const step = run?.steps.find(s => s.node_id === nodeId)
   const isRunning = step?.status === 'running'
-  const isDone = step?.status === 'completed' || step?.status === 'failed'
+  const isDone = step?.status === 'succeeded' || step?.status === 'failed'
   const validationOut = isDone ? (step?.output_data as unknown as ValidationOutput | null) : null
   const resultsByName = new Map((validationOut?.results ?? []).map(r => [r.rule_name, r]))
   const hasResults = (validationOut?.results?.length ?? 0) > 0
@@ -723,6 +730,123 @@ function ValidateDocumentsConfig({ nodeId, policyId, failOnMissing, onChangePoli
           onClose={() => setShowModal(false)}
         />
       )}
+    </div>
+  )
+}
+
+const _INPUT_CLS =
+  'rounded border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-1.5 text-[13px] text-[var(--c-text-1)] placeholder-[var(--c-text-5)] outline-none focus:border-indigo-500/50'
+const _HELP_CLS =
+  'rounded-md border border-[var(--c-border)] bg-[var(--c-surface-2)] px-3 py-2 text-[11px] leading-relaxed text-[var(--c-text-4)]'
+
+const COND_OPS = ['eq', 'ne', 'contains', 'gt', 'lt', 'gte', 'lte', 'truthy', 'falsy', 'exists'] as const
+
+interface ConfigBlockProps {
+  data: Record<string, unknown>
+  update: (patch: Record<string, unknown>) => void
+}
+
+function ConditionConfig({ data, update }: ConfigBlockProps) {
+  const { t } = useI18n()
+  const isCustom = (data.mode as string) === 'custom'
+    || (data.field != null && data.field !== '' && data.field !== 'overall')
+  const verdict = (data.value as string) || 'fail'
+
+  return (
+    <div className="flex flex-col gap-3">
+      {!isCustom ? (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[11px] font-medium text-[var(--c-text-3)]">{t('editor.cond.whenResult')}</span>
+          <select value={verdict}
+            onChange={e => update({ mode: 'verdict', field: 'overall', op: 'eq', value: e.target.value })}
+            className={_INPUT_CLS}>
+            <option value="pass">{t('verdict.pass')}</option>
+            <option value="needs_review">{t('verdict.needs_review')}</option>
+            <option value="fail">{t('verdict.fail')}</option>
+          </select>
+        </label>
+      ) : (
+        <>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium text-[var(--c-text-3)]">{t('editor.cond.field')}</span>
+            <input value={(data.field as string) ?? ''} onChange={e => update({ field: e.target.value })}
+              placeholder="overall" className={`${_INPUT_CLS} font-mono`} />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium text-[var(--c-text-3)]">{t('editor.cond.op')}</span>
+            <select value={(data.op as string) ?? 'eq'} onChange={e => update({ op: e.target.value })} className={_INPUT_CLS}>
+              {COND_OPS.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium text-[var(--c-text-3)]">{t('editor.cond.value')}</span>
+            <input value={(data.value as string) ?? ''} onChange={e => update({ value: e.target.value })} className={_INPUT_CLS} />
+          </label>
+        </>
+      )}
+
+      <label className="flex cursor-pointer items-center gap-2 text-[11px] text-[var(--c-text-4)]">
+        <input type="checkbox" checked={isCustom}
+          onChange={e => update(e.target.checked
+            ? { mode: 'custom' }
+            : { mode: 'verdict', field: 'overall', op: 'eq', value: verdict })}
+          className="accent-indigo-500" />
+        {t('editor.cond.advanced')}
+      </label>
+
+      <div className={_HELP_CLS}>{t('editor.cond.help')}</div>
+    </div>
+  )
+}
+
+function CompletenessGateConfig({ data, update }: ConfigBlockProps) {
+  const { t } = useI18n()
+  const { data: docTypes } = useDocumentTypes()
+  const selected: number[] = Array.isArray(data.required_doc_types) ? (data.required_doc_types as number[]) : []
+
+  function toggle(dt: DocumentType) {
+    const ids = selected.includes(dt.id) ? selected.filter(i => i !== dt.id) : [...selected, dt.id]
+    const names = (docTypes ?? []).filter(d => ids.includes(d.id)).map(d => d.name)
+    update({ required_doc_types: ids, required_doc_type_names: names })
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-medium text-[var(--c-text-3)]">{t('editor.gate.heading')}</span>
+        {!docTypes || docTypes.length === 0 ? (
+          <p className="rounded-md border border-dashed border-[var(--c-border-2)] px-3 py-3 text-[11px] text-[var(--c-text-5)]">
+            {t('editor.gate.noTypes')}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {docTypes.map(dt => {
+              const on = selected.includes(dt.id)
+              return (
+                <button key={dt.id} type="button" onClick={() => toggle(dt)}
+                  className={['flex items-center gap-2 rounded-md border px-3 py-2 text-left text-[12px] transition-colors',
+                    on ? 'border-amber-500/40 bg-amber-500/10 text-[var(--c-text-1)]'
+                       : 'border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-text-3)] hover:border-[var(--c-border-3)]'].join(' ')}>
+                  <span className={['flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border',
+                    on ? 'border-amber-500 bg-amber-500 text-white' : 'border-[var(--c-border-3)]'].join(' ')}>
+                    {on && <Check size={9} strokeWidth={3} />}
+                  </span>
+                  <span className="flex-1 truncate">{dt.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-medium text-[var(--c-text-3)]">{t('editor.gate.timeout')}</span>
+        <input type="number" min={0} value={(data.timeout_days as number | undefined) ?? ''}
+          onChange={e => update({ timeout_days: e.target.value === '' ? null : Number(e.target.value) })}
+          placeholder="7" className={_INPUT_CLS} />
+      </label>
+
+      <div className={_HELP_CLS}>{t('editor.gate.help')}</div>
     </div>
   )
 }

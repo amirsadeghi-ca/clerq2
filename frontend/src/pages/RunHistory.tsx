@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ChevronRight, CheckCircle2, XCircle, Loader2, Clock, GitCommit, Terminal } from 'lucide-react'
+import { useParams, Link } from 'react-router-dom'
+import { ChevronRight, CheckCircle2, XCircle, Loader2, Clock, GitCommit, Terminal, Menu } from 'lucide-react'
 import { useRuns } from '../api/runs'
 import { useWorkflow } from '../api/workflows'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { LogViewer } from '../components/LogViewer'
 import { useI18n } from '../context/i18n'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 import type { Run, RunStep, RunStatus } from '../types/workflow'
 
 const NODE_KEYS: Record<string, string> = {
@@ -31,11 +32,12 @@ function StatusDot({ status }: { status: RunStatus }) {
   if (status === 'completed') return <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
   if (status === 'failed')    return <div className="h-1.5 w-1.5 rounded-full bg-red-400" />
   if (status === 'running')   return <div className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
+  if (status === 'waiting')   return <div className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
   return <div className="h-1.5 w-1.5 rounded-full bg-[var(--c-text-5)]" />
 }
 
 function StepStatus({ status }: { status: string }) {
-  if (status === 'completed') return <CheckCircle2 size={12} className="text-emerald-400" />
+  if (status === 'succeeded') return <CheckCircle2 size={12} className="text-emerald-400" />
   if (status === 'failed')    return <XCircle size={12} className="text-red-400" />
   if (status === 'running')   return <Loader2 size={12} className="animate-spin text-indigo-400" />
   return <div className="h-[12px] w-[12px] rounded-full border border-[var(--c-border-3)]" />
@@ -50,8 +52,8 @@ function ms(run: Run) {
 export function RunHistory() {
   const { id } = useParams<{ id: string }>()
   const workflowId = Number(id)
-  const navigate = useNavigate()
   const { t } = useI18n()
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
   const nodeLabel = (type: string) => (NODE_KEYS[type] ? t(NODE_KEYS[type]) : type)
   const { data: workflow } = useWorkflow(workflowId)
   const { data: runs, isLoading } = useRuns(workflowId)
@@ -59,10 +61,21 @@ export function RunHistory() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <LeftSidebar />
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-[52px] shrink-0 items-center gap-1.5 border-b border-[var(--c-border)] px-8">
+        <header className="flex h-[52px] shrink-0 items-center gap-1.5 border-b border-[var(--c-border)] px-4 md:px-8">
+          <button
+            className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+            onClick={openSidebar}
+          >
+            <Menu size={16} />
+          </button>
           <nav className="flex items-center gap-1 text-[13px]">
             <Link to="/workflows" className="text-[var(--c-text-4)] hover:text-[var(--c-text-3)] transition-colors">{t('workflows.title')}</Link>
             <ChevronRight size={12} className="text-[var(--c-text-5)]" />
@@ -91,9 +104,10 @@ export function RunHistory() {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-[var(--c-divider)]">
+            <div className="overflow-x-auto">
+            <div className="divide-y divide-[var(--c-divider)] min-w-[540px]">
               {/* Table header */}
-              <div className="flex items-center px-8 py-2">
+              <div className="flex items-center px-4 py-2 md:px-8">
                 <span className="text-[11px] font-medium text-[var(--c-text-5)] w-16">{t('workflows.col.status')}</span>
                 <span className="text-[11px] font-medium text-[var(--c-text-5)] w-16">{t('workflows.col.run')}</span>
                 <span className="text-[11px] font-medium text-[var(--c-text-5)] w-12">{t('workflows.col.version')}</span>
@@ -102,7 +116,7 @@ export function RunHistory() {
               </div>
 
               {runs?.map((run: Run) => (
-                <div key={run.id} className="px-8 py-4 hover:bg-white/[0.01] transition-colors">
+                <div key={run.id} className="px-4 py-4 hover:bg-white/[0.01] transition-colors md:px-8">
                   <div className="flex items-center gap-4">
                     {/* Status */}
                     <div className="flex w-16 items-center gap-2">
@@ -187,6 +201,7 @@ export function RunHistory() {
                   )}
                 </div>
               ))}
+            </div>
             </div>
           )}
         </main>

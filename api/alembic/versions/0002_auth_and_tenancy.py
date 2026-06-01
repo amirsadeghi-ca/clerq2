@@ -118,13 +118,13 @@ def upgrade() -> None:
     default_tenant_id = bind.execute(
         sa.text(
             "INSERT INTO tenants (name, slug, is_active) "
-            "VALUES ('Default', 'default', 1)"
+            "VALUES ('Default', 'default', true) RETURNING id"
         )
-    ).lastrowid
+    ).scalar()
     bind.execute(
         sa.text(
             "INSERT INTO users (tenant_id, email, display_name, role, is_active, mfa_required) "
-            "VALUES (:tid, 'admin@interpret.local', 'Administrator', 'owner', 1, 0)"
+            "VALUES (:tid, 'admin@interpret.local', 'Administrator', 'owner', true, false)"
         ),
         {"tid": default_tenant_id},
     )

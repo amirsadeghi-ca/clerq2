@@ -6,9 +6,10 @@ import {
   type Connection, type Edge, type Node, type ReactFlowInstance,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ChevronRight, Save, Play, Loader2, X, Clock, History, GitCommit, Mail } from 'lucide-react'
+import { ChevronRight, Save, Play, Loader2, X, Clock, History, GitCommit, Mail, Menu } from 'lucide-react'
 
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 import { NodePalette } from '../components/NodePalette'
 import { NodeConfigPanel } from '../components/NodeConfigPanel'
 import { VersionsModal } from '../components/VersionsModal'
@@ -20,13 +21,15 @@ import { ShowResultsNode } from '../components/nodes/ShowResultsNode'
 import { EmailInputNode } from '../components/nodes/EmailInputNode'
 import { AiNode } from '../components/nodes/AiNode'
 import { SendEmailNode } from '../components/nodes/SendEmailNode'
+import { ConditionNode } from '../components/nodes/ConditionNode'
+import { CompletenessGateNode } from '../components/nodes/CompletenessGateNode'
 import { useWorkflow, useUpdateWorkflow } from '../api/workflows'
 import { useTriggerRun, useUploadDocument, useDocuments } from '../api/runs'
 import { useRunContext } from '../context/run'
 import { useI18n } from '../context/i18n'
 import type { Document } from '../types/workflow'
 
-const NODE_TYPES = { input: InputNode, pdf_to_images: PdfToImagesNode, output: OutputNode, validate_documents: ValidateDocumentsNode, show_results: ShowResultsNode, email_input: EmailInputNode, ai: AiNode, send_email: SendEmailNode }
+const NODE_TYPES = { input: InputNode, pdf_to_images: PdfToImagesNode, output: OutputNode, validate_documents: ValidateDocumentsNode, show_results: ShowResultsNode, email_input: EmailInputNode, ai: AiNode, send_email: SendEmailNode, condition: ConditionNode, completeness_gate: CompletenessGateNode }
 
 let _id = 1
 const uid = () => `n_${Date.now()}_${_id++}`
@@ -34,6 +37,7 @@ const uid = () => `n_${Date.now()}_${_id++}`
 export function WorkflowEditor() {
   const { id } = useParams<{ id: string }>()
   const workflowId = Number(id)
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
   const navigate = useNavigate()
   const { t } = useI18n()
 
@@ -76,7 +80,13 @@ export function WorkflowEditor() {
     if (!type || !rfInstance || !wrapperRef.current) return
     const b = wrapperRef.current.getBoundingClientRect()
     const position = rfInstance.screenToFlowPosition({ x: e.clientX - b.left, y: e.clientY - b.top })
-    setNodes(nds => [...nds, { id: uid(), type, position, data: { label: type } }])
+    // Sensible per-type defaults so a freshly dropped node already works + its
+    // card matches what the engine will do.
+    const data: Record<string, unknown> =
+      type === 'condition' ? { mode: 'verdict', field: 'overall', op: 'eq', value: 'fail' }
+      : type === 'completeness_gate' ? { required_doc_types: [], required_doc_type_names: [], timeout_days: 7 }
+      : { label: type }
+    setNodes(nds => [...nds, { id: uid(), type, position, data }])
     setDirty(true)
   }, [rfInstance, setNodes])
 
@@ -129,11 +139,22 @@ export function WorkflowEditor() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <LeftSidebar />
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] bg-[var(--c-bg)] px-4">
+          <button
+            className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+            onClick={openSidebar}
+          >
+            <Menu size={16} />
+          </button>
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1 text-[13px]">
             <Link to="/workflows" className="text-[var(--c-text-4)] hover:text-[var(--c-text-3)] transition-colors">{t('editor.breadcrumb.workflows')}</Link>

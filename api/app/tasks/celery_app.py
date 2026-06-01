@@ -6,6 +6,7 @@ import app.models.workflow          # noqa: F401
 import app.models.workflow_version  # noqa: F401
 import app.models.document          # noqa: F401
 import app.models.run               # noqa: F401
+import app.models.run_step          # noqa: F401
 import app.models.document_type     # noqa: F401
 import app.models.policy            # noqa: F401
 import app.models.setting           # noqa: F401
@@ -27,6 +28,8 @@ celery_app = Celery(
         "app.tasks.nodes.email_input",
         "app.tasks.nodes.ai",
         "app.tasks.nodes.send_email",
+        # Execution engine v2 (generic step/advance tasks; reconciler added in Phase 1)
+        "app.engine.tasks",
     ],
 )
 
@@ -39,3 +42,12 @@ celery_app.conf.update(
     task_track_started=True,
     worker_prefetch_multiplier=1,
 )
+
+# Execution-engine-v2 reconciler: beat fires engine.sweep on an interval; the
+# worker runs it (requeue expired leases, fire due timers, re-derive stranded work).
+celery_app.conf.beat_schedule = {
+    "engine-sweep": {
+        "task": "engine.sweep",
+        "schedule": 10.0,  # seconds
+    },
+}

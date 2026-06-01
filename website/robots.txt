@@ -1,0 +1,13 @@
+# https://genitechs.ca/robots.txt
+User-agent: *
+Allow: /
+
+# Be explicit for the major AI/search crawlers (all welcome)
+User-agent: Googlebot
+Allow: /
+User-agent: Bingbot
+Allow: /
+User-agent: GPTBot
+Allow: /
+
+Sitemap: https://genitechs.ca/sitemap.xml

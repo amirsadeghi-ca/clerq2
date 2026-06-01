@@ -5,10 +5,11 @@ WORKDIR /app
 RUN pip install uv
 
 COPY pyproject.toml .
-RUN uv pip install --system -e .
+RUN uv pip install --system -e ".[test]"
 
 COPY app/ ./app/
 COPY alembic/ ./alembic/
+COPY tests/ ./tests/
 COPY alembic.ini .
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh

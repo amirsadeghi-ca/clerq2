@@ -22,6 +22,7 @@ export const en = {
   'integrations.testOk': 'Test email sent.',
   'integrations.tab': 'Integrations',
   'integrations.tab.tenants': 'Tenants & users',
+  'admin.tabShort.tenants': 'Tenants',
 }
 
 export const fr = {
@@ -48,4 +49,5 @@ export const fr = {
   'integrations.testOk': 'Courriel test envoyé.',
   'integrations.tab': 'Intégrations',
   'integrations.tab.tenants': 'Locataires et utilisateurs',
+  'admin.tabShort.tenants': 'Locataires',
 }

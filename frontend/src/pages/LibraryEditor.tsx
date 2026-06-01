@@ -1,14 +1,16 @@
 import { useState, useRef, useCallback } from 'react'
 import { fileUrl } from '../lib/fileUrl'
 import { useParams, Link } from 'react-router-dom'
-import { ChevronRight, Save, Loader2, Upload, Trash2, BookOpen } from 'lucide-react'
+import { ChevronRight, Save, Loader2, Upload, Trash2, BookOpen, Menu } from 'lucide-react'
 import { useDocumentType, useUpdateDocumentType, useUploadSample, useDeleteSample } from '../api/library'
 import { LeftSidebar } from '../components/LeftSidebar'
 import { useI18n } from '../context/i18n'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 
 export function LibraryEditor() {
   const { t } = useI18n()
   const { id } = useParams<{ id: string }>()
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
   const docTypeId = Number(id)
 
   const { data: dt, isLoading } = useDocumentType(docTypeId)
@@ -66,11 +68,22 @@ export function LibraryEditor() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <LeftSidebar />
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] px-6">
+        <header className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--c-border)] px-3 md:px-6">
+          <button
+            className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+            onClick={openSidebar}
+          >
+            <Menu size={16} />
+          </button>
           <Link to="/library" className="text-[12px] text-[var(--c-text-5)] hover:text-[var(--c-text-3)] transition-colors">
             {t('library.title')}
           </Link>
@@ -95,7 +108,7 @@ export function LibraryEditor() {
         {/* Body */}
         <div className="flex flex-1 overflow-hidden">
           {/* Main content */}
-          <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-8">
+          <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-4 md:p-8">
             <div>
               <label className="mb-1.5 block text-[11px] font-medium text-[var(--c-text-4)]">{t('library.col.description')}</label>
               <textarea

@@ -41,9 +41,13 @@ export const en = {
   'btn.restore': 'Restore',
 
   'status.pending': 'Pending',
+  'status.ready': 'Queued',
   'status.running': 'Running',
+  'status.succeeded': 'Succeeded',
   'status.completed': 'Completed',
   'status.failed': 'Failed',
+  'status.skipped': 'Skipped',
+  'status.waiting': 'Waiting',
   'status.cancelled': 'Cancelled',
 
   'verdict.pass': 'Pass',
@@ -100,9 +104,13 @@ export const fr = {
   'btn.restore': 'Restaurer',
 
   'status.pending': 'En attente',
+  'status.ready': 'En file',
   'status.running': 'En cours',
+  'status.succeeded': 'Réussi',
   'status.completed': 'Terminé',
   'status.failed': 'Échoué',
+  'status.skipped': 'Ignoré',
+  'status.waiting': 'En pause',
   'status.cancelled': 'Annulé',
 
   'verdict.pass': 'Conforme',

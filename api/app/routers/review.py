@@ -28,11 +28,10 @@ def _now() -> str:
 
 
 def _validate_step_output(run: WorkflowRun) -> dict | None:
-    """Return the validate_documents step's output_data, if completed."""
-    for s in run.steps or []:
-        if s.node_type == "validate_documents" and s.status == "completed" and s.output_data:
-            return s.output_data
-    return None
+    """Return the run's validation output (engine-v2 run.result, else the
+    validate_documents step's output_data)."""
+    from app.cases import validation_output
+    return validation_output(run)
 
 
 def _ai_results_index(run: WorkflowRun) -> dict[str, dict]:

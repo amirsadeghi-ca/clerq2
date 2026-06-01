@@ -20,6 +20,9 @@ dist/
 frontend/dist/
 .vite/
 
+# Marketing site cPanel build artifact (regenerable from website/)
+interpret-website.zip
+
 # Editor / OS
 .DS_Store
 .idea/

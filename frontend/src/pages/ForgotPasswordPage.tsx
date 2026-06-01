@@ -27,8 +27,8 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-[var(--c-bg)] text-[var(--c-text-1)]">
-      <div className="w-[400px] rounded-lg border border-[var(--c-border-2)] bg-[var(--c-surface)] p-8 shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+    <div className="flex h-screen w-screen items-center justify-center bg-[var(--c-bg)] px-4 text-[var(--c-text-1)]">
+      <div className="w-full max-w-[400px] rounded-lg border border-[var(--c-border-2)] bg-[var(--c-surface)] p-6 shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:p-8">
         {!sent ? (
           <form onSubmit={onSubmit}>
             <h1 className="mb-1 text-[20px] font-semibold">{t('auth.forgotPassword.title')}</h1>

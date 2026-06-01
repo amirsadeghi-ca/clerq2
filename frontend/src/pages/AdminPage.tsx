@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Building2, ShieldAlert, Users, Plus, X, KeyRound, Pencil, Mail, Copy, RotateCw, Trash2, AlertTriangle } from 'lucide-react'
+import { Building2, ShieldAlert, Users, Plus, X, KeyRound, Pencil, Mail, Copy, RotateCw, Trash2, AlertTriangle, Menu, ArrowLeft } from 'lucide-react'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { useMobileSidebar } from '../hooks/useMobileSidebar'
 import { useI18n } from '../context/i18n'
 import { useAuth } from '../context/auth'
 import {
@@ -440,6 +441,7 @@ function PendingInvitesPanel({ ownTenantId, selectedTenantId }: { ownTenantId: n
 export function AdminPage() {
   const { t, lang } = useI18n()
   const { user } = useAuth()
+  const { sidebarOpen, openSidebar, closeSidebar } = useMobileSidebar()
   const { data: tenants } = useAdminTenants()
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null)
   const { data: users } = useAdminTenantUsers(selectedTenantId)
@@ -461,10 +463,21 @@ export function AdminPage() {
     if (selectedTenantId === null && tenants && tenants.length) setSelectedTenantId(tenants[0].id)
   }, [tenants, selectedTenantId])
 
+  const sidebarEl = (
+    <>
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />
+      )}
+      <div className={['fixed inset-y-0 left-0 z-50 md:relative md:z-auto md:flex md:shrink-0', sidebarOpen ? 'flex' : 'hidden'].join(' ')}>
+        <LeftSidebar />
+      </div>
+    </>
+  )
+
   if (!user?.is_superadmin) {
     return (
-      <div className="flex h-full w-full">
-        <LeftSidebar />
+      <div className="flex h-full w-full overflow-hidden">
+        {sidebarEl}
         <div className="flex flex-1 items-center justify-center">
           <div className="flex items-center gap-2 text-[13px] text-[var(--c-text-3)]">
             <ShieldAlert size={14} className="text-amber-400" />
@@ -476,31 +489,38 @@ export function AdminPage() {
   }
 
   return (
-    <div className="flex h-full w-full">
-      <LeftSidebar />
+    <div className="flex h-full w-full overflow-hidden">
+      {sidebarEl}
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-6">
-          <div>
-            <div className="text-[15px] font-medium text-[var(--c-text-1)]">{t('admin.title')}</div>
-            <div className="text-[11px] text-[var(--c-text-4)]">{t('admin.subtitle')}</div>
+        <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-[var(--c-border)] px-4 md:px-6">
+          <div className="flex items-center gap-3">
+            <button
+              className="rounded-md p-1.5 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+              onClick={openSidebar}
+            >
+              <Menu size={16} />
+            </button>
+            <div>
+              <div className="text-[15px] font-medium text-[var(--c-text-1)]">{t('admin.title')}</div>
+              <div className="hidden text-[11px] text-[var(--c-text-4)] sm:block">{t('admin.subtitle')}</div>
+            </div>
           </div>
-          <div className="flex items-center gap-1 rounded-md border border-[var(--c-border-2)] p-0.5">
-            {(['tenants', 'integrations'] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={[
-                  'rounded px-3 py-1 text-[12px] transition-colors',
-                  view === v
-                    ? 'bg-[var(--c-active)] text-[var(--c-text-1)]'
-                    : 'text-[var(--c-text-4)] hover:text-[var(--c-text-2)]',
-                ].join(' ')}
-              >
-                {v === 'tenants' ? t('integrations.tab.tenants') : t('integrations.tab')}
-              </button>
-            ))}
+          <div className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--c-border-2)] p-0.5">
+            <button
+              onClick={() => setView('tenants')}
+              className={['rounded px-2 py-1 text-[11px] transition-colors sm:px-3 sm:text-[12px]', view === 'tenants' ? 'bg-[var(--c-active)] text-[var(--c-text-1)]' : 'text-[var(--c-text-4)] hover:text-[var(--c-text-2)]'].join(' ')}
+            >
+              <span className="sm:hidden">{t('admin.tabShort.tenants')}</span>
+              <span className="hidden sm:inline">{t('integrations.tab.tenants')}</span>
+            </button>
+            <button
+              onClick={() => setView('integrations')}
+              className={['rounded px-2 py-1 text-[11px] transition-colors sm:px-3 sm:text-[12px]', view === 'integrations' ? 'bg-[var(--c-active)] text-[var(--c-text-1)]' : 'text-[var(--c-text-4)] hover:text-[var(--c-text-2)]'].join(' ')}
+            >
+              {t('integrations.tab')}
+            </button>
           </div>
         </div>
 
@@ -509,9 +529,13 @@ export function AdminPage() {
             <IntegrationsPanel />
           </div>
         ) : (
-        <div className="flex min-h-0 flex-1">
-          {/* Tenant list */}
-          <div className="flex w-[280px] shrink-0 flex-col border-r border-[var(--c-border)]">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* Tenant list — full width on mobile (hidden when tenant selected), fixed on desktop */}
+          <div className={[
+            'shrink-0 flex-col border-r border-[var(--c-border)]',
+            'w-full md:flex md:w-[280px]',
+            selectedTenantId !== null ? 'hidden md:flex' : 'flex',
+          ].join(' ')}>
             <div className="flex items-center justify-between border-b border-[var(--c-border)] px-3 py-2">
               <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-[var(--c-text-5)]">
                 <Building2 size={11} />
@@ -536,6 +560,7 @@ export function AdminPage() {
                       ? 'bg-[var(--c-active)]'
                       : 'hover:bg-[var(--c-hover-1)]',
                   ].join(' ')}
+                  aria-label={t.name}
                 >
                   <div className="min-w-0">
                     <div className="truncate text-[13px] text-[var(--c-text-1)]">{t.name}</div>
@@ -549,16 +574,26 @@ export function AdminPage() {
             </div>
           </div>
 
-          {/* User list */}
-          <div className="flex flex-1 flex-col overflow-hidden">
+          {/* User list — hidden on mobile unless tenant selected */}
+          <div className={[
+            'flex-1 flex-col overflow-hidden',
+            selectedTenantId !== null ? 'flex' : 'hidden md:flex',
+          ].join(' ')}>
             {!selectedTenant ? (
               <div className="flex flex-1 items-center justify-center text-[12px] text-[var(--c-text-4)]">
                 {t('admin.selectTenant')}
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between border-b border-[var(--c-border)] px-6 py-3">
+                <div className="flex items-center justify-between border-b border-[var(--c-border)] px-3 py-3 md:px-6">
                   <div className="flex items-center gap-2">
+                    {/* Mobile back button */}
+                    <button
+                      className="rounded p-1 text-[var(--c-text-4)] hover:bg-[var(--c-hover-2)] hover:text-[var(--c-text-2)] md:hidden"
+                      onClick={() => setSelectedTenantId(null)}
+                    >
+                      <ArrowLeft size={15} />
+                    </button>
                     <Users size={13} className="text-[var(--c-text-4)]" />
                     <div className="text-[13px] text-[var(--c-text-2)]">
                       {selectedTenant.name}
@@ -566,37 +601,38 @@ export function AdminPage() {
                       <span className="ml-2 text-[var(--c-text-4)]">{selectedTenant.user_count} {selectedTenant.user_count === 1 ? 'user' : 'users'}</span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <button
                       onClick={() => setShowTenantModal({ existing: selectedTenant })}
                       className={SECONDARY_BTN}
+                      title={t('admin.editTenant')}
                     >
                       <Pencil size={11} className="-mt-0.5 mr-1 inline" />
-                      {t('admin.editTenant')}
+                      <span className="hidden sm:inline">{t('admin.editTenant')}</span>
                     </button>
                     {selectedTenant.id === user.tenant_id && (
-                      <button onClick={() => setShowInviteModal(true)} className={SECONDARY_BTN}>
+                      <button onClick={() => setShowInviteModal(true)} className={SECONDARY_BTN} title={t('admin.invite')}>
                         <Mail size={11} className="-mt-0.5 mr-1 inline" />
-                        {t('admin.invite')}
+                        <span className="hidden sm:inline">{t('admin.invite')}</span>
                       </button>
                     )}
-                    <button onClick={() => setShowUserModal({ existing: null })} className={PRIMARY_BTN}>
+                    <button onClick={() => setShowUserModal({ existing: null })} className={PRIMARY_BTN} title={t('admin.newUser')}>
                       <Plus size={12} className="-mt-0.5 mr-1 inline" />
-                      {t('admin.newUser')}
+                      <span className="hidden sm:inline">{t('admin.newUser')}</span>
                     </button>
                   </div>
                 </div>
 
                 <PendingInvitesPanel ownTenantId={user.tenant_id} selectedTenantId={selectedTenant.id} />
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-auto">
                   {(!users || users.length === 0) ? (
                     <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
                       <div className="text-[13px] text-[var(--c-text-2)]">{t('admin.emptyTenant.title')}</div>
                       <div className="text-[11px] text-[var(--c-text-4)]">{t('admin.emptyTenant.body')}</div>
                     </div>
                   ) : (
-                    <table className="w-full">
+                    <table className="w-full min-w-[560px]">
                       <thead>
                         <tr className="border-b border-[var(--c-border)] text-left text-[11px] font-medium text-[var(--c-text-5)]">
                           <th className="px-6 py-2 font-medium">{t('admin.user.email')}</th>
