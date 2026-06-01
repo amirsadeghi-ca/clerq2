@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import create_tables, run_migrations
-from app.routers import workflows, documents, runs, sse, files, library, policies, settings, validate, mail, review, reference_lists, metrics
+from app.routers import workflows, documents, runs, sse, files, library, policies, settings, validate, mail, review, reference_lists, metrics, auth, admin, tenant, invites, mfa
 
 app = FastAPI(title="Clerq2 API", version="0.1.0")
 
@@ -14,6 +13,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(mfa.router, prefix="/api/auth", tags=["mfa"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(tenant.router, prefix="/api/tenant", tags=["tenant"])
+app.include_router(invites.router, prefix="/api/invites", tags=["invites"])
 app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(runs.router, prefix="/api/runs", tags=["runs"])
@@ -27,12 +31,6 @@ app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(validate.router, prefix="/api/validate", tags=["validate"])
 app.include_router(mail.router, prefix="/api/mail", tags=["mail"])
 app.include_router(metrics.router, prefix="/api/metrics", tags=["metrics"])  # operational indicators / suivi
-
-
-@app.on_event("startup")
-def on_startup():
-    create_tables()
-    run_migrations()
 
 
 @app.get("/api/health")

@@ -29,6 +29,158 @@ Static, deploy-anywhere HTML/CSS/JS (Tailwind CDN + AOS, no build step) for the 
 
 ---
 
+## Authentication & Tenancy
+
+The app is **admin-provisioned multi-tenant**. There is no public signup. Every resource — workflows, policies, documents, runs, document types, reference lists, mail messages, app settings — is scoped to a **tenant**, and every API route filters by the logged-in user's tenant. Cross-tenant access is blocked at the query layer.
+
+**Schema (in `api/app/models/auth.py`):**
+- `tenants` — top-level isolation unit (`id, name, slug, is_active`).
+- `users` — `(tenant_id, email)` unique; `role` in `owner|admin|member`; `mfa_required` flag.
+- `auth_identities` — one row per (user, provider). `provider="password"` stores a bcrypt hash in `secret`; `provider="google"|"saml"|…` will store the provider's `subject` and be wired up later. Account-linking happens through this table.
+- `refresh_tokens` — server-tracked, hashed-at-rest, revocable per row.
+- `mfa_credentials` — enrolled second factors. `type="totp"` stores the Fernet-encrypted shared secret in `secret` (encrypted with a key derived from `SECRET_KEY` via SHA-256), bcrypt-hashed recovery codes in `recovery_codes_json`, `is_confirmed` flag, and `last_used_at`. Fully wired: enrollment, confirmation, login verification, and recovery-code consumption all work.
+
+**Sessions (JWT access + refresh):**
+- Access tokens are HS256 JWTs with `sub=user_id, tid=tenant_id, role, exp, iat, typ="access"`, 30 min by default (`ACCESS_TOKEN_MINUTES`).
+- Refresh tokens are opaque random strings (server-stored as bcrypt hashes), 30 days by default (`REFRESH_TOKEN_DAYS`). `/auth/refresh` rotates them.
+- Secret comes from `JWT_SECRET` if set, else falls back to `SECRET_KEY`.
+- The frontend stores both in `localStorage` (keys `auth.access_token` / `auth.refresh_token`). The axios interceptor (`frontend/src/api/client.ts`) attaches the access token to every request and auto-refreshes once on 401 (coalesced across concurrent requests). Hard-logout + redirect to `/login` when refresh fails.
+
+**Routes (`/api/auth/*`, see `api/app/routers/auth.py`):**
+```
+POST /api/auth/login            {email, password, mfa_code?} → {access_token, refresh_token, expires_at}
+POST /api/auth/refresh          {refresh_token}              → new pair (rotates)
+POST /api/auth/logout           {refresh_token}              → 204 (best-effort revoke)
+POST /api/auth/logout-all                                    → 204 (revokes every refresh token for the user)
+GET  /api/auth/me                                            → {user, tenant}
+PATCH /api/auth/me              {display_name?}              → self-service profile update
+POST /api/auth/change-password  {current_password, new_password}
+
+GET    /api/auth/mfa                                            → MfaMethod[]   list confirmed MFA methods for current user
+POST   /api/auth/mfa/totp/enroll                               → {credential_id, provisioning_uri, secret}   start TOTP enrollment; cleans up stale pending enrollments
+POST   /api/auth/mfa/totp/confirm     {credential_id, code}    → {recovery_codes: [10]}   confirm with TOTP code; activates MFA; shows recovery codes ONCE
+DELETE /api/auth/mfa/{credential_id}  {current_password? or totp_code?} → 204   remove MFA method; clears mfa_required if no methods remain
+POST   /api/auth/mfa/recovery-codes/regenerate  {totp_code}   → {recovery_codes: [10]}   replace recovery codes after confirming with live TOTP code
+```
+
+**Dependency `get_current_user`** (in `api/app/security.py`) extracts `Authorization: Bearer <jwt>`. Routes that can't set headers (SSE `/api/runs/{id}/stream`, `/api/files/{path}`) also accept `?access_token=…` — the frontend uses `lib/fileUrl.ts` to build those URLs and the SSE consumers pass it explicitly. Every router takes `tenant_id: int = Depends(get_current_tenant_id)` and filters its queries by it. The `files` router additionally resolves the requested storage path back to a Document / DocumentTypeSample / WorkflowRun and verifies it belongs to the caller's tenant before serving the bytes.
+
+**Admin CLI (`docker compose exec api python -m app.cli …`):**
+```
+list-tenants
+create-tenant "Acme Inc"  [--slug acme]
+list-users [--tenant acme]
+create-user --tenant acme --email amir@acme.co --password 'first' [--role owner|admin|member]
+set-password --email amir@acme.co --password 'new'
+deactivate-user --email amir@acme.co
+```
+`create-user` auto-creates the matching `auth_identities(provider="password")` row. The migration seeds **`admin@clerq.local`** in the **Default** tenant with NO usable password — set one before first login via `set-password`. Passwords use bcrypt directly (`app/security.py`); pre-truncated to 72 bytes for bcrypt 4.x compatibility (passlib has a known incompat with bcrypt ≥ 4 that we work around by not using passlib).
+
+**Frontend:**
+- `frontend/src/context/auth.tsx` — `AuthProvider` + `useAuth()` (user/tenant/loading + login/logout/refresh). Bootstraps from `localStorage` and calls `/auth/me` on first mount.
+- `frontend/src/pages/LoginPage.tsx` — at `/login`, MFA-field-ready (only shown if the API replies "MFA code required").
+- `frontend/src/components/ProtectedRoute.tsx` — wraps every app route in `App.tsx`; redirects to `/login` (preserving the intended path) when unauthenticated.
+- **Settings page is sectioned**, with nested routes under `/settings/{section}`. Layout in `frontend/src/pages/settings/SettingsLayout.tsx` (left sub-nav + content via `<Outlet>`). Sections: `AccountSection` (profile + change password + sign-out everywhere), `AppearanceSection` (theme), `LanguageSection` (UI language), `AiSection` (OpenRouter). To add a section: drop a `XxxSection.tsx` under `pages/settings/`, add a row to the `SECTIONS` array in `SettingsLayout`, and a nested `<Route>` in `App.tsx`. `useAuth()` exposes a `refetchMe()` helper so account-edit forms can refresh the cached user state after a PATCH.
+- Sign-out lives in the bottom of `LeftSidebar.tsx` with the user's display name + tenant name.
+- All bilingual strings in `frontend/src/lib/i18n/strings/auth.ts` (Quebec FR uses "Courriel", "Code de l'authentificateur", etc.).
+- **MFA management UI** in `AccountSection.tsx` (Settings → Account): shows the enrolled authenticator app with green shield badge + last-used date when active; "Set up authenticator app" button when inactive. Setup is a 3-step modal: (1) QR code (`react-qr-code` SVG) + manual-entry key, (2) 6-digit TOTP verification, (3) 10 one-time recovery codes shown once. "Remove" opens a confirmation modal requiring current password OR a TOTP code. "Regenerate recovery codes" requires a live TOTP code and shows the new set once.
+- API hooks in `frontend/src/api/mfa.ts`.
+
+**Super-admin role + admin UI.** `users.is_superadmin` (boolean, default false) unlocks cross-tenant management. Super-admins still belong to a tenant for their own day-to-day work; the flag just gates `/api/admin/*`. The seed super-admin is **amir@sadeghi.me** (set up in migration `0003_superadmin.py`) in the Default tenant. Endpoints (all guarded by `require_superadmin`):
+```
+GET    /api/admin/tenants                              → AdminTenant[]   (with user_count)
+POST   /api/admin/tenants                              → AdminTenant     {name, slug?}
+GET    /api/admin/tenants/{id}                         → AdminTenant
+PUT    /api/admin/tenants/{id}                         → AdminTenant     {name?, slug?, is_active?}
+GET    /api/admin/tenants/{id}/users                   → AdminUser[]
+POST   /api/admin/tenants/{id}/users                   → AdminUser       {email, password, display_name?, role?, is_superadmin?}
+GET    /api/admin/users/{id}                           → AdminUser
+PUT    /api/admin/users/{id}                           → AdminUser       {display_name?, role?, is_active?, is_superadmin?, mfa_required?}
+POST   /api/admin/users/{id}/set-password              → AdminUser       {new_password}  (revokes all sessions)
+```
+The frontend has a full **`/admin`** page (`frontend/src/pages/AdminPage.tsx`) — left column lists tenants with user counts; right column shows the selected tenant's users in a table with role/status/sign-in columns and per-row "Set password" + "Edit" actions; modals for creating tenants and users, editing tenants and users (active flag, role, MFA-required, super-admin flag), and setting passwords. The nav link "Administration" only appears in `LeftSidebar.tsx` for users where `user.is_superadmin === true` (visible via `/auth/me`). The page also renders a "super-admin only" empty state if a non-superadmin loads `/admin` directly. Strings live in `frontend/src/lib/i18n/strings/admin.ts` (en + fr-CA).
+
+**Permission system (RBAC, per-tenant, code-defined).** Permission keys are namespaced strings declared in `api/app/permissions.py` (`Permission.TENANT_USERS_INVITE`, `Permission.TENANT_USERS_REMOVE`, etc.). The `(role → set of permission keys)` mapping is stored **per tenant** in `tenant_role_permissions(tenant_id, role, permission_key)` so each tenant can later customize. Defaults from `DEFAULT_ROLE_PERMISSIONS` are seeded on tenant creation (see `seed_default_role_permissions()` called from the admin tenant-create endpoint and the alembic seed loop). Today: **owner** = everything, **admin** = invite/remove/update_role/set_password/read users, **member** = nothing. Super-admins (`User.is_superadmin`) bypass these checks. Authority rule beyond permission keys (in `can_act_on_target_role()`): a tenant `admin` cannot invite, remove, change role of, or reset password of another `admin`/`owner` — only `owner`s (and super-admins) can.
+
+**Adding a permission:** add `Permission.X = "x.y.z"` in `app/permissions.py`, list it in `ALL_PERMISSIONS` (label + category, for the UI editor), update `DEFAULT_ROLE_PERMISSIONS` so each role gets its default, and write a migration that inserts the new (tenant_id, role, "x.y.z") rows for existing tenants. Then gate routes with `Depends(require_permission(Permission.X))`.
+
+**Tenant-scoped self-administration (`/api/tenant/*`).** Endpoints for tenant owners/admins to manage their own tenant without super-admin. Gated by `require_permission(...)`; always implicitly scoped to the caller's home tenant. Super-admins also pass these checks (the permissions helper returns all keys for them).
+```
+GET    /api/tenant                                   → {tenant, my_permissions[]}
+GET    /api/tenant/permissions                       → ALL_PERMISSIONS registry (for UI)
+GET    /api/tenant/role-permissions                  → role → [permission_key]
+PUT    /api/tenant/role-permissions/{role}           → replace permission set for role
+                                                       (requires tenant.permissions.manage; owner role can never lose tenant.permissions.manage)
+GET    /api/tenant/users                             → list users (tenant.users.read)
+PUT    /api/tenant/users/{id}                        → update display_name / role / is_active / mfa_required
+                                                       (per-field permission keys; respects authority rule)
+POST   /api/tenant/users/{id}/set-password           → admin-set password
+POST   /api/tenant/invites                           → invite user (tenant.users.invite)
+GET    /api/tenant/invites                           → list pending invites
+POST   /api/tenant/invites/{id}/revoke               → revoke
+POST   /api/tenant/invites/{id}/resend               → rotate token + resend email
+```
+
+**Invite flow.** `user_invites` table (token_hash, expires_at, accepted_at, revoked_at). On `POST /api/tenant/invites`, server generates a 32-byte URL-safe token, stores its bcrypt hash, sends an email containing `{APP_BASE_URL}/invite/{raw_token}`, and returns the URL in the response (so the admin UI can show a "copy link" affordance — independent of email delivery). Public endpoints (no auth) live at `/api/invites/*`:
+```
+POST /api/invites/lookup   {token} → {valid, email, tenant_name, role}
+POST /api/invites/accept   {token, password, display_name?} → TokenPair (auto signed-in)
+```
+Invites are single-use (`accepted_at` set on consumption) and admin-revocable. Resend rotates the token and clears `revoked_at`. Frontend public page is `frontend/src/pages/InviteAcceptPage.tsx` at `/invite/:token` — after accept, `setTokens(...)` + `window.location.replace('/')` (a full reload so `AuthProvider` re-bootstraps from the new tokens; an SPA `navigate('/')` keeps the old null-`user` state and ProtectedRoute kicks back to `/login`).
+
+**`APP_BASE_URL` per environment.** The invite email/link is built as `{APP_BASE_URL}/invite/{token}`. The root `docker-compose.yml` doesn't set it (the api falls back to `http://localhost` from `Settings`), and dev `.env` typically pins `APP_BASE_URL=http://localhost`. The **prod overlay** `deploy/docker-compose.prod.yml` overrides it on the api container to `https://clerq2.genitechs.ca` so production invites carry public URLs. Anywhere a new public hostname is introduced, update both the Cloudflare Tunnel ingress in `deploy/cloudflared/config.yml` and `APP_BASE_URL` in the overlay.
+
+**Email delivery — Resend.** `app/mailer.py` exposes one function `send_email(to, subject, html, text?)` that always returns a `SendResult` (never raises). When `RESEND_API_KEY` is set it POSTs to `https://api.resend.com/emails` with `{from: "{INVITE_FROM_NAME} <{INVITE_FROM_ADDRESS}>", to, subject, html, text?}`. Without `RESEND_API_KEY` it logs the body to stdout. Sender domain `email.genitechs.ca` is verified in Resend; the default `INVITE_FROM_ADDRESS=noreply@email.genitechs.ca` works for any recipient. (Resend's free `onboarding@resend.dev` sender will only deliver to the Resend account owner's verified address — fine for stub-mode, not for real invites.)
+
+**Admin UI updates (`frontend/src/pages/AdminPage.tsx`).** Toolbar gained an **Invite user** button (visible when the super-admin is viewing their own tenant); clicking sends the invite and shows the resulting URL in a "copy link" field inside the same modal so the admin can share it directly when needed. A **Pending invitations** section above the user table lists unaccepted invites with copy / resend / revoke icons. The Copy button reissues the invite via `/resend` first (the raw token is hashed and gone after creation, so the only way to fetch a fresh URL is to rotate). Hooks live in `frontend/src/api/tenant.ts`; strings in `frontend/src/lib/i18n/strings/admin.ts` (en+fr).
+
+**Forward extensibility (foundation laid, not yet wired):**
+- SSO/Google/SAML — drop a new identity provider row with `provider="google"` and a `subject` (Google `sub` claim). Add `/auth/sso/google/start` + `/auth/sso/google/callback` routes. Account-linking comes for free because a user can have multiple identities.
+- TOTP MFA — when a user enrolls, create an `mfa_credentials(type="totp")` row with the (encrypted) shared secret + 10 bcrypt-hashed recovery codes. Flip `users.mfa_required=true`. The login endpoint already rejects when `mfa_required && !mfa_code` — fill in the verification call.
+- Per-tenant invite flow — when public-signup is wanted, add an `invites` table with a one-time token; clicking it triggers `create-user` server-side.
+
+---
+
+## Database Migrations (Alembic)
+
+The schema is now managed by **Alembic**. Never call `Base.metadata.create_all()` in production code, never hand-edit the live SQLite, and never add a `try/except ALTER TABLE` shim back into the codebase. Every schema change goes through a numbered revision in `api/alembic/versions/`.
+
+**Where things live:**
+- `api/alembic.ini`, `api/alembic/env.py`, `api/alembic/script.py.mako` — Alembic config (env reads `database_url` from `app.config.settings` and uses SQLite-safe `render_as_batch=True`).
+- `api/alembic/versions/0001_baseline.py` — captures the schema as it existed before Alembic was introduced (so fresh installs build the whole tree).
+- `api/alembic/versions/0002_auth_and_tenancy.py` — adds the auth tables, seeds the Default tenant + bootstrap admin user, adds `tenant_id` to every resource table, backfills, makes it `NOT NULL`, and rebuilds `app_settings` with the composite PK `(tenant_id, key)`.
+- `api/app/migrations.py` — `run_migrations()` stamps the baseline on pre-Alembic DBs (so live data survives) and runs `alembic upgrade head`.
+- `api/app/migrate_cli.py` + `api/entrypoint.sh` — the container entrypoint runs migrations **once** before exec'ing uvicorn/celery. Migrations no longer run from FastAPI's startup hook — uvicorn `--reload` was triggering re-entrant migration runs against SQLite, which deadlocked. The api becomes healthy only after migrations finish, and the worker waits on api-healthy.
+
+**Day-to-day workflow:**
+1. Edit the SQLAlchemy models.
+2. Generate a revision:
+   ```bash
+   docker compose exec api alembic revision --autogenerate -m "what changed"
+   ```
+   Review the file under `api/alembic/versions/` — `--autogenerate` doesn't catch everything (constraint changes, server defaults, sometimes nullability). Hand-edit as needed.
+3. Apply locally:
+   ```bash
+   docker compose restart api   # entrypoint runs `alembic upgrade head`
+   ```
+   Or manually: `docker compose exec api alembic upgrade head`.
+4. Commit the revision file. **Merge-to-`main` → the nas auto-deploy cron rebuilds the api image → the entrypoint runs `alembic upgrade head` against the production DB.** No human step required on the server.
+
+**SQLite-specific rules:**
+- Use `op.batch_alter_table(...)` for anything that isn't a plain `ADD COLUMN` — SQLite can't actually alter most columns in place, batch mode does a table-rebuild dance for you.
+- **Every constraint inside a batch block must be named** (`op.f("…")` or an explicit string). Unnamed `sa.ForeignKey("x.id")` in a batch context raises `ValueError: Constraint must have a name`. The migration `0002_auth_and_tenancy.py` adds the `tenant_id` FK as `fk_<table>_tenant_id`.
+- Backfills run via `bind = op.get_bind(); bind.execute(sa.text("UPDATE … SET tenant_id = :tid"), {...})`.
+
+**The pre-Alembic stamp dance.** On `nas` (and on dev machines that ran the app before this branch) the DB was built by `Base.metadata.create_all()` plus `ALTER TABLE ADD COLUMN` calls. `run_migrations()` detects this by looking for `workflows` existing while `alembic_version` is absent; if so it `command.stamp(cfg, "0001_baseline")` first so the baseline isn't re-applied as DDL against an already-populated DB, then runs `upgrade head`. After the first deploy the stamp branch is a no-op.
+
+**Don't:**
+- Don't `Base.metadata.create_all()` in any startup code path — only the migration runs in production.
+- Don't put long-running DDL behind uvicorn's `--reload` — see above. Container entrypoint is the place.
+- Don't skip naming a constraint in batch mode.
+- Don't downgrade a production migration — write a new forward-only revision that compensates.
+
+---
+
 ## Running the App
 
 ```bash
@@ -598,8 +750,16 @@ DATABASE_URL=sqlite:////app/data/clerq.db
 REDIS_URL=redis://redis:6379/0
 STORAGE_PATH=/app/data/storage
 SECRET_KEY=change-me-in-production
-OPENROUTER_API_KEY=           ← required for validate_documents node
+OPENROUTER_API_KEY=           ← required for validate_documents node (now per-tenant; set via Settings UI)
 OPENROUTER_DEFAULT_MODEL=google/gemini-2.0-flash-exp
+JWT_SECRET=                    ← optional; falls back to SECRET_KEY if blank
+ACCESS_TOKEN_MINUTES=30
+REFRESH_TOKEN_DAYS=30
+APP_BASE_URL=http://localhost  ← used to build invite links (https://… in prod)
+INVITE_EXPIRY_DAYS=7
+RESEND_API_KEY=                ← https://resend.com — empty → log-only stub mailer
+INVITE_FROM_ADDRESS=noreply@email.genitechs.ca  ← must be on a Resend-verified domain
+INVITE_FROM_NAME=Clerq2
 ```
 
 For local dev outside Docker (running `uvicorn` directly):
@@ -615,6 +775,7 @@ STORAGE_PATH=./data/storage
 
 | Path | Component | Notes |
 |---|---|---|
+| `/login` | `LoginPage` | Email + password (+ MFA when prompted). Public; everything else is wrapped in `ProtectedRoute`. |
 | `/` | `Dashboard` | Widget grid for favorited workflows |
 | `/validate` | `Validate` | Policy-centric run launcher (primary validation UI) |
 | `/reports/:runId` | `ReportPage` | Full-page durable report (paper layout, exportable to PDF/JSON/CSV) — Phase 5 |
@@ -625,7 +786,11 @@ STORAGE_PATH=./data/storage
 | `/library/:id` | `LibraryEditor` | Document type detail |
 | `/policies` | `PoliciesList` | Policies list |
 | `/policies/:id` | `PolicyEditor` | Policy detail |
-| `/settings` | `Settings` | Theme + OpenRouter key |
+| `/settings` | `SettingsLayout` (nested) | Sectioned settings; redirects to `/settings/account` |
+| `/settings/account` | `AccountSection` | Profile, change password, sign out everywhere |
+| `/settings/appearance` | `AppearanceSection` | Theme picker |
+| `/settings/language` | `LanguageSection` | Interface language |
+| `/settings/ai` | `AiSection` | OpenRouter API key + default model |
 | `/mail` | `MailInbox` | Fake email compose + inbox |
 
 **Important:** WorkflowList used to be at `/`. It is now at `/workflows`. All breadcrumb links have been updated. If you add new links to WorkflowList, use `to="/workflows"`, not `to="/"`.
@@ -748,6 +913,11 @@ Policy chaining stays in the Validate section. The user picks an ordered list of
 - **Runs must never get stuck in `pending`**: `trigger_run` (executor.py) calls `_fail_run` and returns a failed run — instead of returning silently — when the workflow has no nodes, contains a cycle (topological sort yields fewer nodes than input), or references an unknown node type. Likewise `mail.inbound` fails the run when no document is attached (a validation needs at least one document). If you add a new run-creation path, ensure every path either enqueues a chain or fails the run; a silent early-return leaves an orphaned `pending` run forever.
 - **Unreadable documents must not false-pass**: `validate_documents` multi-doc mode raises (failing the run) when *no* document in the set yields any readable content (`text_content` or `image_paths`) — e.g. all files are empty/corrupt/unsupported. Without this guard the per-doc merge produces 0 results, which computes to a vacuous `overall="pass"`. Single-doc mode already raised in this case; the guard makes multi-doc consistent.
 - **Dangling edges must not strand a run in `pending`**: `_topological_sort` (executor.py) skips edges whose `source` or `target` is not a node in the graph. A definition with an edge pointing to a deleted/nonexistent node (corrupt or partially-edited workflow) would otherwise `KeyError` inside `trigger_run` *after* the run row was committed — leaving an orphaned `pending` run forever and 500-ing the create-run request. The cycle check still runs after the dangling edges are dropped.
+- **TOTP secret encryption key is derived from `SECRET_KEY`** (`api/app/totp.py`): `Fernet(base64.urlsafe_b64encode(sha256(SECRET_KEY).digest()))`. If `SECRET_KEY` changes in production, all existing TOTP credentials become unreadable — users will need to re-enroll. Keep `SECRET_KEY` stable.
+- **Per-tenant settings: `db.get(AppSetting, key)` is wrong now.** `AppSetting` has composite PK `(tenant_id, key)`, so tenant-aware callers (the routers) read via `db.get(AppSetting, (tenant_id, key))`. Celery node tasks (`validate_documents`, `ai`) look up the run's `tenant_id` first and use the composite key — without this they'd see an empty OpenRouter key.
+- **Celery worker imports `app.models.auth`** in `celery_app.py` (per the documented FK-resolution rule). Forgetting it would crash any task whose ORM touches a tenant FK.
+- **Migrations run in the container entrypoint, not FastAPI startup.** uvicorn `--reload` was re-entering `run_migrations` mid-flight and deadlocking SQLite; the move to `entrypoint.sh` → `python -m app.migrate_cli` → `exec uvicorn` made this go away. Worker shares the entrypoint but won't actually do work because alembic_version is already at head by the time it starts (it `depends_on: api healthy`).
+- **bcrypt 4.x vs passlib.** Passlib's bcrypt backend mis-detects the new bcrypt's version string and raises a misleading "password cannot be longer than 72 bytes" even on a 12-byte password. We call `bcrypt.hashpw` / `bcrypt.checkpw` directly (`app/security.py`), pre-truncating to 72 bytes ourselves. Do not reintroduce passlib without pinning a compatible bcrypt.
 - **Cross-set result rows must carry the DB `requirement`, not the AI's**: in `validate_documents`, per-document (`merged`) rows already set `requirement` from the authoritative `PolicyRule.requirement`, but cross-set rows must do the same (the model tends to leak free text into that field). `review.py._compute_overall` reads `requirement` from the stored result row and treats anything not literally `"optional"` as required — so an **optional** cross-set rule whose AI free-text leaked into `requirement` would wrongly flip the effective verdict to `fail` the moment a reviewer touches the report. Fixed by overwriting `r["requirement"]` with the DB value when building cross-set result rows.
 
 ---
