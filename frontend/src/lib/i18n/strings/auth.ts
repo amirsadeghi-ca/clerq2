@@ -47,6 +47,15 @@ export const en = {
   'account.signOutAll': 'Sign out everywhere',
   'account.signOutAll.confirm': 'This will sign out every device, including this one. Continue?',
 
+  // MFA step on login
+  'auth.mfa.title': 'Two-factor authentication',
+  'auth.mfa.hint': 'Enter the 6-digit code from your authenticator app.',
+  'auth.mfa.recovery.hint': 'Enter one of your 10-character recovery codes.',
+  'auth.mfa.verify': 'Verify',
+  'auth.mfa.useRecovery': 'Use a recovery code instead',
+  'auth.mfa.useTotp': '← Use authenticator app instead',
+  'auth.mfa.back': 'Back to sign in',
+
   // Forgot / reset password
   'auth.forgotPassword': 'Forgot password?',
   'auth.forgotPassword.title': 'Reset your password',
@@ -155,6 +164,15 @@ export const fr = {
   'account.sessions.subtitle': 'Déconnectez tous les appareils, y compris celui-ci.',
   'account.signOutAll': 'Se déconnecter partout',
   'account.signOutAll.confirm': 'Cela déconnectera tous les appareils, y compris celui-ci. Continuer ?',
+
+  // Étape AMF à la connexion
+  'auth.mfa.title': 'Authentification à deux facteurs',
+  'auth.mfa.hint': "Entrez le code à 6 chiffres de votre application d'authentification.",
+  'auth.mfa.recovery.hint': "Entrez l'un de vos codes de récupération à 10 caractères.",
+  'auth.mfa.verify': 'Vérifier',
+  'auth.mfa.useRecovery': 'Utiliser un code de récupération',
+  'auth.mfa.useTotp': "← Utiliser l'application d'authentification",
+  'auth.mfa.back': 'Retour à la connexion',
 
   // Mot de passe oublié / réinitialisation
   'auth.forgotPassword': 'Mot de passe oublié ?',
