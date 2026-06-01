@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, GitBranch, BookOpen, Settings, HelpCircle, Mail, ClipboardCheck, BarChart3, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, GitBranch, BookOpen, Settings, HelpCircle, Mail, ClipboardCheck, BarChart3, LogOut, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { useI18n } from '../context/i18n'
+import { useAuth } from '../context/auth'
+import { APP_VERSION } from '../version'
 
 function NavItem({ to, icon: Icon, label, active }: {
   to: string; icon: LucideIcon; label: string; active: boolean
@@ -24,6 +26,7 @@ function NavItem({ to, icon: Icon, label, active }: {
 export function LeftSidebar() {
   const { pathname } = useLocation()
   const { t } = useI18n()
+  const { user } = useAuth()
   const isDashboard = pathname === '/'
   const isPolicies = pathname === '/validate' || pathname.startsWith('/policies')
   const isWorkflows = pathname === '/workflows' || pathname.startsWith('/workflows/')
@@ -41,8 +44,8 @@ export function LeftSidebar() {
           </svg>
         </div>
         <span className="text-[13px] font-semibold tracking-tight text-[var(--c-text-1)]">Clerq2</span>
-        <span className="ml-auto rounded border border-[var(--c-border-2)] px-1.5 py-0.5 text-[10px] text-[var(--c-text-4)]">
-          {t('brand.beta')}
+        <span className="ml-auto rounded border border-[var(--c-border-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--c-text-4)]">
+          v{APP_VERSION}
         </span>
       </div>
 
@@ -57,13 +60,38 @@ export function LeftSidebar() {
         <NavItem to="/library" icon={BookOpen} label={t('nav.library')} active={isLibrary} />
         <NavItem to="/mail" icon={Mail} label={t('nav.mail')} active={isMail} />
         <NavItem to="/insights" icon={BarChart3} label={t('nav.insights')} active={isInsights} />
+        {user?.is_superadmin && (
+          <NavItem to="/admin" icon={ShieldCheck} label={t('admin.menu')} active={pathname.startsWith('/admin')} />
+        )}
       </div>
 
       {/* Bottom */}
       <div className="flex flex-col gap-px border-t border-[var(--c-border)] p-2">
         <NavItem to="/settings" icon={Settings} label={t('nav.settings')} active={pathname === '/settings'} />
         <NavItem to="/help" icon={HelpCircle} label={t('nav.help')} active={pathname === '/help'} />
+        <AccountBlock />
       </div>
     </aside>
+  )
+}
+
+function AccountBlock() {
+  const { t } = useI18n()
+  const { user, tenant, logout } = useAuth()
+  if (!user) return null
+  return (
+    <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-[var(--c-border)] bg-[var(--c-surface-2)] px-2.5 py-2">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[12px] text-[var(--c-text-1)]">{user.display_name || user.email}</div>
+        <div className="truncate text-[10px] text-[var(--c-text-4)]">{tenant?.name}</div>
+      </div>
+      <button
+        onClick={() => { void logout() }}
+        title={t('auth.signout')}
+        className="rounded p-1 text-[var(--c-text-4)] transition-colors hover:bg-[var(--c-hover-3)] hover:text-[var(--c-text-2)]"
+      >
+        <LogOut size={13} />
+      </button>
+    </div>
   )
 }
