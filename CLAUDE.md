@@ -4,6 +4,8 @@
 
 > **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Clerq2 wordmark. Current version: **1.3.0**.
 
+> **REBUILD AFTER EVERY CHANGE:** After making any code change, always rebuild and restart the affected Docker services so the user sees the result immediately. For frontend changes: `docker compose build frontend && docker compose up -d --no-deps --force-recreate frontend`. For backend/API changes: `docker compose build api worker && docker compose up -d --no-deps --force-recreate api worker`. Never finish a task without confirming the running app reflects the change.
+
 > **IMPLEMENTATION PLAN:** Active multi-phase work is tracked in [`docs/implementation-plan.md`](docs/implementation-plan.md). Read it before starting any new phase to understand what was approved, what's in scope, and the non-negotiable generalization principle.
 
 Clerq2 is a document management platform. The core feature is a visual workflow editor (like n8n) where users design multi-step document processing pipelines, upload files, and run them via a background queue. The MVP workflow is: **Input → PDF to Images → Validate Documents → Output**.
