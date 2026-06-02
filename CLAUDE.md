@@ -2,7 +2,7 @@
 
 > **INSTRUCTION FOR CLAUDE:** After completing any task — no matter how small — update this file to reflect what changed. New files, deleted files, changed conventions, new endpoints, new node types, new environment variables, new gotchas, design decisions. Do this before marking the task done. This file is the single source of truth for the project; keeping it current is part of every task.
 
-> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Interpret wordmark. Current version: **3.3.0**.
+> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Interpret wordmark. Current version: **3.3.1**.
 
 > **REBRAND (Clerq2 → Interpret):** The product was renamed from **Clerq2** to **Interpret** in v2.0.0. Every user-facing string, the marketing site, the SQLite file (`clerq.db` → `interpret.db`, auto-migrated on startup by `api/entrypoint.sh`), the fake-email domain (`clerq.local` → `interpret.local`), Docker image/project names (`interpret-*`, via `name: interpret` in `docker-compose.yml`), and config/env defaults were updated. **Deliberately NOT renamed** (real infrastructure identities that would break things): the repo directory (`/Users/amirsadeghi/clerq2`, `/home/amix/clerq2`, `/srv/clerq2`), the GitHub remote (`amirsadeghi-ca/clerq2.git`), and the nas server-side files (`~/clerq2-autodeploy.sh`, `~/clerq2-deploy.log`, `~/clerq2-secrets-backup`, `/var/log/clerq2-deploy.log`). The production hostname references were switched to `interpret.genitechs.ca`; the old `clerq2.genitechs.ca` is still treated as production (sidebar/tab "dev" detection accepts both) so it keeps working as an alias until DNS is updated. A small **"dev" badge** now shows in the sidebar and a `[dev]` tab-title prefix appears on any non-production host.
 
@@ -884,7 +884,7 @@ REDIS_URL=redis://redis:6379/0
 STORAGE_PATH=/app/data/storage
 SECRET_KEY=change-me-in-production
 OPENROUTER_API_KEY=           ← required for validate_documents node (now per-tenant; set via Settings UI)
-OPENROUTER_DEFAULT_MODEL=google/gemini-2.0-flash-exp
+OPENROUTER_DEFAULT_MODEL=google/gemini-2.5-flash   ← MUST be a model OpenRouter currently serves & that supports vision. NEVER use a `-exp`/`-preview` model as the default: experimental models get pulled and then every validation 404s with "No endpoints found for <model>". Model resolves as: validate node `model` config → tenant `openrouter_default_model` app_setting → this env default.
 JWT_SECRET=                    ← optional; falls back to SECRET_KEY if blank
 ACCESS_TOKEN_MINUTES=30
 REFRESH_TOKEN_DAYS=30

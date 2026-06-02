@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     storage_path: str = "./data/storage"
     secret_key: str = "change-me-in-production"
     openrouter_api_key: str = ""
-    openrouter_default_model: str = "google/gemini-2.0-flash-exp"
+    openrouter_default_model: str = "google/gemini-2.5-flash"
 
     # Auth
     jwt_secret: str = ""  # falls back to secret_key if blank
