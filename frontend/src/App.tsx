@@ -5,6 +5,7 @@ import { I18nProvider } from './context/i18n'
 import { AuthProvider, useAuth } from './context/auth'
 import { RunProvider, useRunContext } from './context/run'
 import { RunStatusPanel } from './components/RunStatusPanel'
+import { ReadinessBanner } from './components/ReadinessBanner'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Dashboard } from './pages/Dashboard'
 import { CasesPage } from './pages/CasesPage'
@@ -52,6 +53,7 @@ export default function App() {
             <AuthProvider>
               <RunProvider>
                 <div className="flex h-screen flex-col overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
+                  <ReadinessBanner />
                   <div className="flex min-h-0 flex-1 overflow-hidden">
                     <Routes>
                       <Route path="/login" element={<LoginPage />} />

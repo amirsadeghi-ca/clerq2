@@ -29,4 +29,25 @@ docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --f
 # 4. Prune dangling images so the disk doesn't fill on a home box.
 docker image prune -f >/dev/null 2>&1 || true
 
+# 5. Smoke tests — run against a disposable test DB; failures are logged but
+#    do NOT abort the deploy (the app is already up; we want to know the result).
+COMPOSE_PROD="docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml"
+DB_URL="postgresql+psycopg://interpret:interpret@postgres:5432/interpret_test"
+
+echo "[deploy] ensuring interpret_test database exists..."
+$COMPOSE_PROD exec -T postgres \
+  psql -U interpret -d interpret \
+  -c "CREATE DATABASE interpret_test" 2>/dev/null \
+  || true   # already exists
+
+echo "[deploy] running smoke tests..."
+if $COMPOSE_PROD run --rm \
+    -e "DATABASE_URL=${DB_URL}" \
+    --entrypoint pytest \
+    api tests/smoke/ -q --tb=short 2>&1 | tee -a "$HOME/clerq2-deploy.log"; then
+  echo "[deploy] smoke tests PASSED"
+else
+  echo "[deploy] smoke tests FAILED — deployment is live but degraded, check $HOME/clerq2-deploy.log" >&2
+fi
+
 echo "[deploy] done. current commit: $(git rev-parse --short HEAD)"

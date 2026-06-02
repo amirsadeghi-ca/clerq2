@@ -2,7 +2,7 @@
 
 > **INSTRUCTION FOR CLAUDE:** After completing any task — no matter how small — update this file to reflect what changed. New files, deleted files, changed conventions, new endpoints, new node types, new environment variables, new gotchas, design decisions. Do this before marking the task done. This file is the single source of truth for the project; keeping it current is part of every task.
 
-> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Interpret wordmark. Current version: **3.3.1**.
+> **VERSIONING:** The app version lives in **`frontend/src/version.ts`** (`APP_VERSION` string). **Bump it on every commit that changes user-facing behaviour.** Use semver: `PATCH` for bug fixes / copy / style tweaks; `MINOR` for new features; `MAJOR` for breaking changes or full redesigns. The version is displayed in the left sidebar next to the Interpret wordmark. Current version: **3.4.0**.
 
 > **REBRAND (Clerq2 → Interpret):** The product was renamed from **Clerq2** to **Interpret** in v2.0.0. Every user-facing string, the marketing site, the SQLite file (`clerq.db` → `interpret.db`, auto-migrated on startup by `api/entrypoint.sh`), the fake-email domain (`clerq.local` → `interpret.local`), Docker image/project names (`interpret-*`, via `name: interpret` in `docker-compose.yml`), and config/env defaults were updated. **Deliberately NOT renamed** (real infrastructure identities that would break things): the repo directory (`/Users/amirsadeghi/clerq2`, `/home/amix/clerq2`, `/srv/clerq2`), the GitHub remote (`amirsadeghi-ca/clerq2.git`), and the nas server-side files (`~/clerq2-autodeploy.sh`, `~/clerq2-deploy.log`, `~/clerq2-secrets-backup`, `/var/log/clerq2-deploy.log`). The production hostname references were switched to `interpret.genitechs.ca`; the old `clerq2.genitechs.ca` is still treated as production (sidebar/tab "dev" detection accepts both) so it keeps working as an alias until DNS is updated. A small **"dev" badge** now shows in the sidebar and a `[dev]` tab-title prefix appears on any non-production host.
 
@@ -524,7 +524,7 @@ The linear-Celery-`chain` engine was replaced by a **durable, DB-as-source-of-tr
 
 **New node types:** `condition` (structured predicate `{field,op,value}`, no eval → `Branch(live_handles=["true"|"false"])`; the other edge is pruned + its sub-branch transitively skipped — handles must be `id="true"/"false"`) and `completeness_gate` (`{required_doc_types,timeout_days}` → `Suspend` until the case's docs cover the required types or the timeout fires; the cases doc-attach endpoint wakes it via `engine.signal_event("document_added", case_id)`). Showcase workflow: `samples/demo-workflow/seed.py` (run via `docker compose exec -T api python - < samples/demo-workflow/seed.py`). **Editor UX:** these are presented in plain language for non-technical users — **Decision** shows a "When the validation result is [Conforme/Non conforme/Information manquante]" dropdown (+ an Advanced field/op/value escape hatch) and its card reads "If result is …" with **Yes/No** branch labels (engine handle ids stay `true`/`false`); **Wait for documents** shows document-type **checkboxes pulled by name from the Library** (writing `required_doc_types` ids behind the scenes) + "Give up after N days". The node palette + config panel are `overflow-y-auto` (they scroll — a fixed-height clip bug was fixed when the palette grew to 10 items).
 
-**Services + tests.** `docker-compose.yml` now has `postgres` + `beat` (Celery beat → `engine.sweep`). Rebuild after engine/handler changes: `docker compose build api worker beat && docker compose up -d --force-recreate api worker beat`. Run tests: once `docker compose exec postgres psql -U interpret -d interpret -c "CREATE DATABASE interpret_test"`, then `docker compose run --rm -e DATABASE_URL=postgresql+psycopg://interpret:interpret@postgres:5432/interpret_test --entrypoint pytest api -q`.
+**Services + tests.** `docker-compose.yml` now has `postgres` + `beat` (Celery beat → `engine.sweep`). Rebuild after engine/handler changes: `docker compose build api worker beat && docker compose up -d --force-recreate api worker beat`. Run tests: once `docker compose exec postgres psql -U interpret -d interpret -c "CREATE DATABASE interpret_test"`, then `docker compose run --rm -e DATABASE_URL=postgresql+psycopg://interpret:interpret@postgres:5432/interpret_test --entrypoint pytest api -q`. **Smoke tests only:** `bash scripts/run-smoke-tests.sh` (creates the test DB automatically, runs `tests/smoke/` against the full HTTP stack — 18 tests covering health/readiness, auth, document upload, validate flow, and cases). The deploy script (`deploy/deploy.sh`) runs the smoke suite after every production deploy and logs results to `~/clerq2-deploy.log`.
 
 ---
 
@@ -654,6 +654,11 @@ workflow_run_steps (
 
 ```
 GET  /api/health                                          → {status: "ok"}
+GET  /api/health/readiness                                → {ok, checks{database,redis,openrouter,email,secret_key}}
+                                                            No auth required. Each check: {ok, reason?, warning_only?}.
+                                                            Hard failures (db/redis/openrouter/secret_key) set ok=false.
+                                                            Email is warning_only=true (app still works without Resend).
+                                                            Frontend polls this once on login and shows an amber/red banner.
 
 GET  /api/workflows/                                      → Workflow[]   (non-archived by default)
 GET  /api/workflows/?include_archived=true                → Workflow[]   (all)

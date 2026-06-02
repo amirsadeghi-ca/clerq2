@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import workflows, documents, runs, sse, files, library, policies, settings, validate, mail, review, reference_lists, metrics, auth, admin, tenant, invites, mfa
 from app.routers.cases import router as cases_router
+from app.routers.health import router as health_router
 
 app = FastAPI(title="Interpret API", version="0.1.0")
 
@@ -33,8 +34,4 @@ app.include_router(validate.router, prefix="/api/validate", tags=["validate"])
 app.include_router(mail.router, prefix="/api/mail", tags=["mail"])
 app.include_router(metrics.router, prefix="/api/metrics", tags=["metrics"])  # operational indicators / suivi
 app.include_router(cases_router, prefix="/api/cases", tags=["cases"])
-
-
-@app.get("/api/health")
-def health():
-    return {"status": "ok"}
+app.include_router(health_router, prefix="/api/health", tags=["health"])
