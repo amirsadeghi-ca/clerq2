@@ -138,9 +138,28 @@ def start_run(db, *, tenant_id: int, run_id: int, definition: dict,
         return []
     run.definition_snapshot = definition
 
+    # Auto-seed recipient fields so {{contact_email}} / {{sender_email}} /
+    # {{contact_name}} resolve in send_email / ai node templates — for any run
+    # fired from a case or inbound mail. Explicit context_overrides still win.
+    contact: dict = {}
+    sender = getattr(run, "sender_email", None)
+    if sender:
+        contact["sender_email"] = sender
+        contact["contact_email"] = sender
+    if getattr(run, "case_id", None):
+        from app.models.case import Case
+        case = db.get(Case, run.case_id)
+        if case:
+            if case.contact_email:
+                contact["contact_email"] = case.contact_email
+                contact.setdefault("sender_email", case.contact_email)
+            if case.contact_name:
+                contact["contact_name"] = case.contact_name
+
     seed = {"_run": {
         "documents": _serialize_documents(documents),
         "tenant_id": tenant_id,
+        **contact,
         **(context_overrides or {}),
     }}
 

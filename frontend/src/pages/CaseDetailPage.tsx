@@ -3,9 +3,10 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, FileText, CheckCircle2, XCircle, AlertCircle, RefreshCw,
   Send, X, Mail, StickyNote, Play, ExternalLink, ChevronDown, ChevronUp,
-  Circle, Loader2, Menu, Clock,
+  ChevronRight, ShieldCheck, Circle, Loader2, Menu, Clock,
 } from 'lucide-react'
 import { LeftSidebar } from '../components/LeftSidebar'
+import { CaseReviewDrawer } from '../components/CaseReviewDrawer'
 import { useI18n } from '../context/i18n'
 import { useCase, useUpdateCase, useRunCase, useReplyCase, useAddNote, type TimelineEvent } from '../api/cases'
 import { useRunContext } from '../context/run'
@@ -53,9 +54,10 @@ function formatDateShort(iso: string | null | undefined) {
 
 // ── Checklist ────────────────────────────────────────────────────────────────
 
-function RequirementsPanel({ checklist, docCount }: {
+function RequirementsPanel({ checklist, docCount, onOpenReview }: {
   checklist: Array<{ document_type: { id: number; name: string }; required: boolean; status: string }>
   docCount: number
+  onOpenReview?: (docTypeId: number) => void
 }) {
   const { t } = useI18n()
   if (checklist.length === 0) return null
@@ -86,35 +88,53 @@ function RequirementsPanel({ checklist, docCount }: {
 
       {/* Items */}
       <div className="flex flex-col gap-1.5">
-        {checklist.map(item => (
-          <div key={item.document_type.id} className={`flex items-start gap-2.5 rounded-md px-2.5 py-2 ${
+        {checklist.map(item => {
+          const clickable = !!onOpenReview && item.status !== 'missing'
+          const inner = (
+            <>
+              <div className="mt-0.5 shrink-0">
+                {item.status === 'satisfied' ? (
+                  <CheckCircle2 size={14} className="text-emerald-400" />
+                ) : item.status === 'partial' ? (
+                  <AlertCircle  size={14} className="text-amber-400" />
+                ) : (
+                  <XCircle      size={14} className="text-red-400" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-medium text-[var(--c-text-1)]">{item.document_type.name}</p>
+                <p className={`text-[10px] font-medium uppercase tracking-wide ${
+                  item.status === 'satisfied' ? 'text-emerald-500'  :
+                  item.status === 'partial'   ? 'text-amber-500'    :
+                  'text-red-500'
+                }`}>
+                  {item.status === 'satisfied' ? 'Received' :
+                   item.status === 'partial'   ? 'Issues found' :
+                   item.required               ? 'Missing — required' : 'Missing — optional'}
+                </p>
+              </div>
+              {clickable && (
+                <span className={`mt-0.5 flex shrink-0 items-center gap-0.5 text-[10px] font-medium ${
+                  item.status === 'partial' ? 'text-amber-400' : 'text-[var(--c-text-5)] opacity-0 transition-opacity group-hover:opacity-100'
+                }`}>
+                  {item.status === 'partial' ? 'Review' : 'Open'} <ChevronRight size={11} />
+                </span>
+              )}
+            </>
+          )
+          const cls = `group flex items-start gap-2.5 rounded-md px-2.5 py-2 text-left ${
             item.status === 'satisfied' ? 'bg-emerald-500/5' :
             item.status === 'partial'   ? 'bg-amber-500/5' :
             'bg-red-500/5'
-          }`}>
-            <div className="mt-0.5 shrink-0">
-              {item.status === 'satisfied' ? (
-                <CheckCircle2 size={14} className="text-emerald-400" />
-              ) : item.status === 'partial' ? (
-                <AlertCircle  size={14} className="text-amber-400" />
-              ) : (
-                <XCircle      size={14} className="text-red-400" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-medium text-[var(--c-text-1)]">{item.document_type.name}</p>
-              <p className={`text-[10px] font-medium uppercase tracking-wide ${
-                item.status === 'satisfied' ? 'text-emerald-500'  :
-                item.status === 'partial'   ? 'text-amber-500'    :
-                'text-red-500'
-              }`}>
-                {item.status === 'satisfied' ? 'Received' :
-                 item.status === 'partial'   ? 'Issues found' :
-                 item.required               ? 'Missing — required' : 'Missing — optional'}
-              </p>
-            </div>
-          </div>
-        ))}
+          } ${clickable ? 'w-full cursor-pointer transition-colors hover:bg-[var(--c-hover-2)]' : ''}`
+          return clickable ? (
+            <button key={item.document_type.id} onClick={() => onOpenReview!(item.document_type.id)} className={cls}>
+              {inner}
+            </button>
+          ) : (
+            <div key={item.document_type.id} className={cls}>{inner}</div>
+          )
+        })}
       </div>
     </div>
   )
@@ -337,8 +357,8 @@ function ActivityFeed({ events }: { events: TimelineEvent[] }) {
 // ── Verdict banner ────────────────────────────────────────────────────────────
 
 function VerdictBanner({
-  overall, latestRunId, nextStep,
-}: { overall: string; latestRunId?: number; nextStep?: string | null }) {
+  overall, latestRunId, nextStep, onReview,
+}: { overall: string; latestRunId?: number; nextStep?: string | null; onReview?: () => void }) {
   const vc = verdictConfig(overall)
   if (!vc) return null
   return (
@@ -355,14 +375,26 @@ function VerdictBanner({
           <p className={`text-[15px] font-semibold ${vc.text}`}>{vc.label}</p>
           <p className="mt-0.5 text-[12px] text-[var(--c-text-3)]">{vc.sublabel}</p>
         </div>
-        {latestRunId && (
-          <Link
-            to={`/reports/${latestRunId}`}
-            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-2 text-[12px] font-medium text-[var(--c-text-2)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-1)]"
-          >
-            <ExternalLink size={12} /> View full report
-          </Link>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {onReview && overall !== 'pass' && (
+            <button
+              onClick={onReview}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-semibold text-white transition-colors ${
+                overall === 'fail' ? 'bg-red-600 hover:bg-red-500' : 'bg-amber-600 hover:bg-amber-500'
+              }`}
+            >
+              <ShieldCheck size={12} /> Review &amp; resolve
+            </button>
+          )}
+          {latestRunId && (
+            <Link
+              to={`/reports/${latestRunId}`}
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--c-border-2)] bg-[var(--c-surface)] px-3 py-2 text-[12px] font-medium text-[var(--c-text-2)] transition-colors hover:border-[var(--c-border-3)] hover:text-[var(--c-text-1)]"
+            >
+              <ExternalLink size={12} /> View full report
+            </Link>
+          )}
+        </div>
       </div>
       {nextStep && (
         <div className={`flex items-center gap-2 border-t px-4 py-2.5 text-[12px] ${
@@ -499,11 +531,12 @@ function InlineComposer({ contactEmail, caseId, onSent }: ComposerProps) {
 
 type CaseData = NonNullable<ReturnType<typeof useCase>['data']>
 
-function CaseSidebar({ caseData, onStatusChange, onRun, isRunning }: {
+function CaseSidebar({ caseData, onStatusChange, onRun, isRunning, onOpenReview }: {
   caseData: CaseData
   onStatusChange: (s: string) => void
   onRun: () => void
   isRunning: boolean
+  onOpenReview?: (docTypeId?: number | null) => void
 }) {
   const sidebarIsClosed = caseData.status.startsWith('closed_')
   const hasTarget = !!(caseData.policy_id || caseData.workflow_id)
@@ -544,7 +577,11 @@ function CaseSidebar({ caseData, onStatusChange, onRun, isRunning }: {
       {/* Requirements */}
       {caseData.checklist.length > 0 && (
         <div>
-          <RequirementsPanel checklist={caseData.checklist} docCount={caseData.documents.length} />
+          <RequirementsPanel
+            checklist={caseData.checklist}
+            docCount={caseData.documents.length}
+            onOpenReview={onOpenReview ? (id) => onOpenReview(id) : undefined}
+          />
         </div>
       )}
 
@@ -559,7 +596,12 @@ function CaseSidebar({ caseData, onStatusChange, onRun, isRunning }: {
           </div>
           <div className="flex flex-col gap-1.5">
             {caseData.documents.map(doc => (
-              <div key={doc.id} className="flex items-center gap-2 rounded-lg border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-2">
+              <button
+                key={doc.id}
+                onClick={() => onOpenReview?.(null)}
+                disabled={!onOpenReview}
+                className="group flex w-full items-center gap-2 rounded-lg border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-2 text-left transition-colors enabled:hover:border-[var(--c-border-3)] disabled:cursor-default"
+              >
                 <FileText size={12} className="shrink-0 text-[var(--c-text-5)]" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12px] font-medium text-[var(--c-text-2)]">{doc.original_filename}</p>
@@ -567,7 +609,10 @@ function CaseSidebar({ caseData, onStatusChange, onRun, isRunning }: {
                     {doc.source === 'mail' ? 'Received by email' : doc.source === 'upload' ? 'Uploaded manually' : doc.source}
                   </p>
                 </div>
-              </div>
+                {onOpenReview && (
+                  <ChevronRight size={12} className="shrink-0 text-[var(--c-text-5)] opacity-0 transition-opacity group-hover:opacity-100" />
+                )}
+              </button>
             ))}
           </div>
         </div>
@@ -674,6 +719,10 @@ export function CaseDetailPage() {
   // Mobile panel
   const [mobilePanel, setMobilePanel] = useState<'activity' | 'overview'>('activity')
 
+  // Inline review drawer
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewDocType, setReviewDocType] = useState<number | null>(null)
+
   const LoadingState = () => (
     <div className="flex h-full w-full overflow-hidden bg-[var(--c-bg)] text-[var(--c-text-1)]">
       {sidebarOpen && <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={closeSidebar} />}
@@ -707,9 +756,17 @@ export function CaseDetailPage() {
     .reverse()
     .find(e => e.kind === 'run' && e.status === 'completed' && e.last_result?.kind === 'verdict')
   const latestOverall    = latestVerdictRun?.last_result?.overall
+  const latestRunId      = latestVerdictRun?.id
   const sc               = statusConfig(caseData.status)
   const title            = caseData.contact_name || caseData.contact_email || caseData.name || `Case #${caseData.id}`
   const isClosed         = caseData.status.startsWith('closed_')
+
+  // Open the inline review drawer (only meaningful once a validation run exists)
+  const openReview = (docTypeId?: number | null) => {
+    if (!latestRunId) return
+    setReviewDocType(docTypeId ?? null)
+    setReviewOpen(true)
+  }
 
   // Compute "What to do next" guidance
   const cd = caseData  // narrow for closure typing
@@ -754,7 +811,7 @@ export function CaseDetailPage() {
         {/* ── Verdict banner (full-width, only when result exists) ── */}
         {latestOverall && (
           <div className="shrink-0 border-b border-[var(--c-border)] px-4 py-3 md:px-5">
-            <VerdictBanner overall={latestOverall} latestRunId={latestVerdictRun?.id} nextStep={nextStep} />
+            <VerdictBanner overall={latestOverall} latestRunId={latestVerdictRun?.id} nextStep={nextStep} onReview={() => openReview(null)} />
           </div>
         )}
 
@@ -816,6 +873,7 @@ export function CaseDetailPage() {
               onStatusChange={s => updateCase.mutate({ id: caseData.id, status: s })}
               onRun={handleRun}
               isRunning={runCase.isPending}
+              onOpenReview={latestRunId ? openReview : undefined}
             />
           </div>
 
@@ -848,6 +906,16 @@ export function CaseDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* Inline review drawer */}
+      {reviewOpen && latestRunId && (
+        <CaseReviewDrawer
+          runId={latestRunId}
+          caseId={caseData.id}
+          initialDocTypeId={reviewDocType}
+          onClose={() => setReviewOpen(false)}
+        />
+      )}
     </div>
   )
 }
